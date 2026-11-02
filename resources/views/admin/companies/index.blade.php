@@ -10,8 +10,13 @@
   <div class="toolbar">
     <form class="search" method="get" action="{{ route('admin.companies.index') }}" role="search">
       <input class="input" type="search" name="q" value="{{ $search }}" placeholder="Search company name or email" aria-label="Search companies">
+      <select class="input" name="status" aria-label="Filter company status" style="max-width:160px">
+        <option value="">All statuses</option>
+        <option value="active" {{ $status === 'active' ? 'selected' : '' }}>Active</option>
+        <option value="suspended" {{ $status === 'suspended' ? 'selected' : '' }}>Suspended</option>
+      </select>
       <button class="btn" type="submit">Search</button>
-      @if($search !== '')<a class="btn" href="{{ route('admin.companies.index') }}">Clear</a>@endif
+      @if($search !== '' || $status !== '')<a class="btn" href="{{ route('admin.companies.index') }}">Clear</a>@endif
     </form>
     <span class="muted">{{ $companies->total() }} companies</span>
   </div>

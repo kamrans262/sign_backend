@@ -10,8 +10,13 @@
   <div class="toolbar">
     <form method="get" action="{{ route('admin.users.index') }}" class="search" role="search">
       <input class="input" type="search" name="q" value="{{ $search }}" placeholder="Search by name or email" aria-label="Search users">
+      <select class="input" name="status" aria-label="Filter user status" style="max-width:160px">
+        <option value="">All statuses</option>
+        <option value="active" {{ $status === 'active' ? 'selected' : '' }}>Active</option>
+        <option value="inactive" {{ $status === 'inactive' ? 'selected' : '' }}>Inactive</option>
+      </select>
       <button class="btn" type="submit">Search</button>
-      @if($search !== '')<a class="btn" href="{{ route('admin.users.index') }}">Clear</a>@endif
+      @if($search !== '' || $status !== '')<a class="btn" href="{{ route('admin.users.index') }}">Clear</a>@endif
     </form>
     <span class="muted">{{ $users->total() }} accounts</span>
   </div>

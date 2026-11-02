@@ -17,13 +17,18 @@ class UserController extends Controller
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('q', ''));
+        $status = (string) $request->query('status', '');
         $query = User::query()->withCount('companies')->latest();
+        if (in_array($status, ['active', 'inactive'], true)) {
+            $query->where('is_active', $status === 'active');
+        }
         if ($search !== '') {
             $query->where(fn ($q) => $q->where('name', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'));
         }
         return view('admin.users.index', [
             'users' => $query->paginate(15)->withQueryString(),
             'search' => $search,
+            'status' => $status,
         ]);
     }
 

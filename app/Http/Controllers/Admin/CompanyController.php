@@ -17,13 +17,18 @@ class CompanyController extends Controller
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('q', ''));
+        $status = (string) $request->query('status', '');
         $query = Company::query()->with('owner:id,name,email')->withCount('users')->latest();
+        if (in_array($status, ['active', 'suspended'], true)) {
+            $query->where('status', $status);
+        }
         if ($search !== '') {
             $query->where(fn ($q) => $q->where('name', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'));
         }
         return view('admin.companies.index', [
             'companies' => $query->paginate(15)->withQueryString(),
             'search' => $search,
+            'status' => $status,
         ]);
     }
 

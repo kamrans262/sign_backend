@@ -295,4 +295,33 @@ class M1FoundationTest extends TestCase
         $this->withHeader('X-Company-Id', (string) $company->id)
             ->getJson('/api/v1/company-context')->assertForbidden();
     }
+
+    public function test_user_management_filters_active_and_inactive_accounts(): void
+    {
+        $admin = User::factory()->create(['name' => 'Administrator', 'is_platform_admin' => true]);
+        User::factory()->create(['name' => 'Active Member', 'is_active' => true]);
+        User::factory()->create(['name' => 'Inactive Member', 'is_active' => false]);
+
+        $this->actingAs($admin)->get('/admin/users?status=active')
+            ->assertOk()->assertSee('Active Member')->assertDontSee('Inactive Member');
+        $this->get('/admin/users?status=inactive')
+            ->assertOk()->assertSee('Inactive Member')->assertDontSee('Active Member');
+    }
+
+    public function test_company_management_filters_active_and_suspended_companies(): void
+    {
+        $admin = User::factory()->create(['is_platform_admin' => true]);
+        $owner = User::factory()->create();
+        $company = $this->companyFor($owner);
+        Company::create([
+            'owner_user_id' => $owner->id,
+            'name' => 'Suspended Garage',
+            'country_iso_code' => 'CH',
+            'status' => 'suspended',
+        ]);
+        $this->actingAs($admin)->get('/admin/companies?status=active')
+            ->assertOk()->assertSee($company->name)->assertDontSee('Suspended Garage');
+        $this->get('/admin/companies?status=suspended')
+            ->assertOk()->assertSee('Suspended Garage')->assertDontSee($company->name);
+    }
 }
