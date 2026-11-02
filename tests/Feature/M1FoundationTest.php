@@ -160,4 +160,24 @@ class M1FoundationTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
         $this->assertFalse($user->fresh()->is_active);
     }
+
+    public function test_company_role_enforcement_blocks_regular_members(): void
+    {
+        $owner = User::factory()->create();
+        $company = $this->companyFor($owner);
+        $member = User::factory()->create();
+        $company->users()->attach($member->id, ['role' => 'member', 'status' => 'active']);
+
+        \Illuminate\Support\Facades\Route::middleware([
+            'auth:sanctum', 'active.user', 'company.access', 'company.role:owner,admin',
+        ])->get('/api/m1-test-company-manage', fn () => response()->json(['ok' => true]));
+
+        Sanctum::actingAs($member);
+        $this->withHeader('X-Company-Id', (string) $company->id)
+            ->getJson('/api/m1-test-company-manage')->assertForbidden();
+
+        Sanctum::actingAs($owner);
+        $this->withHeader('X-Company-Id', (string) $company->id)
+            ->getJson('/api/m1-test-company-manage')->assertOk();
+    }
 }

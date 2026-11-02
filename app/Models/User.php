@@ -19,6 +19,11 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $attributes = [
+        'is_active' => true,
+        'is_platform_admin' => false,
+    ];
+
     protected function casts(): array
     {
         return [
