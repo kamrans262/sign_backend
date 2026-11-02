@@ -221,3 +221,25 @@ td .strong { font-size:13px; }
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; }
 }
+
+/* Shared page refinements used by the responsive management forms. */
+.panel-header-hint { color:var(--muted); font-size:12px; line-height:1.5; margin:4px 0 0; }
+.panel-header h2 { margin:0; }
+.panel-header .pill .app-icon { width:14px; height:14px; }
+.required-mark { color:var(--primary); font-weight:700; }
+.preference-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.preference-card { display:flex; align-items:flex-start; gap:12px; min-width:0; cursor:pointer; padding:18px; border:1px solid var(--border-light); border-radius:var(--radius); background:var(--surface); transition:border-color .15s,background-color .15s; }
+.preference-card:hover { border-color:rgba(22,98,130,.36); background:var(--surface-alt); }
+.preference-card input { margin:4px 0 0; width:18px; height:18px; flex:none; accent-color:var(--primary); }
+.preference-copy { min-width:0; display:flex; flex-direction:column; gap:5px; line-height:1.45; }
+.preference-copy strong { color:var(--ink); font-size:14px; font-weight:600; }
+.preference-copy span { color:var(--muted); font-size:12px; }
+.account-meta { margin:20px 0 0; }
+.membership-table { margin-top:24px; }
+.search select.input { flex:0 1 180px; min-width:145px; }
+.search .btn { flex:none; }
+@media(max-width:700px) {
+  .preference-grid { grid-template-columns:1fr; }
+  .panel-header { align-items:flex-start; }
+  .panel-header .pill { margin-left:auto; }
+}

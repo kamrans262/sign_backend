@@ -7,7 +7,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#FFFFFF">
   <title>@yield('title', 'Overview') | Sign2Digital Admin</title>
-  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css']) }}?v=3">
+  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=3">
 </head>
 <body class="admin-body">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -15,7 +15,7 @@
   <aside class="app-sidebar" aria-label="Administrator sidebar">
     <div class="sidebar-top">
       <a class="brand" href="{{ route('admin.dashboard') }}" aria-label="Sign2Digital Admin Home">
-        <img class="brand-logo" src="{{ route('admin.asset', ['file' => 'logo.png']) }}" alt="Sign2Digital" width="165" height="55">
+        <img class="brand-logo" src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" alt="Sign2Digital" width="165" height="55">
       </a>
       <span class="workspace-chip"><x-admin.icon name="shield" /> Platform Console</span>
     </div>
@@ -52,7 +52,7 @@
   <div class="app-workspace">
     <header class="app-header">
       <a class="mobile-brand" href="{{ route('admin.dashboard') }}" aria-label="Sign2Digital Admin Home">
-        <img src="{{ route('admin.asset', ['file' => 'logo.png']) }}" alt="Sign2Digital" width="160" height="53">
+        <img src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" alt="Sign2Digital" width="160" height="53">
       </a>
       <div class="header-left">
         <span class="header-section">Sign2Digital</span>

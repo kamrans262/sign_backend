@@ -7,12 +7,12 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#FFFFFF">
   <title>Administrator Login | Sign2Digital</title>
-  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css']) }}?v=3">
+  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=3">
 </head>
 <body class="login-page">
 <main class="login-wrap">
   <a class="login-logo" href="{{ route('admin.login') }}" aria-label="Sign2Digital administrator login">
-    <img src="{{ route('admin.asset', ['file' => 'logo.png']) }}" alt="Sign2Digital" width="210" height="70">
+    <img src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" alt="Sign2Digital" width="210" height="70">
   </a>
   <section class="login-panel" aria-labelledby="login-heading">
     <div class="login-heading-icon"><x-admin.icon name="shield" /></div>
