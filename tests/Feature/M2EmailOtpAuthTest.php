@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\EmailOtpCodeMail;
 use App\Models\EmailOtpChallenge;
 use App\Models\User;
+use App\Services\EmailOtpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Hash;
@@ -63,7 +64,7 @@ class M2EmailOtpAuthTest extends TestCase
         $challenge = EmailOtpChallenge::firstOrFail();
         $this->assertNotEquals($this->latestCode(), $challenge->code_hash);
         $this->assertSame(
-            AppServicesEmailOtpService::codeVerifier($challenge->id, $this->latestCode()),
+            EmailOtpService::codeVerifier($challenge->id, $this->latestCode()),
             $challenge->code_hash
         );
         $this->assertDatabaseHas('users', ['email' => 'new@example.test', 'country_iso_code' => 'CH', 'dialing_code' => '+41']);

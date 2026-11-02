@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\EmailOtpChallenge;
 use App\Services\EmailOtpService;
 use App\Support\AuditLogger;
 use Illuminate\Http\JsonResponse;
@@ -161,7 +162,7 @@ class MobileAuthController extends Controller
             $user->tokens()->delete();
             // Resetting a password must also cancel all outstanding OTP
             // challenges issued under the previous credentials.
-            AppModelsEmailOtpChallenge::query()
+            EmailOtpChallenge::query()
                 ->where('user_id', $user->id)
                 ->whereNull('consumed_at')
                 ->update(['consumed_at' => now()]);
