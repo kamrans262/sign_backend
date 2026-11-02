@@ -7,17 +7,31 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#FFFFFF">
   <title>Administrator Login | Sign2Digital</title>
-  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=3">
+  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=4">
 </head>
-<body class="login-page">
-<main class="login-wrap">
+<body class="login-page hope-ui-adapt">
+<main class="hope-auth-shell">
+  <aside class="hope-auth-hero" aria-label="Sign2Digital platform information">
+    <div class="hope-auth-content">
+      <img src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" alt="Sign2Digital" width="205" class="hope-hero-logo">
+      <span class="hope-auth-kicker"><x-admin.icon name="shield" /> Sign2Digital Platform</span>
+      <h2>Manage your business platform with confidence.</h2>
+      <p>Companies, members, and platform activity — securely managed in one place.</p>
+      <div class="hope-auth-benefits">
+        <span><x-admin.icon name="check-circle" /> Companies and accounts</span>
+        <span><x-admin.icon name="check-circle" /> Permission management</span>
+        <span><x-admin.icon name="check-circle" /> Audit history</span>
+      </div>
+    </div>
+  </aside>
+  <div class="hope-auth-form"><div class="login-wrap">
   <a class="login-logo" href="{{ route('admin.login') }}" aria-label="Sign2Digital administrator login">
     <img src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" alt="Sign2Digital" width="210" height="70">
   </a>
   <section class="login-panel" aria-labelledby="login-heading">
     <div class="login-heading-icon"><x-admin.icon name="shield" /></div>
-    <h1 id="login-heading">Admin Panel</h1>
-    <p class="login-subtitle">Sign in to manage your Sign2Digital platform.</p>
+    <h1 id="login-heading">Welcome Back</h1>
+    <p class="login-subtitle">Sign in to your Sign2Digital Admin Panel.</p>
 
     @if($errors->any())
       <div class="alert error" role="alert"><x-admin.icon name="alert-circle" /><span>{{ $errors->first() }}</span></div>
@@ -38,6 +52,6 @@
     </form>
   </section>
   <p class="login-help"><x-admin.icon name="lock" /> Authorized platform administrators only.</p>
-</main>
+</div></div></main>
 </body>
 </html>

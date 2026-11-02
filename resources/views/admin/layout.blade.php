@@ -7,9 +7,9 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#FFFFFF">
   <title>@yield('title', 'Overview') | Sign2Digital Admin</title>
-  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=3">
+  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=4">
 </head>
-<body class="admin-body">
+<body class="admin-body hope-ui-adapt">
 <a class="skip-link" href="#main-content">Skip to content</a>
 <div class="app-shell">
   <aside class="app-sidebar" aria-label="Administrator sidebar">
@@ -19,10 +19,10 @@
       </a>
       <span class="workspace-chip"><x-admin.icon name="shield" /> Platform Console</span>
     </div>
-    <div class="sidebar-heading">MANAGEMENT</div>
+    <div class="sidebar-heading">WORKSPACE</div>
     <nav class="side-nav" aria-label="Administration">
       <a class="side-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.dashboard')) aria-current="page" @endif>
-        <x-admin.icon name="overview" /><span>Overview</span>
+        <x-admin.icon name="overview" /><span>Dashboard</span>
       </a>
       <a class="side-link {{ request()->routeIs('admin.companies.*') ? 'active' : '' }}" href="{{ route('admin.companies.index') }}" @if(request()->routeIs('admin.companies.*')) aria-current="page" @endif>
         <x-admin.icon name="building" /><span>Companies</span>
@@ -30,11 +30,13 @@
       <a class="side-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}" @if(request()->routeIs('admin.users.*')) aria-current="page" @endif>
         <x-admin.icon name="users" /><span>Users</span>
       </a>
+    </nav><div class="hope-nav-divider"></div><div class="sidebar-heading">SECURITY</div><nav class="side-nav" aria-label="Security">
       <a class="side-link {{ request()->routeIs('admin.audit') ? 'active' : '' }}" href="{{ route('admin.audit') }}" @if(request()->routeIs('admin.audit')) aria-current="page" @endif>
         <x-admin.icon name="history" /><span>Audit Trail</span>
       </a>
     </nav>
     <div class="sidebar-bottom">
+      <div class="hope-sidebar-support"><span class="hope-support-icon"><x-admin.icon name="shield" /></span><div><strong>Secure Console</strong><small>Administrative activity is logged</small></div></div>
       <div class="account-card">
         <div class="avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(trim(auth()->user()->name), 0, 1)) }}</div>
         <div class="account-copy">
@@ -55,12 +57,12 @@
         <img src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" alt="Sign2Digital" width="160" height="53">
       </a>
       <div class="header-left">
-        <span class="header-section">Sign2Digital</span>
+        <span class="header-section">Administration</span>
         <span class="header-separator">/</span>
-        <span class="header-location">Admin Panel</span>
+        <span class="header-location">@yield('breadcrumb', 'Overview')</span>
       </div>
       <div class="header-right">
-        <span class="header-admin-label">Administrator</span>
+        <a class="hope-top-action" href="{{ route('admin.companies.create') }}"><x-admin.icon name="plus" /> Add Company</a><span class="header-admin-label">Administrator</span>
         <span class="header-avatar" title="{{ auth()->user()->name }}" aria-label="Signed in as {{ auth()->user()->name }}">{{ mb_strtoupper(mb_substr(trim(auth()->user()->name), 0, 1)) }}</span>
         <form action="{{ route('admin.logout') }}" method="post" class="header-logout">
           @csrf
@@ -72,7 +74,7 @@
     <details class="mobile-menu">
       <summary><x-admin.icon name="menu" /><span>Menu</span><x-admin.icon name="chevron-down" /></summary>
       <nav aria-label="Mobile administration">
-        <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><x-admin.icon name="overview" /> Overview</a>
+        <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><x-admin.icon name="overview" /> Dashboard</a>
         <a href="{{ route('admin.companies.index') }}" class="{{ request()->routeIs('admin.companies.*') ? 'active' : '' }}"><x-admin.icon name="building" /> Companies</a>
         <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Users</a>
         <a href="{{ route('admin.audit') }}" class="{{ request()->routeIs('admin.audit') ? 'active' : '' }}"><x-admin.icon name="history" /> Audit Trail</a>
@@ -82,7 +84,7 @@
     <main id="main-content" class="main" tabindex="-1">
       <header class="top">
         <div class="page-heading">
-          <p class="eyebrow">Admin Panel <span class="eyebrow-separator">/</span> @yield('breadcrumb', 'Overview')</p>
+          <p class="eyebrow">Home <span class="eyebrow-separator">/</span> @yield('breadcrumb', 'Overview')</p>
           <h1 class="page-title">@yield('heading', 'Overview')</h1>
           @hasSection('description') <p class="page-description">@yield('description')</p> @endif
         </div>
