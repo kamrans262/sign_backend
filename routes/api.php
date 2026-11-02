@@ -17,7 +17,7 @@ Route::prefix('v1/auth')->middleware('throttle:5,1')->group(function (): void {
 
 
 Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
-    Route::post('/v1/auth/logout', [AppHttpControllersApiMobileAuthController::class, 'logout']);
+    Route::post('/v1/auth/logout', [\App\Http\Controllers\Api\MobileAuthController::class, 'logout']);
     // Existing route retained for older clients.
     Route::get('/user', fn (Request $request) => $request->user());
 
