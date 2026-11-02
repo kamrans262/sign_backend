@@ -5,7 +5,19 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => response()->json(['status' => 'ok', 'app' => 'Sign2Digital']));
 
+// Mobile authentication only. Administrator sign-in remains unchanged.
+Route::prefix('v1/auth')->middleware('throttle:5,1')->group(function (): void {
+    Route::post('/register', [\App\Http\Controllers\Api\MobileAuthController::class, 'register']);
+    Route::post('/login', [\App\Http\Controllers\Api\MobileAuthController::class, 'login']);
+    Route::post('/password/forgot', [\App\Http\Controllers\Api\MobileAuthController::class, 'forgotPassword']);
+    Route::post('/otp/resend', [\App\Http\Controllers\Api\MobileAuthController::class, 'resend']);
+    Route::post('/otp/verify', [\App\Http\Controllers\Api\MobileAuthController::class, 'verify']);
+    Route::post('/password/reset', [\App\Http\Controllers\Api\MobileAuthController::class, 'resetPassword']);
+});
+
+
 Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
+    Route::post('/v1/auth/logout', [AppHttpControllersApiMobileAuthController::class, 'logout']);
     // Existing route retained for older clients.
     Route::get('/user', fn (Request $request) => $request->user());
 

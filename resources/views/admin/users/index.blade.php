@@ -26,19 +26,20 @@
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th scope="col">Name / Email</th><th scope="col">Companies</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Action</th></tr></thead>
+      <thead><tr><th scope="col">Name / Email</th><th scope="col">Companies</th><th scope="col">Role</th><th scope="col">Email</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Action</th></tr></thead>
       <tbody>
         @forelse($users as $user)
           <tr>
             <td><div class="strong">{{ $user->name }}</div><div class="muted">{{ $user->email }}</div></td>
             <td>{{ $user->companies_count }}</td>
             <td><span class="pill">{{ $user->is_platform_admin ? 'Platform Admin' : 'App User' }}</span></td>
+            <td><span class="pill {{ $user->email_verified_at ? 'green' : 'amber' }}">{{ $user->email_verified_at ? 'Verified' : 'Pending OTP' }}</span></td>
             <td><span class="pill {{ $user->is_active ? 'green' : 'red' }}"><span class="pill-dot"></span> {{ $user->is_active ? 'Active' : 'Inactive' }}</span></td>
             <td class="muted">{{ $user->created_at?->format('M d, Y') }}</td>
             <td><a class="btn btn-small btn-outline" href="{{ route('admin.users.edit', $user) }}">Manage <x-admin.icon name="arrow-right" /></a></td>
           </tr>
         @empty
-          <tr><td colspan="6" class="empty">No matching users. Try a different search.</td></tr>
+          <tr><td colspan="7" class="empty">No matching users. Try a different search.</td></tr>
         @endforelse
       </tbody>
     </table>

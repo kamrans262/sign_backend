@@ -43,3 +43,41 @@ Artisan::command('sign:admin {email}', function (string $email): void {
     });
     $this->info('Administrator access provisioned. Use /admin/login over HTTPS.');
 })->purpose('Interactively create or enable the first platform administrator');
+
+
+// Provision the requested demo account without storing credentials in Git.
+// Run: php artisan sign:demo-account <email>
+// The password is requested interactively and is never echoed or committed.
+Artisan::command('sign:demo-account {email}', function (string $email): void {
+    $email = strtolower(trim($email));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $this->error('Invalid email.');
+        return;
+    }
+    if (User::query()->where('email', $email)->exists()) {
+        $this->error('Account already exists. Nothing was changed.');
+        return;
+    }
+
+    $password = (string) $this->secret('Demo password (8+ chars, upper/lowercase, number, symbol)');
+    $valid = Validator::make(['password' => $password], [
+        'password' => ['required', \Illuminate\Validation\Rules\Password::min(8)->mixedCase()->numbers()->symbols()],
+    ]);
+    if ($valid->fails()) {
+        $this->error('Password must include mixed case, a number, and a symbol.');
+        return;
+    }
+
+    DB::transaction(function () use ($email, $password): void {
+        $user = User::create([
+            'name' => 'Sign2Digital Demo',
+            'email' => $email,
+            'password' => $password,
+        ]);
+        // This is a securely provisioned demo account. Every MOBILE login still
+        // requires fresh email OTP; no bypass or static OTP exists.
+        $user->forceFill(['email_verified_at' => now(), 'is_active' => true])->save();
+        AuditLogger::record('mobile.demo_account_provisioned', subject: $user);
+    });
+    $this->info('Demo account created; mobile sign-in requires email OTP.');
+})->purpose('Securely provision a mobile test account with interactive password');

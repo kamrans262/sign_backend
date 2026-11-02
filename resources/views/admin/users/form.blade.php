@@ -70,7 +70,7 @@
       </label>
     </div>
     @if($editing)
-      <p class="hint account-meta">User #{{ $user->id }} · Created {{ $user->created_at?->format('M d, Y') }} · {{ $user->companies()->count() }} company memberships</p>
+      <p class="hint account-meta">Email verification: {{ $user->email_verified_at ? 'Verified' : 'Pending OTP' }} · User #{{ $user->id }} · Created {{ $user->created_at?->format('M d, Y') }} · {{ $user->companies()->count() }} company memberships</p>
     @endif
     <div class="form-actions">
       <button class="btn btn-primary" type="submit"><x-admin.icon name="check-circle" /> {{ $editing ? 'Save Changes' : 'Create User' }}</button>
