@@ -37,5 +37,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/companies/{company}/members', [CompanyController::class, 'addMember'])->name('companies.members.store');
         Route::delete('/companies/{company}/members/{user}', [CompanyController::class, 'removeMember'])->name('companies.members.destroy');
         Route::get('/audit', AuditController::class)->name('audit');
+        Route::get('/mobile-auth', AppHttpControllersAdminMobileAuthController::class)->name('mobile-auth');
     });
 });

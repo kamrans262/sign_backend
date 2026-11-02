@@ -31,6 +31,9 @@
         <x-admin.icon name="users" /><span>Users</span>
       </a>
     </nav><div class="hope-nav-divider"></div><div class="sidebar-heading">SECURITY</div><nav class="side-nav" aria-label="Security">
+      <a class="side-link {{ request()->routeIs('admin.mobile-auth') ? 'active' : '' }}" href="{{ route('admin.mobile-auth') }}" @if(request()->routeIs('admin.mobile-auth')) aria-current="page" @endif>
+        <x-admin.icon name="shield" /><span>Mobile Authentication</span>
+      </a>
       <a class="side-link {{ request()->routeIs('admin.audit') ? 'active' : '' }}" href="{{ route('admin.audit') }}" @if(request()->routeIs('admin.audit')) aria-current="page" @endif>
         <x-admin.icon name="history" /><span>Audit Trail</span>
       </a>
@@ -77,6 +80,7 @@
         <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><x-admin.icon name="overview" /> Dashboard</a>
         <a href="{{ route('admin.companies.index') }}" class="{{ request()->routeIs('admin.companies.*') ? 'active' : '' }}"><x-admin.icon name="building" /> Companies</a>
         <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Users</a>
+        <a href="{{ route('admin.mobile-auth') }}" class="{{ request()->routeIs('admin.mobile-auth') ? 'active' : '' }}"><x-admin.icon name="shield" /> Mobile Authentication</a>
         <a href="{{ route('admin.audit') }}" class="{{ request()->routeIs('admin.audit') ? 'active' : '' }}"><x-admin.icon name="history" /> Audit Trail</a>
       </nav>
     </details>
