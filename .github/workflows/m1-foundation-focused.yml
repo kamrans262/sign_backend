@@ -1,0 +1,39 @@
+name: M1 foundation focused verification
+
+on:
+  push:
+    branches:
+      - feature/m1-foundation-admin-2026-11-03
+    paths:
+      - '.github/workflows/m1-foundation-focused.yml'
+      - 'app/**'
+      - 'bootstrap/app.php'
+      - 'database/migrations/**'
+      - 'routes/**'
+      - 'resources/views/admin/**'
+      - 'tests/Feature/M1FoundationTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  m1-targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl
+          coverage: none
+      - name: Install locked PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare temporary test environment
+        run: cp .env.example .env && php artisan key:generate
+      - name: Lint only M1 PHP changes
+        run: find app/Http/Controllers/Admin app/Http/Middleware app/Models app/Support routes -type f -name '*.php' -print0 | xargs -0 -n1 php -l && php -l bootstrap/app.php && php -l database/migrations/2026_11_03_000001_create_sign_foundation_tables.php
+      - name: Run only M1 Laravel tests
+        run: php artisan test --filter M1FoundationTest
