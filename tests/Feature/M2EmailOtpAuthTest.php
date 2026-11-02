@@ -225,4 +225,54 @@ class M2EmailOtpAuthTest extends TestCase
         $this->get('/admin/mobile-auth')->assertOk()->assertSee('Mobile Authentication');
         $this->assertDatabaseCount('email_otp_challenges', 0);
     }
+
+    public function test_authenticated_mobile_profile_reads_and_updates_real_account_data(): void
+    {
+        $user = $this->verifiedUser();
+        \Laravel\Sanctum\Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/me')->assertOk()
+            ->assertJsonPath('data.user.email', $user->email);
+
+        $this->patchJson('/api/v1/me', [
+            'name' => 'Updated Name',
+            'email' => $user->email,
+            'phone_number' => '0791234567',
+            'country_iso_code' => 'CH',
+            'dialing_code' => '+41',
+        ])->assertOk()->assertJsonPath('data.user.name', 'Updated Name');
+
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'name' => 'Updated Name', 'country_iso_code' => 'CH']);
+        $this->patchJson('/api/v1/me', [
+            'name' => 'Unexpected Email Change',
+            'email' => 'attacker@example.test',
+        ])->assertUnprocessable();
+        $this->assertSame($user->email, $user->fresh()->email);
+    }
+
+    public function test_mobile_logout_revokes_the_current_bearer(): void
+    {
+        $user = $this->verifiedUser();
+        $token = $user->createToken('Test phone')->plainTextToken;
+        $this->withToken($token)->postJson('/api/v1/auth/logout')
+            ->assertOk()->assertJsonPath('message', 'Signed out.');
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_otp_admin_view_never_displays_codes_or_code_hashes(): void
+    {
+        $user = $this->verifiedUser();
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email, 'password' => 'TestPass@262',
+        ])->assertOk();
+        $challenge = EmailOtpChallenge::firstOrFail();
+        $code = $this->latestCode();
+
+        $admin = User::factory()->create(['is_platform_admin' => true]);
+        $this->actingAs($admin)->get('/admin/mobile-auth')
+            ->assertOk()
+            ->assertSee($user->email)
+            ->assertDontSee($code)
+            ->assertDontSee($challenge->code_hash);
+    }
 }
