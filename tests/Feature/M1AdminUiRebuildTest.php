@@ -13,11 +13,19 @@ class M1AdminUiRebuildTest extends TestCase
 
     public function test_stylesheet_and_approved_logo_are_accessible_without_login(): void
     {
-        $this->get('/admin/assets/admin.css')
+        $stylesheet = $this->get('/admin/assets/admin.css')
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertSee('--primary:#166282;', false)
-            ->assertSee('.app-shell', false);
+            ->assertHeader('Content-Type', 'text/css; charset=UTF-8');
+
+        // BinaryFileResponse is deliberately streamed; assert its real file.
+        $this->assertSame(
+            realpath(public_path('admin-assets/admin.css')),
+            realpath($stylesheet->baseResponse->getFile()->getPathname())
+        );
+        $css = file_get_contents($stylesheet->baseResponse->getFile()->getPathname());
+        $this->assertStringContainsString('--primary:#166282;', $css);
+        $this->assertStringContainsString('.app-shell', $css);
 
         $this->get('/admin/assets/logo.png')
             ->assertOk()

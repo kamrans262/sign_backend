@@ -97,7 +97,7 @@ class M1FoundationTest extends TestCase
         $this->post('/admin/login', [
             'email' => $admin->email, 'password' => 'password123456',
         ])->assertRedirect(route('admin.dashboard'));
-        $this->get('/admin')->assertOk()->assertSee('Platform overview');
+        $this->get('/admin')->assertOk()->assertSee('Platform Overview');
         $this->assertDatabaseHas('audit_logs', ['action' => 'platform_admin.login', 'actor_user_id' => $admin->id]);
     }
 
@@ -187,13 +187,13 @@ class M1FoundationTest extends TestCase
         $owner = User::factory()->create();
         $company = $this->companyFor($owner);
 
-        $this->actingAs($admin)->get('/admin/users')->assertOk()->assertSee('User management');
-        $this->get('/admin/users/create')->assertOk()->assertSee('Add a new account');
-        $this->get('/admin/users/'.$owner->id.'/edit')->assertOk()->assertSee('Manage account');
-        $this->get('/admin/companies')->assertOk()->assertSee('Company management');
-        $this->get('/admin/companies/create')->assertOk()->assertSee('Create a company');
-        $this->get('/admin/companies/'.$company->id.'/edit')->assertOk()->assertSee('Manage company');
-        $this->get('/admin/audit')->assertOk()->assertSee('Audit trail');
+        $this->actingAs($admin)->get('/admin/users')->assertOk()->assertSee('User Management');
+        $this->get('/admin/users/create')->assertOk()->assertSee('Add New User');
+        $this->get('/admin/users/'.$owner->id.'/edit')->assertOk()->assertSee('Manage User');
+        $this->get('/admin/companies')->assertOk()->assertSee('Company Management');
+        $this->get('/admin/companies/create')->assertOk()->assertSee('Add New Company');
+        $this->get('/admin/companies/'.$company->id.'/edit')->assertOk()->assertSee('Manage Company');
+        $this->get('/admin/audit')->assertOk()->assertSee('Audit Trail');
     }
 
     public function test_admin_can_manage_members_and_suspended_companies_stay_inaccessible(): void
