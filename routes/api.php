@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', fn () => response()->json(['status' => 'ok', 'app' => 'Sign2Digital']));
 
 // Mobile authentication only. Administrator sign-in remains unchanged.
-Route::prefix('v1/auth')->middleware('throttle:5,1')->group(function (): void {
+Route::prefix('v1/auth')->middleware('throttle:mobile-auth')->group(function (): void {
     Route::post('/register', [\App\Http\Controllers\Api\MobileAuthController::class, 'register']);
     Route::post('/login', [\App\Http\Controllers\Api\MobileAuthController::class, 'login']);
     Route::post('/password/forgot', [\App\Http\Controllers\Api\MobileAuthController::class, 'forgotPassword']);

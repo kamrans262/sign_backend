@@ -23,6 +23,15 @@ class EmailOtpService
             throw new \InvalidArgumentException('Invalid OTP request.');
         }
 
+        $recent = EmailOtpChallenge::query()
+            ->where('user_id', $user->id)
+            ->where('purpose', $purpose)
+            ->latest()
+            ->first();
+        if ($recent && $recent->created_at->greaterThan(now()->subSeconds(self::RESEND_AFTER))) {
+            throw ValidationException::withMessages(['email' => 'Please wait 60 seconds before requesting another code.']);
+        }
+
         // These codes exist only in request memory and in the mail; never log
         // them, return them through an API, or store them in plain text.
         $code = (string) random_int(100000, 999999);

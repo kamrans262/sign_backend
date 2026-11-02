@@ -14,6 +14,7 @@ on:
       - 'routes/api.php'
       - 'routes/web.php'
       - 'bootstrap/app.php'
+      - 'app/Providers/AppServiceProvider.php'
       - 'routes/console.php'
       - 'resources/views/mail/**'
       - 'resources/views/admin/mobile-auth.blade.php'
