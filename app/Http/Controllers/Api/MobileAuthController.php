@@ -10,7 +10,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -76,7 +75,9 @@ class MobileAuthController extends Controller
     {
         $data = $request->validate(['email' => ['required', 'email', 'max:255']]);
         $user = User::query()->where('email', strtolower(trim($data['email'])))->where('is_active', true)->first();
-        $challengeId = (string) Str::uuid();
+        // Unknown addresses receive a genuine decoy challenge; this keeps
+        // subsequent verify/resend responses indistinguishable.
+        $challengeId = $user ? null : $this->otp->issueAnonymousReset()->id;
         if ($user) {
             $challenge = $this->otp->issue($user, 'reset');
             // New recovery requests invalidate outstanding reset grants.

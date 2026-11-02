@@ -76,15 +76,51 @@ class EmailOtpService
         return $challenge;
     }
 
+    /**
+     * An anonymous reset request must be indistinguishable from a real reset,
+     * including the resend cooldown and response shape. No email is sent.
+     */
+    public function issueAnonymousReset(): EmailOtpChallenge
+    {
+        $challenge = new EmailOtpChallenge();
+        $challenge->id = (string) Str::uuid();
+        $challenge->user_id = null;
+        $challenge->purpose = 'reset';
+        $challenge->code_hash = self::codeVerifier($challenge->id, (string) random_int(100000, 999999));
+        $challenge->attempts = 0;
+        $challenge->expires_at = now()->addSeconds(self::EXPIRES_IN);
+        $challenge->save();
+
+        return $challenge;
+    }
+
     public function resend(string $challengeId): EmailOtpChallenge
     {
         $old = EmailOtpChallenge::query()->with('user')->find($challengeId);
-        if (!$old || $old->consumed_at || !$old->user?->is_active) {
+        if (!$old || $old->consumed_at) {
             throw ValidationException::withMessages(['challenge_id' => 'Invalid or expired verification request.']);
         }
 
         if ($old->created_at->greaterThan(now()->subSeconds(self::RESEND_AFTER))) {
             throw ValidationException::withMessages(['challenge_id' => 'Please wait 60 seconds before requesting a new code.']);
+        }
+
+        // Anonymous reset requests use a real stored, non-deliverable challenge
+        // so their resend behavior never discloses whether an email exists.
+        if ($old->user_id === null && $old->purpose === 'reset') {
+            return DB::transaction(function () use ($challengeId): EmailOtpChallenge {
+                $locked = EmailOtpChallenge::query()->lockForUpdate()->find($challengeId);
+                if (!$locked || $locked->consumed_at) {
+                    throw ValidationException::withMessages(['challenge_id' => 'Invalid or expired verification request.']);
+                }
+                $locked->consumed_at = now();
+                $locked->save();
+                return $this->issueAnonymousReset();
+            });
+        }
+
+        if (!$old->user?->is_active) {
+            throw ValidationException::withMessages(['challenge_id' => 'Invalid or expired verification request.']);
         }
 
         return $this->issue($old->user, $old->purpose);

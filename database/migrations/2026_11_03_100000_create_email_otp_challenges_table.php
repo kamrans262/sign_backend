@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('email_otp_challenges', function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnDelete();
             $table->string('purpose', 24);
             $table->string('code_hash', 255);
             $table->unsignedTinyInteger('attempts')->default(0);
