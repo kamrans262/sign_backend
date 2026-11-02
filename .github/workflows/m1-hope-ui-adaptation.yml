@@ -1,0 +1,40 @@
+name: M1 Hope UI adaptation focused verification
+
+on:
+  push:
+    branches:
+      - feature/m1-hope-ui-sign2digital-2026-11-03
+    paths:
+      - '.github/workflows/m1-hope-ui-adaptation.yml'
+      - 'resources/views/admin/**'
+      - 'public/admin-assets/admin.css'
+      - 'tests/Feature/M1**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: s2d-m1-hope-ui-adaptation
+  cancel-in-progress: true
+
+jobs:
+  check-admin-views-and-flows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_sqlite, sqlite3, mbstring, openssl
+          coverage: none
+      - name: Install project dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Temporary test environment
+        run: cp .env.example .env && php artisan key:generate
+      - name: Compile every Blade template
+        run: php artisan view:cache
+      - name: Verify only M1 administrator pages and workflows
+        run: php artisan test --filter=M1

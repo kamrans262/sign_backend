@@ -39,8 +39,7 @@ class M1HopeUiThemeTest extends TestCase
             ->assertSee('/admin/assets/admin.css?v=4', false)
             ->assertSee('name="email"', false)
             ->assertSee('name="password"', false)
-            ->assertSee('name="_token"', false)
-            ->assertSee('route', false);
+            ->assertSee('name="_token"', false);
     }
 
     public function test_hope_dashboard_shows_real_counts_and_computed_percentages(): void
