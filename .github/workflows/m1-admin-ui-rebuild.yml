@@ -1,0 +1,44 @@
+name: Sign2Digital M1 admin UI rebuild focused verification
+
+on:
+  push:
+    branches:
+      - feature/m1-admin-ui-rebuild-2026-11-03
+    paths:
+      - '.github/workflows/m1-admin-ui-rebuild.yml'
+      - 'resources/views/admin/**'
+      - 'resources/views/components/admin/**'
+      - 'public/admin-assets/**'
+      - 'routes/web.php'
+      - 'tests/Feature/M1AdminUiRebuildTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign2digital-m1-admin-ui-rebuild
+  cancel-in-progress: true
+
+jobs:
+  focused-admin-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl
+          coverage: none
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare disposable test application
+        run: cp .env.example .env && php artisan key:generate
+      - name: Check PHP syntax
+        run: php -l routes/web.php && php -l tests/Feature/M1AdminUiRebuildTest.php
+      - name: Compile the actual Blade templates
+        run: php artisan view:cache
+      - name: Focused M1 foundation and admin UI tests
+        run: php artisan test --filter=M1
