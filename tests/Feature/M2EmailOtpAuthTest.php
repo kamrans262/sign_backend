@@ -62,7 +62,10 @@ class M2EmailOtpAuthTest extends TestCase
         $this->assertMatchesRegularExpression('/^[0-9]{6}$/', $this->latestCode());
         $challenge = EmailOtpChallenge::firstOrFail();
         $this->assertNotEquals($this->latestCode(), $challenge->code_hash);
-        $this->assertTrue(Hash::check($this->latestCode(), $challenge->code_hash));
+        $this->assertSame(
+            AppServicesEmailOtpService::codeVerifier($challenge->id, $this->latestCode()),
+            $challenge->code_hash
+        );
         $this->assertDatabaseHas('users', ['email' => 'new@example.test', 'country_iso_code' => 'CH', 'dialing_code' => '+41']);
     }
 

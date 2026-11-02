@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -80,6 +79,8 @@ class MobileAuthController extends Controller
         $challengeId = (string) Str::uuid();
         if ($user) {
             $challenge = $this->otp->issue($user, 'reset');
+            // New recovery requests invalidate outstanding reset grants.
+            DB::table('password_reset_tokens')->where('email', $user->email)->delete();
             $challengeId = $challenge->id;
             AuditLogger::record('mobile.auth.password_reset_requested', $user, $user, request: $request);
         }
@@ -127,7 +128,7 @@ class MobileAuthController extends Controller
 
         // No mobile token is created before successful OTP verification.
         $device = trim((string) ($data['device_name'] ?? 'Sign2Digital Mobile'));
-        $token = $user->createToken($device)->plainTextToken;
+        $token = $user->createToken($device, ['*'], now()->addDays(30))->plainTextToken;
         AuditLogger::record('mobile.auth.otp_verified', $user, $user, metadata: ['purpose' => $purpose], request: $request);
         return response()->json(['data' => [
             'purpose' => $purpose,
@@ -157,6 +158,12 @@ class MobileAuthController extends Controller
             $user->password = $data['password'];
             $user->save();
             $user->tokens()->delete();
+            // Resetting a password must also cancel all outstanding OTP
+            // challenges issued under the previous credentials.
+            AppModelsEmailOtpChallenge::query()
+                ->where('user_id', $user->id)
+                ->whereNull('consumed_at')
+                ->update(['consumed_at' => now()]);
             DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
             AuditLogger::record('mobile.auth.password_reset_completed', $user, $user, request: $request);
         });

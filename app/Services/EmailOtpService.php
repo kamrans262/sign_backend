@@ -6,7 +6,6 @@ use App\Mail\EmailOtpCodeMail;
 use App\Models\EmailOtpChallenge;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -23,19 +22,27 @@ class EmailOtpService
             throw new \InvalidArgumentException('Invalid OTP request.');
         }
 
-        $recent = EmailOtpChallenge::query()
-            ->where('user_id', $user->id)
-            ->where('purpose', $purpose)
-            ->latest()
-            ->first();
-        if ($recent && $recent->created_at->greaterThan(now()->subSeconds(self::RESEND_AFTER))) {
-            throw ValidationException::withMessages(['email' => 'Please wait 60 seconds before requesting another code.']);
-        }
-
-        // These codes exist only in request memory and in the mail; never log
-        // them, return them through an API, or store them in plain text.
+        // Serialize issues per account to prevent two simultaneous requests
+        // from generating two different codes and invalidating each other.
+        // Only a keyed verifier is stored: six-digit codes must not be
+        // recoverable by an offline brute-force attack against a database dump.
         $code = (string) random_int(100000, 999999);
         $challenge = DB::transaction(function () use ($user, $purpose, $code): EmailOtpChallenge {
+            $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->first();
+            if (!$lockedUser || !$lockedUser->is_active) {
+                throw ValidationException::withMessages(['email' => 'Unable to request a verification code.']);
+            }
+
+            $recent = EmailOtpChallenge::query()
+                ->where('user_id', $user->id)
+                ->where('purpose', $purpose)
+                ->latest()
+                ->first();
+
+            if ($recent && $recent->created_at->greaterThan(now()->subSeconds(self::RESEND_AFTER))) {
+                throw ValidationException::withMessages(['email' => 'Please wait 60 seconds before requesting another code.']);
+            }
+
             EmailOtpChallenge::query()
                 ->where('user_id', $user->id)
                 ->where('purpose', $purpose)
@@ -46,14 +53,25 @@ class EmailOtpService
             $challenge->id = (string) Str::uuid();
             $challenge->user_id = $user->id;
             $challenge->purpose = $purpose;
-            $challenge->code_hash = Hash::make($code);
+            $challenge->code_hash = self::codeVerifier($challenge->id, $code);
             $challenge->attempts = 0;
             $challenge->expires_at = now()->addSeconds(self::EXPIRES_IN);
             $challenge->save();
+
             return $challenge;
         });
 
-        Mail::to($user->email)->send(new EmailOtpCodeMail($code, $purpose));
+        try {
+            Mail::to($user->email)->send(new EmailOtpCodeMail($code, $purpose));
+        } catch (\Throwable $error) {
+            // A failed send is not a successful code request; remove the
+            // unusable code so the person can retry without waiting a minute.
+            EmailOtpChallenge::query()->whereKey($challenge->id)->delete();
+            report($error);
+            throw ValidationException::withMessages([
+                'email' => 'Unable to send a verification email. Please try again.',
+            ]);
+        }
 
         return $challenge;
     }
@@ -85,7 +103,7 @@ class EmailOtpService
             }
 
             $challenge->attempts++;
-            $correct = Hash::check($code, $challenge->code_hash);
+            $correct = hash_equals($challenge->code_hash, self::codeVerifier($challenge->id, $code));
             if (!$correct) {
                 $challenge->save();
                 // Do not throw from inside the transaction: attempts must commit.
@@ -117,6 +135,15 @@ class EmailOtpService
 
             return $result;
         });
+    }
+
+    public static function codeVerifier(string $challengeId, string $code): string
+    {
+        $key = (string) config('app.key');
+        if ($key === '') {
+            throw new \RuntimeException('Missing application key for OTP verification.');
+        }
+        return hash_hmac('sha256', $challengeId.'|'.$code, $key);
     }
 
     public static function challengeResponse(EmailOtpChallenge $challenge): array
