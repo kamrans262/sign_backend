@@ -15,6 +15,7 @@ Artisan::command('sign:admin {email}', function (string $email): void {
     }
 
     $user = User::query()->where('email', $email)->first();
+    $name = null;
     if (!$user) {
         $name = trim((string) $this->ask('Administrator full name'));
         if ($name === '' || mb_strlen($name) > 255) {
