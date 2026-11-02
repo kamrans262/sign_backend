@@ -5,44 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>@yield('title', 'Dashboard') | Sign2Digital Admin</title>
-  <link rel="stylesheet" href="{{ asset('admin-assets/admin.css') }}">
+  <meta name="theme-color" content="#FFFFFF">
+  <title>@yield('title', 'Overview') | Sign2Digital Admin</title>
+  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css']) }}?v=3">
 </head>
-<body>
-<div class="shell">
-  <aside class="sidebar">
-    <a class="brand" href="{{ route('admin.dashboard') }}"><img class="brand-logo" src="{{ asset('admin-assets/logo.png') }}" alt="Sign2Digital"></a>
-    <div>
-      <div class="side-label">Administration</div>
-      <nav class="nav" aria-label="Main navigation">
-        <a class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}"><span class="nav-icon">▦</span> Overview</a>
-        <a class="{{ request()->routeIs('admin.companies.*') ? 'active' : '' }}" href="{{ route('admin.companies.index') }}"><span class="nav-icon">▣</span> Companies</a>
-        <a class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}"><span class="nav-icon">♙</span> Users</a>
-        <a class="{{ request()->routeIs('admin.audit') ? 'active' : '' }}" href="{{ route('admin.audit') }}"><span class="nav-icon">≡</span> Audit Trail</a>
-      </nav>
+<body class="admin-body">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="app-shell">
+  <aside class="app-sidebar" aria-label="Administrator sidebar">
+    <div class="sidebar-top">
+      <a class="brand" href="{{ route('admin.dashboard') }}" aria-label="Sign2Digital Admin Home">
+        <img class="brand-logo" src="{{ route('admin.asset', ['file' => 'logo.png']) }}" alt="Sign2Digital" width="165" height="55">
+      </a>
+      <span class="workspace-chip"><x-admin.icon name="shield" /> Platform Console</span>
     </div>
-    <div class="side-bottom">
-      <div class="user-name">{{ auth()->user()->name }}</div>
-      <div class="user-role">Platform administrator</div>
-      <form action="{{ route('admin.logout') }}" method="post" style="margin-top:14px">
+    <div class="sidebar-heading">MANAGEMENT</div>
+    <nav class="side-nav" aria-label="Administration">
+      <a class="side-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.dashboard')) aria-current="page" @endif>
+        <x-admin.icon name="overview" /><span>Overview</span>
+      </a>
+      <a class="side-link {{ request()->routeIs('admin.companies.*') ? 'active' : '' }}" href="{{ route('admin.companies.index') }}" @if(request()->routeIs('admin.companies.*')) aria-current="page" @endif>
+        <x-admin.icon name="building" /><span>Companies</span>
+      </a>
+      <a class="side-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}" @if(request()->routeIs('admin.users.*')) aria-current="page" @endif>
+        <x-admin.icon name="users" /><span>Users</span>
+      </a>
+      <a class="side-link {{ request()->routeIs('admin.audit') ? 'active' : '' }}" href="{{ route('admin.audit') }}" @if(request()->routeIs('admin.audit')) aria-current="page" @endif>
+        <x-admin.icon name="history" /><span>Audit Trail</span>
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="account-card">
+        <div class="avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(trim(auth()->user()->name), 0, 1)) }}</div>
+        <div class="account-copy">
+          <strong>{{ auth()->user()->name }}</strong>
+          <span>Platform Administrator</span>
+        </div>
+      </div>
+      <form action="{{ route('admin.logout') }}" method="post">
         @csrf
-        <button class="btn" type="submit">Sign out</button>
+        <button class="btn btn-outline logout-btn" type="submit"><x-admin.icon name="logout" /> Sign out</button>
       </form>
     </div>
   </aside>
-  <main class="main">
-    <header class="top">
-      <div><p class="eyebrow">Admin Panel / @yield('breadcrumb', 'Overview')</p><h1 class="page-title">@yield('heading', 'Overview')</h1></div>
-      <div class="actions">@yield('header_actions')</div>
+
+  <div class="app-workspace">
+    <header class="app-header">
+      <a class="mobile-brand" href="{{ route('admin.dashboard') }}" aria-label="Sign2Digital Admin Home">
+        <img src="{{ route('admin.asset', ['file' => 'logo.png']) }}" alt="Sign2Digital" width="160" height="53">
+      </a>
+      <div class="header-left">
+        <span class="header-section">Sign2Digital</span>
+        <span class="header-separator">/</span>
+        <span class="header-location">Admin Panel</span>
+      </div>
+      <div class="header-right">
+        <span class="header-admin-label">Administrator</span>
+        <span class="header-avatar" title="{{ auth()->user()->name }}" aria-label="Signed in as {{ auth()->user()->name }}">{{ mb_strtoupper(mb_substr(trim(auth()->user()->name), 0, 1)) }}</span>
+        <form action="{{ route('admin.logout') }}" method="post" class="header-logout">
+          @csrf
+          <button class="icon-button" title="Sign out" aria-label="Sign out" type="submit"><x-admin.icon name="logout" /></button>
+        </form>
+      </div>
     </header>
-    @if (session('success'))
-      <div class="alert success" role="status">{{ session('success') }}</div>
-    @endif
-    @if ($errors->any())
-      <div class="alert error" role="alert"><ul class="error-list">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-    @endif
-    @yield('content')
-  </main>
+
+    <details class="mobile-menu">
+      <summary><x-admin.icon name="menu" /><span>Menu</span><x-admin.icon name="chevron-down" /></summary>
+      <nav aria-label="Mobile administration">
+        <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><x-admin.icon name="overview" /> Overview</a>
+        <a href="{{ route('admin.companies.index') }}" class="{{ request()->routeIs('admin.companies.*') ? 'active' : '' }}"><x-admin.icon name="building" /> Companies</a>
+        <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Users</a>
+        <a href="{{ route('admin.audit') }}" class="{{ request()->routeIs('admin.audit') ? 'active' : '' }}"><x-admin.icon name="history" /> Audit Trail</a>
+      </nav>
+    </details>
+
+    <main id="main-content" class="main" tabindex="-1">
+      <header class="top">
+        <div class="page-heading">
+          <p class="eyebrow">Admin Panel <span class="eyebrow-separator">/</span> @yield('breadcrumb', 'Overview')</p>
+          <h1 class="page-title">@yield('heading', 'Overview')</h1>
+          @hasSection('description') <p class="page-description">@yield('description')</p> @endif
+        </div>
+        <div class="actions">@yield('header_actions')</div>
+      </header>
+
+      @if(session('success'))
+        <div class="alert success" role="status"><x-admin.icon name="check-circle" /> <span>{{ session('success') }}</span></div>
+      @endif
+      @if($errors->any())
+        <div class="alert error" role="alert">
+          <x-admin.icon name="alert-circle" />
+          <ul class="error-list">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+        </div>
+      @endif
+      @yield('content')
+      <footer class="admin-footer">Sign2Digital <span>·</span> Secure management console</footer>
+    </main>
+  </div>
 </div>
 </body>
 </html>

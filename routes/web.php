@@ -9,6 +9,22 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('admin.login'));
 
+// Route-backed assets: shared-hosting public_html does not have to duplicate
+// files from Laravel's public/ directory. Only the two known files are served.
+Route::get('/admin/assets/{file}', function (string $file) {
+    $mime = match ($file) {
+        'admin.css' => 'text/css; charset=UTF-8',
+        'logo.png' => 'image/png',
+        default => abort(404),
+    };
+
+    return response()->file(public_path('admin-assets/'.$file), [
+        'Content-Type' => $mime,
+        'Cache-Control' => 'no-store',
+        'X-Content-Type-Options' => 'nosniff',
+    ]);
+})->whereIn('file', ['admin.css', 'logo.png'])->name('admin.asset');
+
 Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/login', [AuthController::class, 'show'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
