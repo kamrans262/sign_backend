@@ -1,45 +1,54 @@
 @extends('admin.layout')
 @section('title', 'Users')
 @section('breadcrumb', 'Users')
-@section('heading', 'User management')
+@section('heading', 'User Management')
+@section('description', 'View user accounts, manage access, and review company memberships.')
 @section('header_actions')
-  <a class="btn btn-primary" href="{{ route('admin.users.create') }}">+ Add user</a>
+  <a class="btn btn-primary" href="{{ route('admin.users.create') }}"><x-admin.icon name="plus" /> Add User</a>
 @endsection
+
 @section('content')
 <section class="panel">
+  <div class="panel-header">
+    <div><h2>All Users</h2><p class="panel-header-hint">{{ number_format($users->total()) }} {{ $users->total() === 1 ? 'account' : 'accounts' }} found</p></div>
+  </div>
   <div class="toolbar">
     <form method="get" action="{{ route('admin.users.index') }}" class="search" role="search">
-      <input class="input" type="search" name="q" value="{{ $search }}" placeholder="Search by name or email" aria-label="Search users">
-      <select class="input" name="status" aria-label="Filter user status" style="max-width:160px">
-        <option value="">All statuses</option>
+      <input class="input" type="search" name="q" value="{{ $search }}" placeholder="Search name or email" aria-label="Search users">
+      <select class="input" name="status" aria-label="Filter user status">
+        <option value="">All Statuses</option>
         <option value="active" {{ $status === 'active' ? 'selected' : '' }}>Active</option>
         <option value="inactive" {{ $status === 'inactive' ? 'selected' : '' }}>Inactive</option>
       </select>
-      <button class="btn" type="submit">Search</button>
-      @if($search !== '' || $status !== '')<a class="btn" href="{{ route('admin.users.index') }}">Clear</a>@endif
+      <button class="btn btn-primary" type="submit"><x-admin.icon name="search" /> Search</button>
+      @if($search !== '' || $status !== '')<a class="btn btn-outline" href="{{ route('admin.users.index') }}">Clear</a>@endif
     </form>
-    <span class="muted">{{ $users->total() }} accounts</span>
   </div>
   <div class="table-wrap">
-    <table><thead><tr><th>Account</th><th>Companies</th><th>Access</th><th>Status</th><th>Joined</th><th></th></tr></thead><tbody>
-      @forelse($users as $user)
-        <tr>
-          <td><div class="strong">{{ $user->name }}</div><div class="muted">{{ $user->email }}</div></td>
-          <td>{{ $user->companies_count }}</td>
-          <td><span class="pill">{{ $user->is_platform_admin ? 'Platform Admin' : 'App User' }}</span></td>
-          <td><span class="pill {{ $user->is_active ? 'green' : 'red' }}">{{ $user->is_active ? 'Active' : 'Inactive' }}</span></td>
-          <td>{{ $user->created_at?->format('M d, Y') }}</td>
-          <td><a class="btn btn-small" href="{{ route('admin.users.edit', $user) }}">Manage</a></td>
-        </tr>
-      @empty<tr><td colspan="6" class="empty">No users match the search.</td></tr>@endforelse
-    </tbody></table>
+    <table>
+      <thead><tr><th scope="col">Name / Email</th><th scope="col">Companies</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Joined</th><th scope="col">Action</th></tr></thead>
+      <tbody>
+        @forelse($users as $user)
+          <tr>
+            <td><div class="strong">{{ $user->name }}</div><div class="muted">{{ $user->email }}</div></td>
+            <td>{{ $user->companies_count }}</td>
+            <td><span class="pill">{{ $user->is_platform_admin ? 'Platform Admin' : 'App User' }}</span></td>
+            <td><span class="pill {{ $user->is_active ? 'green' : 'red' }}"><span class="pill-dot"></span> {{ $user->is_active ? 'Active' : 'Inactive' }}</span></td>
+            <td class="muted">{{ $user->created_at?->format('M d, Y') }}</td>
+            <td><a class="btn btn-small btn-outline" href="{{ route('admin.users.edit', $user) }}">Manage <x-admin.icon name="arrow-right" /></a></td>
+          </tr>
+        @empty
+          <tr><td colspan="6" class="empty">No matching users. Try a different search.</td></tr>
+        @endforelse
+      </tbody>
+    </table>
   </div>
   @if($users->hasPages())
-    <div class="pagination">
+    <nav class="pagination" aria-label="User list pagination">
       @if($users->previousPageUrl())<a class="btn btn-small" href="{{ $users->previousPageUrl() }}">Previous</a>@endif
-      Page {{ $users->currentPage() }} of {{ $users->lastPage() }}
+      <span>Page {{ $users->currentPage() }} of {{ $users->lastPage() }}</span>
       @if($users->nextPageUrl())<a class="btn btn-small" href="{{ $users->nextPageUrl() }}">Next</a>@endif
-    </div>
+    </nav>
   @endif
 </section>
 @endsection
