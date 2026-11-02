@@ -46,7 +46,7 @@
 </form>
 @if($editing)
 <section class="panel">
-  <h2>Company team & permissions</h2><p class="panel-subtitle">Invite or change existing user memberships. Only the selected owner has the owner role.</p>
+  <h2>Company team & roles</h2><p class="panel-subtitle">Invite or change existing user memberships. Only the selected owner has the owner role.</p>
   <form class="fields" method="post" action="{{ route('admin.companies.members.store', $company) }}">
     @csrf
     <div class="field"><label for="member_user_id">Active user</label><select class="input" id="member_user_id" name="user_id" required>

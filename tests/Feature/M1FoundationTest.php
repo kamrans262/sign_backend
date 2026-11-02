@@ -242,4 +242,57 @@ class M1FoundationTest extends TestCase
         ]);
         $this->actingAs($admin)->get('/admin')->assertForbidden();
     }
+
+    public function test_audit_event_cannot_be_edited_through_eloquent(): void
+    {
+        $actor = User::factory()->create();
+        \App\Support\AuditLogger::record('recheck.audit', $actor);
+        $event = \App\Models\AuditLog::query()->firstOrFail();
+
+        $this->expectException(\LogicException::class);
+        $event->action = 'tampered';
+        $event->save();
+    }
+
+    public function test_audit_event_cannot_be_deleted_through_eloquent(): void
+    {
+        $actor = User::factory()->create();
+        \App\Support\AuditLogger::record('recheck.audit', $actor);
+        $event = \App\Models\AuditLog::query()->firstOrFail();
+
+        $this->expectException(\LogicException::class);
+        $event->delete();
+    }
+
+    public function test_company_ownership_transfer_keeps_one_owner_and_preserves_previous_owner(): void
+    {
+        $admin = User::factory()->create(['is_platform_admin' => true]);
+        $owner = User::factory()->create();
+        $successor = User::factory()->create();
+        $company = $this->companyFor($owner);
+
+        $this->actingAs($admin)->put('/admin/companies/'.$company->id, [
+            'name' => 'Transferred',
+            'owner_user_id' => $successor->id,
+            'country_iso_code' => 'CH',
+            'status' => 'active',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('companies', ['id' => $company->id, 'owner_user_id' => $successor->id]);
+        $this->assertDatabaseHas('company_user', ['company_id' => $company->id, 'user_id' => $successor->id, 'role' => 'owner']);
+        $this->assertDatabaseHas('company_user', ['company_id' => $company->id, 'user_id' => $owner->id, 'role' => 'admin']);
+        $this->assertEquals(1, \Illuminate\Support\Facades\DB::table('company_user')->where('company_id', $company->id)->where('role', 'owner')->count());
+    }
+
+    public function test_member_suspension_prevents_company_context_even_with_valid_token(): void
+    {
+        $owner = User::factory()->create();
+        $member = User::factory()->create();
+        $company = $this->companyFor($owner);
+        $company->users()->attach($member->id, ['role' => 'member', 'status' => 'inactive']);
+        Sanctum::actingAs($member);
+
+        $this->withHeader('X-Company-Id', (string) $company->id)
+            ->getJson('/api/v1/company-context')->assertForbidden();
+    }
 }
