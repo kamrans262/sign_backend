@@ -12,6 +12,8 @@ on:
       - 'app/Models/EmailOtpChallenge.php'
       - 'database/migrations/2026_11_03_100*.php'
       - 'routes/api.php'
+      - 'routes/web.php'
+      - 'bootstrap/app.php'
       - 'routes/console.php'
       - 'resources/views/mail/**'
       - 'resources/views/admin/mobile-auth.blade.php'
