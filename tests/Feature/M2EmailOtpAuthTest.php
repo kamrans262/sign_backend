@@ -221,7 +221,7 @@ class M2EmailOtpAuthTest extends TestCase
         ]);
         $this->get('/admin/mobile-auth')->assertRedirect('/admin/login');
         $this->post('/admin/login', ['email' => $admin->email, 'password' => 'AdminPassword@262'])
-            ->assertRedirect(route('admin.dashboard'));
+            ->assertRedirect(route('admin.mobile-auth'));
         $this->get('/admin/mobile-auth')->assertOk()->assertSee('Mobile Authentication');
         $this->assertDatabaseCount('email_otp_challenges', 0);
     }
