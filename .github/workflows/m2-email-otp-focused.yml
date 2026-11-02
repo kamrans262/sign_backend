@@ -19,6 +19,7 @@ on:
       - 'resources/views/mail/**'
       - 'resources/views/admin/mobile-auth.blade.php'
       - 'tests/Feature/M2EmailOtpAuthTest.php'
+      - 'tests/Feature/M2Stage2SecurityTest.php'
   workflow_dispatch:
 
 permissions:
@@ -32,20 +33,45 @@ jobs:
   verify-email-auth:
     runs-on: ubuntu-latest
     timeout-minutes: 12
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-only
+          MYSQL_DATABASE: sign2digital_ci
+          MYSQL_USER: sign_ci
+          MYSQL_PASSWORD: sign-ci-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s
+          --health-timeout=4s
+          --health-retries=25
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: sqlite3, pdo_sqlite, mbstring, openssl
+          extensions: sqlite3, pdo_sqlite, pdo_mysql, mbstring, openssl
           coverage: none
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Prepare test environment
         run: cp .env.example .env && php artisan key:generate
       - name: Syntax and view validation
-        run: php -l app/Http/Controllers/Api/MobileAuthController.php && php -l app/Services/EmailOtpService.php && php -l app/Mail/EmailOtpCodeMail.php && php artisan view:cache
-      - name: Run focused M2 verification
-        run: php artisan test --filter M2EmailOtpAuthTest
-      - name: Verify old admin regressions
+        run: php -l app/Http/Controllers/Api/MobileAuthController.php && php -l app/Services/EmailOtpService.php && php -l app/Mail/EmailOtpCodeMail.php && php -l tests/Feature/M2Stage2SecurityTest.php && php artisan view:cache
+      - name: M2 authentication and security tests on SQLite
+        run: php artisan test --filter=M2
+      - name: M2 authentication and security tests on MySQL 8
+        env:
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
+        run: php artisan test --filter=M2
+      - name: Verify unchanged administrator UI
         run: php artisan test --filter M1AdminUiRebuildTest
