@@ -209,4 +209,76 @@ class M2Stage2SecurityTest extends TestCase
         $this->assertDatabaseCount('email_otp_challenges', 0);
         Mail::assertNothingSent();
     }
+
+    public function test_unknown_and_known_email_recovery_have_matching_resend_behavior(): void
+    {
+        $user = $this->user();
+        $known = $this->postJson('/api/v1/auth/password/forgot', [
+            'email' => $user->email,
+        ])->assertOk()->json('data');
+        $unknown = $this->postJson('/api/v1/auth/password/forgot', [
+            'email' => 'missing-stage2@example.test',
+        ])->assertOk()->json('data');
+
+        $this->assertSame(array_keys($known), array_keys($unknown));
+        $this->assertNotSame($known['challenge_id'], $unknown['challenge_id']);
+        $this->assertNull(EmailOtpChallenge::findOrFail($unknown['challenge_id'])->user_id);
+        Mail::assertSentCount(1);
+
+        $knownCooldown = $this->postJson('/api/v1/auth/otp/resend', [
+            'challenge_id' => $known['challenge_id'],
+        ])->assertUnprocessable();
+        $unknownCooldown = $this->postJson('/api/v1/auth/otp/resend', [
+            'challenge_id' => $unknown['challenge_id'],
+        ])->assertUnprocessable();
+        $this->assertSame($knownCooldown->json('message'), $unknownCooldown->json('message'));
+        $this->assertSame($knownCooldown->json('errors'), $unknownCooldown->json('errors'));
+
+        $this->travel(61)->seconds();
+        $knownResent = $this->postJson('/api/v1/auth/otp/resend', [
+            'challenge_id' => $known['challenge_id'],
+        ])->assertOk()->json('data');
+        $anonymousResent = $this->postJson('/api/v1/auth/otp/resend', [
+            'challenge_id' => $unknown['challenge_id'],
+        ])->assertOk()->json('data');
+        $this->assertSame(array_keys($knownResent), array_keys($anonymousResent));
+        $this->assertSame($knownResent['purpose'], $anonymousResent['purpose']);
+        Mail::assertSentCount(2);
+
+        $response = $this->postJson('/api/v1/auth/otp/verify', [
+            'challenge_id' => $anonymousResent['challenge_id'], 'code' => '000000',
+        ])->assertUnprocessable();
+        $response->assertJsonMissingPath('data.access_token')->assertJsonMissingPath('data.reset_token');
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_anonymous_recovery_cannot_be_used_to_issue_a_token(): void
+    {
+        $id = $this->postJson('/api/v1/auth/password/forgot', [
+            'email' => 'does-not-exist@example.test',
+        ])->json('data.challenge_id');
+
+        for ($n = 0; $n < 5; $n++) {
+            $this->postJson('/api/v1/auth/otp/verify', [
+                'challenge_id' => $id, 'code' => '000000',
+            ])->assertUnprocessable();
+        }
+        $record = EmailOtpChallenge::findOrFail($id);
+        $this->assertSame(5, $record->attempts);
+        $this->assertNull($record->user_id);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+        Mail::assertNothingSent();
+    }
+
+    public function test_suspended_account_recovery_looks_like_missing_account(): void
+    {
+        $user = $this->user();
+        $user->forceFill(['is_active' => false])->save();
+        $response = $this->postJson('/api/v1/auth/password/forgot', [
+            'email' => $user->email,
+        ])->assertOk();
+
+        $this->assertNull(EmailOtpChallenge::findOrFail($response->json('data.challenge_id'))->user_id);
+        Mail::assertNothingSent();
+    }
 }

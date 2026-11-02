@@ -25,7 +25,7 @@
     <tbody>
       @forelse($recentChallenges as $challenge)
         <tr>
-          <td><div class="strong">{{ $challenge->user?->name ?? 'Deleted user' }}</div><div class="muted">{{ $challenge->user?->email }}</div></td>
+          <td><div class="strong">{{ $challenge->user?->name ?? 'Unknown or deleted account' }}</div><div class="muted">{{ $challenge->user?->email }}</div></td>
           <td>{{ ucfirst($challenge->purpose) }}</td>
           <td>
             @if($challenge->consumed_at)<span class="pill green">Used / Superseded</span>
