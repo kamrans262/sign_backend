@@ -1,0 +1,175 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\EmailOtpService;
+use App\Support\AuditLogger;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
+
+class MobileAuthController extends Controller
+{
+    public function __construct(private readonly EmailOtpService $otp) {}
+
+    private static function passwordRule(): Password
+    {
+        return Password::min(8)->mixedCase()->numbers()->symbols();
+    }
+
+    public function register(Request $request): JsonResponse
+    {
+        $request->merge(['email' => strtolower(trim((string) $request->input('email', '')))]);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone_number' => ['required', 'string', 'max:40'],
+            'country_iso_code' => ['required', 'string', 'size:2'],
+            'dialing_code' => ['required', 'string', 'max:8'],
+            'password' => ['required', 'confirmed', self::passwordRule()],
+        ]);
+        $existing = User::query()->where('email', $data['email'])->first();
+        if ($existing) {
+            if ($existing->email_verified_at || !$existing->is_active || !Hash::check($data['password'], $existing->password)) {
+                throw ValidationException::withMessages(['email' => 'An account with this email already exists.']);
+            }
+            // Continue a previously unverified signup without creating a duplicate account.
+            $challenge = $this->otp->issue($existing, 'register');
+            return response()->json(['data' => EmailOtpService::challengeResponse($challenge)]);
+        }
+
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone_number' => $data['phone_number'],
+            'country_iso_code' => strtoupper($data['country_iso_code']),
+            'dialing_code' => $data['dialing_code'],
+            'password' => $data['password'],
+        ]);
+        $challenge = $this->otp->issue($user, 'register');
+        AuditLogger::record('mobile.auth.registration_started', $user, $user, request: $request);
+        return response()->json(['data' => EmailOtpService::challengeResponse($challenge)], 201);
+    }
+
+    public function login(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+        $user = User::query()->where('email', strtolower(trim($data['email'])))->first();
+        if (!$user || !$user->is_active || !Hash::check($data['password'], $user->password)) {
+            throw ValidationException::withMessages(['email' => 'Invalid email or password.']);
+        }
+        $challenge = $this->otp->issue($user, $user->email_verified_at ? 'login' : 'register');
+        AuditLogger::record('mobile.auth.login_code_requested', $user, $user, request: $request);
+        return response()->json(['data' => EmailOtpService::challengeResponse($challenge)]);
+    }
+
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'email', 'max:255']]);
+        $user = User::query()->where('email', strtolower(trim($data['email'])))->where('is_active', true)->first();
+        $challengeId = (string) Str::uuid();
+        if ($user) {
+            $challenge = $this->otp->issue($user, 'reset');
+            $challengeId = $challenge->id;
+            AuditLogger::record('mobile.auth.password_reset_requested', $user, $user, request: $request);
+        }
+        // A plausible opaque challenge is returned even for unknown emails.
+        return response()->json(['data' => [
+            'challenge_id' => $challengeId,
+            'purpose' => 'reset',
+            'expires_in' => EmailOtpService::EXPIRES_IN,
+            'resend_after' => EmailOtpService::RESEND_AFTER,
+            'message' => 'If the address exists, a code has been sent.',
+        ]]);
+    }
+
+    public function resend(Request $request): JsonResponse
+    {
+        $data = $request->validate(['challenge_id' => ['required', 'uuid']]);
+        $challenge = $this->otp->resend($data['challenge_id']);
+        AuditLogger::record('mobile.auth.code_resent', $challenge->user, $challenge->user, request: $request);
+        return response()->json(['data' => EmailOtpService::challengeResponse($challenge)]);
+    }
+
+    public function verify(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'challenge_id' => ['required', 'uuid'],
+            'code' => ['required', 'regex:/^[0-9]{6}$/'],
+            'device_name' => ['nullable', 'string', 'max:100'],
+        ]);
+        $result = $this->otp->verify($data['challenge_id'], $data['code']);
+        if (!empty($result['invalid'])) {
+            throw ValidationException::withMessages(['code' => 'Invalid or expired code.']);
+        }
+        $user = $result['user'];
+        $purpose = $result['purpose'];
+
+        if ($purpose === 'reset') {
+            AuditLogger::record('mobile.auth.password_reset_code_verified', $user, $user, request: $request);
+            return response()->json(['data' => [
+                'purpose' => 'reset',
+                'email' => $user->email,
+                'reset_token' => $result['reset_token'],
+                'expires_in' => 600,
+            ]]);
+        }
+
+        // No mobile token is created before successful OTP verification.
+        $device = trim((string) ($data['device_name'] ?? 'Sign2Digital Mobile'));
+        $token = $user->createToken($device)->plainTextToken;
+        AuditLogger::record('mobile.auth.otp_verified', $user, $user, metadata: ['purpose' => $purpose], request: $request);
+        return response()->json(['data' => [
+            'purpose' => $purpose,
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user->only(['id', 'name', 'email', 'email_verified_at', 'phone_number']),
+        ]]);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->merge(['email' => strtolower(trim((string) $request->input('email', '')))]);
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+            'reset_token' => ['required', 'string', 'size:64'],
+            'password' => ['required', 'confirmed', self::passwordRule()],
+        ]);
+
+        DB::transaction(function () use ($data, $request): void {
+            $user = User::query()->where('email', $data['email'])->lockForUpdate()->first();
+            $grant = DB::table('password_reset_tokens')->where('email', $data['email'])->lockForUpdate()->first();
+            if (!$user || !$user->is_active || !$grant ||
+                now()->diffInSeconds($grant->created_at, false) < -600 ||
+                !hash_equals($grant->token, hash('sha256', $data['reset_token']))) {
+                throw ValidationException::withMessages(['reset_token' => 'Invalid or expired reset request.']);
+            }
+            $user->password = $data['password'];
+            $user->save();
+            $user->tokens()->delete();
+            DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
+            AuditLogger::record('mobile.auth.password_reset_completed', $user, $user, request: $request);
+        });
+        return response()->json(['message' => 'Password updated. Sign in with your new password.']);
+    }
+
+    public function logout(Request $request): JsonResponse
+    {
+        $token = $request->user()?->currentAccessToken();
+        if ($token && method_exists($token, 'delete')) {
+            $token->delete();
+        }
+        AuditLogger::record('mobile.auth.logout', $request->user(), $request->user(), request: $request);
+        return response()->json(['message' => 'Signed out.']);
+    }
+}
