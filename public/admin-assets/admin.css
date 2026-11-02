@@ -243,3 +243,249 @@ td .strong { font-size:13px; }
   .panel-header { align-items:flex-start; }
   .panel-header .pill { margin-left:auto; }
 }
+
+
+/* Sign2Digital's Hope UI-inspired component layer.
+   Reference: the user-provided MIT-licensed Hope UI HTML dashboard.
+   No template demo data, remote scripts, or bundled asset dependencies. */
+.hope-ui-adapt {
+  --hope-page:#f5f7fb;
+  --hope-elevation:0 5px 24px rgba(18,37,54,.055);
+  --hope-elevation-hover:0 12px 32px rgba(18,37,54,.10);
+  --hope-outline:#e6ebf0;
+  --hope-accent:#166282;
+  --hope-accent-soft:#e3ecf0;
+  background:var(--hope-page);
+}
+.hope-ui-adapt .app-shell { grid-template-columns:258px minmax(0,1fr); }
+.hope-ui-adapt .app-sidebar {
+  background:#fff;
+  box-shadow:3px 0 22px rgba(18,37,54,.025);
+  border-color:#edf0f3;
+  position:sticky;
+  top:0;
+  height:100vh;
+  min-height:0;
+  overflow-y:auto;
+  z-index:20;
+  padding:24px 14px 22px;
+}
+.hope-ui-adapt .sidebar-top { padding:0 15px 33px; }
+.hope-ui-adapt .brand-logo { width:165px; }
+.hope-ui-adapt .workspace-chip { background:#f5f8fa; border:1px solid var(--border-light); border-radius:8px; padding:8px 12px; }
+.hope-ui-adapt .sidebar-heading { letter-spacing:.095em; color:#96a2ac; margin:2px 0 4px; }
+.hope-ui-adapt .side-nav { gap:5px; }
+.hope-ui-adapt .side-link {
+  position:relative;
+  border-radius:9px;
+  padding:12px 14px;
+  font-size:13.5px;
+  font-weight:600;
+  min-height:46px;
+}
+.hope-ui-adapt .side-link.active { color:var(--primary); background:#eaf3f7; }
+.hope-ui-adapt .side-link.active::before {
+  content:""; position:absolute; left:-14px; top:9px; bottom:9px;
+  width:3px; background:var(--primary); border-radius:0 6px 6px 0;
+}
+.hope-ui-adapt .side-link:hover { background:#f4f8fa; }
+.hope-nav-divider { height:1px; background:#edf0f3; margin:22px 9px 20px; }
+.hope-sidebar-support {
+  display:flex; align-items:center; gap:11px;
+  border-radius:12px; padding:13px 10px; margin-bottom:17px;
+  background:#f1f7fa; border:1px solid #e0ebf0;
+}
+.hope-sidebar-support .hope-support-icon {
+  width:35px; height:35px; border-radius:9px;
+  display:grid; place-items:center; flex:none;
+  background:#e0edf3; color:var(--primary);
+}
+.hope-sidebar-support strong { display:block; color:var(--ink); font-size:12px; font-weight:700; }
+.hope-sidebar-support small { display:block; color:var(--muted); font-size:10px; line-height:1.45; }
+.hope-ui-adapt .app-workspace { background:var(--hope-page); min-width:0; }
+.hope-ui-adapt .app-header {
+  height:76px; min-height:76px;
+  padding:0 clamp(20px,2.7vw,46px);
+  border-color:#edf0f3; background:#fff;
+  box-shadow:0 1px 5px rgba(18,37,54,.02);
+  position:relative; z-index:10;
+}
+.hope-ui-adapt .header-section { color:var(--muted); font-weight:500; font-size:13px; }
+.hope-ui-adapt .header-location { font-weight:600; color:var(--ink); }
+.hope-top-action {
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  color:#fff; background:var(--primary);
+  border:1px solid var(--primary); border-radius:9px;
+  padding:8px 14px; font-size:12px; font-weight:600;
+  min-height:38px;
+}
+.hope-top-action .app-icon { width:16px; height:16px; }
+.hope-top-action:hover { background:var(--primary-hover); color:#fff; text-decoration:none; }
+.hope-ui-adapt .header-avatar {
+  border:2px solid #fff;
+  background:#e3ecf0; box-shadow:0 0 0 1px var(--border);
+}
+.hope-ui-adapt .main { width:100%; max-width:none; padding:26px clamp(20px,2.7vw,46px) 28px; }
+.hope-ui-adapt .top { margin-bottom:23px; gap:16px; }
+.hope-ui-adapt .eyebrow { font-size:12px; color:var(--placeholder); font-weight:500; }
+.hope-ui-adapt .page-title { font-size:25px; font-weight:700; }
+.hope-ui-adapt .page-description { font-size:13px; margin-top:6px; }
+.hope-ui-adapt .panel,.hope-ui-adapt .metric {
+  border:1px solid var(--hope-outline); border-radius:13px;
+  box-shadow:var(--hope-elevation); background:#fff;
+}
+.hope-ui-adapt .panel { padding:23px; }
+.hope-ui-adapt .panel-header { gap:18px; margin-bottom:18px; }
+.hope-ui-adapt .panel-header h2 { font-size:16px; font-weight:700; }
+.hope-ui-adapt .panel-header-hint { color:var(--muted); }
+.hope-ui-adapt .btn { border-radius:8px; min-height:42px; height:42px; padding:0 17px; font-size:13px; font-weight:600; }
+.hope-ui-adapt .btn-small { min-height:34px; height:34px; padding:0 12px; font-size:11.5px; }
+.hope-ui-adapt .btn-primary { background:var(--primary); border-color:var(--primary); }
+.hope-ui-adapt .input { border-radius:8px; min-height:44px; border-color:#dce4ea; background:#fff; }
+.hope-ui-adapt .input:focus { border-color:var(--primary); }
+.hope-ui-adapt .field label { font-size:13px; }
+.hope-ui-adapt .panel-subtitle { font-size:12.5px; }
+.hope-ui-adapt .toolbar { margin-bottom:18px; }
+.hope-ui-adapt .pill { border-radius:7px; padding:5px 9px; }
+.hope-ui-adapt th { background:#f8fafb; color:#7a8998; border-color:#edf1f4; padding:13px; font-size:10.5px; }
+.hope-ui-adapt td { padding:14px 13px; border-color:#edf1f4; }
+.hope-ui-adapt tbody tr:hover { background:#fafcfe; }
+.hope-ui-adapt .admin-footer { padding-top:22px; color:#a0adba; }
+
+/* The reference dashboard's prominent welcome hero, without fake numbers. */
+.hope-welcome {
+  display:flex; align-items:center; justify-content:space-between; gap:25px;
+  min-height:195px; overflow:hidden; position:relative;
+  background:linear-gradient(118deg,#166282 0%,#0e4f70 57%,#123e5f 100%);
+  border-radius:14px; padding:30px clamp(22px,3vw,40px);
+  margin-bottom:24px; box-shadow:0 9px 24px rgba(22,98,130,.17);
+  color:white;
+}
+.hope-welcome-copy { width:min(680px,100%); position:relative; z-index:1; }
+.hope-overline { display:flex; align-items:center; gap:8px; font-size:10px; font-weight:700; letter-spacing:.095em; color:#d0e7f1; }
+.hope-overline .app-icon { width:15px; height:15px; }
+.hope-welcome h2 { margin:12px 0 10px; color:#fff; font-size:26px; font-weight:700; line-height:1.3; letter-spacing:-.35px; }
+.hope-welcome p { font-size:13px; line-height:1.6; color:#e4f1f6; max-width:620px; margin:0; }
+.hope-welcome-actions { display:flex; align-items:center; flex-wrap:wrap; gap:18px; margin-top:23px; }
+.hope-welcome-button {
+  display:inline-flex; align-items:center; gap:9px; min-height:40px;
+  padding:9px 15px; border-radius:8px; background:#fff;
+  color:#166282; font-size:12px; font-weight:700;
+}
+.hope-welcome-button:hover { background:#ebf6fc; text-decoration:none; }
+.hope-welcome-button .app-icon,.hope-welcome-link .app-icon { width:15px; height:15px; }
+.hope-welcome-link { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:#e5f7fe; }
+.hope-welcome-link:hover { color:#fff; text-decoration:none; }
+.hope-welcome-decor { position:absolute; width:290px; height:290px; right:4%; top:-42px; opacity:.25; }
+.hope-welcome-decor span { position:absolute; display:block; border:2px solid #d6f6ff; border-radius:50%; }
+.hope-welcome-decor span:nth-child(1){width:250px;height:250px;top:10px;left:4px}
+.hope-welcome-decor span:nth-child(2){width:170px;height:170px;top:50px;left:44px}
+.hope-welcome-decor span:nth-child(3){width:90px;height:90px;top:90px;left:84px;background:#aadfe9}
+
+/* Hope-style circular KPI indicators, based on live counts. */
+.hope-ui-adapt .hope-metrics { gap:17px; margin-bottom:23px; }
+.hope-ui-adapt .hope-metric {
+  min-height:158px; display:flex; flex-direction:column; justify-content:space-between;
+  padding:19px 18px; gap:11px;
+}
+.hope-ui-adapt .hope-metric:hover { box-shadow:var(--hope-elevation-hover); transform:translateY(-2px); }
+.hope-metric-top,.hope-metric-bottom { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.hope-metric-top { align-items:flex-start; }
+.hope-stat-icon { display:grid; place-items:center; background:var(--icon-bg); border-radius:9px; height:32px; width:32px; color:var(--primary); flex:none; }
+.hope-stat-icon .app-icon { width:17px; height:17px; }
+.hope-metric .metric-label { color:var(--muted); font-size:12px; font-weight:600; padding-top:4px; }
+.hope-metric .metric-value { display:block; font-size:30px; font-weight:700; line-height:1.25; margin:3px 0 4px; }
+.hope-metric .metric-small { display:block; margin:0; padding:0; color:#8a9aa8; font-size:11px; }
+.hope-ring {
+  display:grid; place-items:center; position:relative; flex:none;
+  width:57px; height:57px; border-radius:50%;
+  background:conic-gradient(var(--primary) calc(var(--value) * 1%),#e8eff2 0);
+}
+.hope-ring::before { content:""; width:45px; height:45px; border-radius:50%; background:#fff; position:absolute; inset:6px; }
+.hope-ring .app-icon { position:relative; z-index:1; width:19px; height:19px; color:var(--primary); }
+.hope-dashboard-columns { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:19px; }
+.hope-data-card { min-width:0; }
+.hope-name-cell { display:inline-flex; align-items:center; gap:9px; min-width:0; color:var(--ink); font-size:12.5px; font-weight:700; }
+.hope-name-cell:hover { color:var(--primary); text-decoration:none; }
+.hope-cell-avatar { display:grid; place-items:center; width:32px; height:32px; flex:none; border-radius:8px; color:var(--primary); background:var(--icon-bg); font-size:13px; }
+.hope-quick-panel { margin-top:0; }
+.hope-quick-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.hope-quick-action {
+  display:flex; align-items:center; gap:11px; min-height:72px;
+  padding:13px; border:1px solid var(--hope-outline); border-radius:10px;
+  background:#fafcfd; color:var(--ink); font-size:12px;
+}
+.hope-quick-action:hover { background:var(--icon-bg); text-decoration:none; }
+.hope-quick-action > span { width:36px; height:36px; display:grid; place-items:center; flex:none; background:#e8f2f7; border-radius:9px; color:var(--primary); }
+.hope-quick-action strong { flex:1; }
+.hope-quick-action > .app-icon { width:16px; height:16px; color:var(--primary); }
+
+/* Split Hope UI sign-in pattern; never imports the source template's JS. */
+.hope-ui-adapt.login-page { display:block; min-height:100vh; padding:0; background:#fff; }
+.hope-auth-shell { display:grid; grid-template-columns:minmax(0,1fr) minmax(450px,1fr); min-height:100vh; }
+.hope-auth-hero {
+  display:flex; align-items:center; position:relative; overflow:hidden;
+  padding:50px clamp(38px,6vw,95px);
+  background:linear-gradient(145deg,#166282 0%,#0f506e 57%,#113e5c 100%);
+  color:#fff;
+}
+.hope-auth-hero::before,.hope-auth-hero::after { content:""; position:absolute; border:2px solid rgba(207,245,255,.15); border-radius:50%; }
+.hope-auth-hero::before { width:580px; height:580px; right:-310px; top:-110px; }
+.hope-auth-hero::after { width:370px; height:370px; right:-140px; bottom:-150px; }
+.hope-auth-content { position:relative; z-index:1; width:100%; max-width:500px; }
+.hope-hero-logo { display:block; width:205px; height:auto; background:#fff; border-radius:10px; padding:12px; margin-bottom:65px; }
+.hope-auth-kicker { display:inline-flex; gap:9px; align-items:center; color:#cae9f1; font-size:11px; letter-spacing:.09em; font-weight:700; text-transform:uppercase; margin-bottom:16px; }
+.hope-auth-kicker .app-icon { width:18px; height:18px; }
+.hope-auth-hero h2 { font-size:clamp(27px,3.1vw,41px); line-height:1.25; letter-spacing:-.6px; color:#fff; margin:0 0 19px; font-weight:700; }
+.hope-auth-hero p { font-size:15px; line-height:1.7; color:#daedf5; margin:0; }
+.hope-auth-benefits { display:flex; flex-direction:column; gap:13px; margin-top:38px; }
+.hope-auth-benefits span { display:flex; align-items:center; gap:10px; font-size:13px; color:#fff; font-weight:500; }
+.hope-auth-benefits .app-icon { width:18px; height:18px; }
+.hope-auth-form { display:grid; place-items:center; padding:36px 25px; background:#fff; min-width:0; }
+.hope-auth-form .login-wrap { width:100%; max-width:430px; }
+.hope-auth-form .login-logo { display:none; }
+.hope-auth-form .login-panel { width:100%; border:0; box-shadow:none; padding:10px 0; border-radius:0; }
+.hope-auth-form .login-heading-icon { border-radius:12px; }
+.hope-auth-form .login-panel h1 { font-size:29px; }
+.hope-auth-form .login-subtitle { margin-bottom:30px; }
+.hope-auth-form .login-panel .field { margin-bottom:22px; }
+.hope-auth-form .login-submit { height:49px; }
+.hope-auth-form .login-help { margin-top:30px; }
+@media(max-width:1280px) {
+  .hope-dashboard-columns { grid-template-columns:1fr; }
+  .hope-quick-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(max-width:1000px) {
+  .hope-ui-adapt .app-shell { grid-template-columns:minmax(0,1fr); }
+  .hope-ui-adapt .app-sidebar { display:none; }
+  .hope-ui-adapt .header-left { display:none; }
+  .hope-ui-adapt .app-header { height:76px; }
+  .hope-ui-adapt .main { padding:23px 20px 27px; }
+  .hope-ui-adapt .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .hope-auth-shell { grid-template-columns:1fr; }
+  .hope-auth-hero { display:none; }
+  .hope-auth-form { min-height:100vh; }
+  .hope-auth-form .login-logo { display:block; }
+}
+@media(max-width:660px) {
+  .hope-ui-adapt .top { flex-direction:column; }
+  .hope-ui-adapt .actions { width:100%; }
+  .hope-ui-adapt .actions .btn { flex:1; }
+  .hope-ui-adapt .hope-welcome { padding:22px; min-height:0; }
+  .hope-welcome h2 { font-size:22px; }
+  .hope-welcome-decor { right:-130px; opacity:.11; }
+  .hope-ui-adapt .hope-metrics { gap:10px; }
+  .hope-ui-adapt .hope-metric { padding:13px; min-height:139px; }
+  .hope-ring { width:43px; height:43px; }
+  .hope-ring::before { width:33px; height:33px; inset:5px; }
+  .hope-ring .app-icon { width:14px; height:14px; }
+  .hope-metric .metric-value { font-size:24px; }
+  .hope-metric .metric-small { font-size:10px; }
+  .hope-quick-grid { grid-template-columns:1fr; }
+  .hope-ui-adapt .header-admin-label { display:none; }
+  .hope-top-action { font-size:0; padding:8px 10px; min-width:38px; }
+  .hope-top-action .app-icon { width:19px; height:19px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .hope-ui-adapt .hope-metric { transition:none; }
+}
