@@ -1,0 +1,48 @@
+name: M2 email OTP focused backend verification
+
+on:
+  push:
+    branches:
+      - feature/m2-email-otp-backend-admin-2026-11-03
+    paths:
+      - '.github/workflows/m2-email-otp-focused.yml'
+      - 'app/Http/Controllers/Api/**'
+      - 'app/Services/EmailOtpService.php'
+      - 'app/Mail/EmailOtpCodeMail.php'
+      - 'app/Models/EmailOtpChallenge.php'
+      - 'database/migrations/2026_11_03_100*.php'
+      - 'routes/api.php'
+      - 'routes/console.php'
+      - 'resources/views/mail/**'
+      - 'resources/views/admin/mobile-auth.blade.php'
+      - 'tests/Feature/M2EmailOtpAuthTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign2digital-m2-backend
+  cancel-in-progress: true
+
+jobs:
+  verify-email-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl
+          coverage: none
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare test environment
+        run: cp .env.example .env && php artisan key:generate
+      - name: Syntax and view validation
+        run: php -l app/Http/Controllers/Api/MobileAuthController.php && php -l app/Services/EmailOtpService.php && php -l app/Mail/EmailOtpCodeMail.php && php artisan view:cache
+      - name: Run focused M2 verification
+        run: php artisan test --filter M2EmailOtpAuthTest
+      - name: Verify old admin regressions
+        run: php artisan test --filter M1AdminUiRebuildTest
