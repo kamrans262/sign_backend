@@ -9,7 +9,7 @@
 </head>
 <body class="login-page">
   <main class="login-panel">
-    <div class="brand"><span class="brand-symbol">S2</span> Sign2Digital</div>
+    <div class="brand"><img class="brand-logo" src="{{ asset('admin-assets/logo.png') }}" alt="Sign2Digital"></div>
     <h1>Welcome back</h1>
     <p>Sign in to manage your Sign2Digital platform. Access is restricted to authorized administrators.</p>
     @if ($errors->any())

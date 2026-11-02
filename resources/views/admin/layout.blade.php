@@ -11,7 +11,7 @@
 <body>
 <div class="shell">
   <aside class="sidebar">
-    <a class="brand" href="{{ route('admin.dashboard') }}"><span class="brand-symbol">S2</span><span>Sign2Digital</span></a>
+    <a class="brand" href="{{ route('admin.dashboard') }}"><img class="brand-logo" src="{{ asset('admin-assets/logo.png') }}" alt="Sign2Digital"></a>
     <div>
       <div class="side-label">Administration</div>
       <nav class="nav" aria-label="Main navigation">

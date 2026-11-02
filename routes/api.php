@@ -7,7 +7,7 @@ Route::get('/health', fn () => response()->json(['status' => 'ok', 'app' => 'Sig
 
 Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
     // Existing route retained for older clients.
-    Route::get('/user', fn (Request $request) => $request->user()->only(['id', 'name', 'email', 'phone_number']));
+    Route::get('/user', fn (Request $request) => $request->user());
 
     Route::prefix('v1')->group(function (): void {
         Route::get('/me', function (Request $request) {
