@@ -81,3 +81,52 @@ Artisan::command('sign:demo-account {email}', function (string $email): void {
     });
     $this->info('Demo account created; mobile sign-in requires email OTP.');
 })->purpose('Securely provision a mobile test account with interactive password');
+
+
+Artisan::command('sign:otp-preflight', function (): int {
+    // Safe to run on production: never prints SMTP credentials, APP_KEY,
+    // stored OTP values or any individual account information.
+    $ok = true;
+    $driver = DB::connection()->getDriverName();
+    $mailer = (string) config('mail.default');
+    $production = app()->isProduction();
+    $tablePresent = \Illuminate\Support\Facades\Schema::hasTable('email_otp_challenges');
+    $appKeyPresent = (string) config('app.key') !== '';
+    $fromConfigured = filter_var((string) config('mail.from.address'), FILTER_VALIDATE_EMAIL) !== false;
+
+    $this->line('Database driver: '.$driver);
+    $this->line('Mail transport: '.$mailer);
+    $this->line('Application key: '.($appKeyPresent ? 'configured' : 'MISSING'));
+    $this->line('Mail sender address: '.($fromConfigured ? 'configured' : 'INVALID'));
+    $this->line('OTP database table: '.($tablePresent ? 'present' : 'MISSING'));
+
+    if ($production && $driver !== 'mysql') {
+        $this->error('Production is expected to use the configured MySQL database.');
+        $ok = false;
+    }
+    if ($production && in_array($mailer, ['log', 'array'], true)) {
+        $this->error('Production OTP emails cannot use a log or array mail driver.');
+        $ok = false;
+    }
+    if (!$appKeyPresent || !$fromConfigured || !$tablePresent) {
+        $ok = false;
+    }
+
+    if ($ok) {
+        $this->info('OTP configuration preflight passed. Send a real test OTP after deployment.');
+        return 0;
+    }
+
+    $this->error('OTP preflight failed; do not enable mobile authentication yet.');
+    return 1;
+})->purpose('Read-only M2 production mail, key and database readiness check');
+
+Artisan::command('sign:otp-prune', function (): void {
+    // Keep recent challenges for administrator monitoring, remove expired
+    // OTP material beyond 24 hours; audit records remain unchanged.
+    $deleted = \App\Models\EmailOtpChallenge::query()
+        ->where('expires_at', '<', now()->subDay())
+        ->delete();
+
+    $this->info('Expired OTP challenges pruned: '.$deleted);
+})->purpose('Delete expired M2 OTP challenges older than 24 hours');

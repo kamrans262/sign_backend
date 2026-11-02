@@ -7,6 +7,7 @@ use App\Models\EmailOtpChallenge;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -67,7 +68,11 @@ class EmailOtpService
             // A failed send is not a successful code request; remove the
             // unusable code so the person can retry without waiting a minute.
             EmailOtpChallenge::query()->whereKey($challenge->id)->delete();
-            report($error);
+            // Log only the exception type; never include the OTP, recipient,
+            // SMTP message body or mail transport credentials.
+            Log::warning('Sign2Digital OTP delivery failed.', [
+                'exception_type' => get_class($error),
+            ]);
             throw ValidationException::withMessages([
                 'email' => 'Unable to send a verification email. Please try again.',
             ]);
