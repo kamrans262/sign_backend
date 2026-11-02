@@ -25,6 +25,8 @@
     <h2>Access controls</h2>
     <p class="panel-subtitle">Disabling an account immediately revokes all of its mobile API tokens. Company roles do not grant platform-wide administrator access.</p>
     <div class="checks">
+      <input type="hidden" name="is_active" value="0">
+      <input type="hidden" name="is_platform_admin" value="0">
       <label class="check"><input type="checkbox" name="is_active" value="1" {{ old('is_active', $editing ? $user->is_active : true) ? 'checked' : '' }}> Active account</label>
       <label class="check"><input type="checkbox" name="is_platform_admin" value="1" {{ old('is_platform_admin', $editing ? $user->is_platform_admin : false) ? 'checked' : '' }}> Platform administrator</label>
     </div>

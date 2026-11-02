@@ -180,4 +180,66 @@ class M1FoundationTest extends TestCase
         $this->withHeader('X-Company-Id', (string) $company->id)
             ->getJson('/api/m1-test-company-manage')->assertOk();
     }
+
+    public function test_every_m1_admin_page_renders_for_a_platform_administrator(): void
+    {
+        $admin = User::factory()->create(['is_platform_admin' => true]);
+        $owner = User::factory()->create();
+        $company = $this->companyFor($owner);
+
+        $this->actingAs($admin)->get('/admin/users')->assertOk()->assertSee('User management');
+        $this->get('/admin/users/create')->assertOk()->assertSee('Add a new account');
+        $this->get('/admin/users/'.$owner->id.'/edit')->assertOk()->assertSee('Manage account');
+        $this->get('/admin/companies')->assertOk()->assertSee('Company management');
+        $this->get('/admin/companies/create')->assertOk()->assertSee('Create a company');
+        $this->get('/admin/companies/'.$company->id.'/edit')->assertOk()->assertSee('Manage company');
+        $this->get('/admin/audit')->assertOk()->assertSee('Audit trail');
+    }
+
+    public function test_admin_can_manage_members_and_suspended_companies_stay_inaccessible(): void
+    {
+        $admin = User::factory()->create(['is_platform_admin' => true]);
+        $owner = User::factory()->create();
+        $member = User::factory()->create();
+        $company = $this->companyFor($owner);
+
+        $this->actingAs($admin)->post('/admin/companies/'.$company->id.'/members', [
+            'user_id' => $member->id, 'role' => 'admin',
+        ])->assertRedirect();
+        $this->assertDatabaseHas('company_user', [
+            'company_id' => $company->id, 'user_id' => $member->id, 'role' => 'admin', 'status' => 'active',
+        ]);
+
+        $this->put('/admin/companies/'.$company->id, [
+            'name' => 'Suspended workshop',
+            'owner_user_id' => $owner->id,
+            'country_iso_code' => 'CH',
+            'status' => 'suspended',
+        ])->assertRedirect();
+        $this->assertDatabaseHas('companies', [
+            'id' => $company->id, 'status' => 'suspended',
+        ]);
+
+        $this->delete('/admin/companies/'.$company->id.'/members/'.$member->id)->assertRedirect();
+        $this->assertDatabaseMissing('company_user', [
+            'company_id' => $company->id, 'user_id' => $member->id,
+        ]);
+    }
+
+    public function test_non_platform_administrator_cannot_access_any_admin_management_screen(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user)->get('/admin/users')->assertForbidden();
+        $this->get('/admin/companies')->assertForbidden();
+        $this->get('/admin/audit')->assertForbidden();
+    }
+
+    public function test_an_inactive_platform_administrator_is_denied(): void
+    {
+        $admin = User::factory()->create([
+            'is_platform_admin' => true,
+            'is_active' => false,
+        ]);
+        $this->actingAs($admin)->get('/admin')->assertForbidden();
+    }
 }
