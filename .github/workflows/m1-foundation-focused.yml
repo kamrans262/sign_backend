@@ -17,23 +17,52 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: sign-m1-backend-focused
+  cancel-in-progress: true
+
 jobs:
   m1-targeted:
     runs-on: ubuntu-latest
     timeout-minutes: 12
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-only
+          MYSQL_DATABASE: sign2digital_ci
+          MYSQL_USER: sign_ci
+          MYSQL_PASSWORD: sign-ci-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s
+          --health-timeout=4s
+          --health-retries=25
     steps:
       - uses: actions/checkout@v4
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: sqlite3, pdo_sqlite, mbstring, openssl
+          extensions: sqlite3, pdo_sqlite, pdo_mysql, mbstring, openssl
           coverage: none
       - name: Install locked PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Prepare temporary test environment
         run: cp .env.example .env && php artisan key:generate
-      - name: Lint only M1 PHP changes
+      - name: Lint M1 PHP changes
         run: find app/Http/Controllers/Admin app/Http/Middleware app/Models app/Support routes -type f -name '*.php' -print0 | xargs -0 -n1 php -l && php -l bootstrap/app.php && php -l database/migrations/2026_11_03_000001_create_sign_foundation_tables.php
-      - name: Run only M1 Laravel tests
+      - name: Targeted M1 tests on SQLite
+        run: php artisan test --filter M1FoundationTest
+      - name: Targeted M1 tests on actual MySQL 8
+        env:
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
         run: php artisan test --filter M1FoundationTest
