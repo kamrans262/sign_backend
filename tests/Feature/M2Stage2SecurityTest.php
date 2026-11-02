@@ -281,4 +281,34 @@ class M2Stage2SecurityTest extends TestCase
         $this->assertNull(EmailOtpChallenge::findOrFail($response->json('data.challenge_id'))->user_id);
         Mail::assertNothingSent();
     }
+
+    public function test_otp_preflight_reports_config_without_exposing_keys_or_passwords(): void
+    {
+        $this->artisan('sign:otp-preflight')
+            ->expectsOutput('Application key: configured')
+            ->expectsOutput('OTP database table: present')
+            ->assertExitCode(0);
+    }
+
+    public function test_otp_pruning_preserves_current_code_and_deletes_only_old_expired_codes(): void
+    {
+        $user = $this->user();
+        $firstId = $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Stage2Pass@262',
+        ])->assertOk()->json('data.challenge_id');
+
+        $this->travel(86400 + 601)->seconds();
+        $secondId = $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Stage2Pass@262',
+        ])->assertOk()->json('data.challenge_id');
+
+        $this->artisan('sign:otp-prune')
+            ->expectsOutput('Expired OTP challenges pruned: 1')
+            ->assertExitCode(0);
+
+        $this->assertNull(EmailOtpChallenge::find($firstId));
+        $this->assertNotNull(EmailOtpChallenge::find($secondId));
+    }
 }
