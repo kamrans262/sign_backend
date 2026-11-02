@@ -43,7 +43,7 @@ class M1AdminUiRebuildTest extends TestCase
         $this->get('/admin/login')
             ->assertOk()
             ->assertSee('Admin Panel')
-            ->assertSee('/admin/assets/admin.css?v=3', false)
+            ->assertSee('/admin/assets/admin.css?v=4', false)
             ->assertSee('/admin/assets/logo.png', false)
             ->assertSee('class="login-panel"', false)
             ->assertSee('name="_token"', false);
@@ -79,7 +79,7 @@ class M1AdminUiRebuildTest extends TestCase
             $this->get($url)
                 ->assertOk()
                 ->assertSee($heading)
-                ->assertSee('/admin/assets/admin.css?v=3', false)
+                ->assertSee('/admin/assets/admin.css?v=4', false)
                 ->assertSee('/admin/assets/logo.png', false)
                 ->assertSee('class="app-shell"', false)
                 ->assertSee('<svg', false)
