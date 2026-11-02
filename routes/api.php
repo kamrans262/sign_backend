@@ -31,7 +31,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 ->get(['companies.id', 'companies.name', 'companies.status']);
             return response()->json([
                 'data' => [
-                    'user' => $user->only(['id', 'name', 'email', 'phone_number']),
+                    'user' => $user->only(['id', 'name', 'email', 'phone_number', 'country_iso_code', 'dialing_code', 'email_verified_at']),
                     'companies' => $companies->map(fn ($company) => [
                         'id' => $company->id,
                         'name' => $company->name,
@@ -39,6 +39,26 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                     ]),
                 ],
             ]);
+        });
+
+        Route::patch('/me', function (Request $request) {
+            $user = $request->user();
+            $data = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'email', \Illuminate\Validation\Rule::in([$user->email])],
+                'phone_number' => ['nullable', 'string', 'max:40'],
+                'country_iso_code' => ['nullable', 'string', 'size:2'],
+                'dialing_code' => ['nullable', 'string', 'max:8'],
+            ]);
+            // Email changes require re-verification and are not silently accepted.
+            $user->fill(\Illuminate\Support\Arr::only($data, [
+                'name', 'phone_number', 'country_iso_code', 'dialing_code',
+            ]));
+            $user->save();
+            \App\Support\AuditLogger::record('mobile.account.profile_updated', $user, $user, request: $request);
+            return response()->json(['data' => ['user' => $user->only([
+                'id', 'name', 'email', 'phone_number', 'country_iso_code', 'dialing_code',
+            ])]]);
         });
 
         Route::middleware('company.access')->get('/company-context', function (Request $request) {
