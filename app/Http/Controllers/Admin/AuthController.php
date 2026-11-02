@@ -11,8 +11,11 @@ use Illuminate\View\View;
 
 class AuthController extends Controller
 {
-    public function show(): View
+    public function show(Request $request): View|RedirectResponse
     {
+        if ($request->user()?->is_active && $request->user()?->is_platform_admin) {
+            return redirect()->route('admin.dashboard');
+        }
         return view('admin.login');
     }
 

@@ -10,10 +10,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => redirect()->route('admin.login'));
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
-    Route::middleware('guest')->group(function (): void {
-        Route::get('/login', [AuthController::class, 'show'])->name('login');
-        Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
-    });
+    Route::get('/login', [AuthController::class, 'show'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
+
     Route::middleware(['auth', 'platform.admin'])->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('/', DashboardController::class)->name('dashboard');

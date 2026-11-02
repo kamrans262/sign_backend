@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\EnsureCompanyAccess;
+use App\Http\Middleware\EnsureCompanyRole;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'active.user' => EnsureActiveUser::class,
             'company.access' => EnsureCompanyAccess::class,
+            'company.role' => EnsureCompanyRole::class,
             'platform.admin' => EnsurePlatformAdmin::class,
         ]);
     })
