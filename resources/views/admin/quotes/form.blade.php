@@ -153,9 +153,15 @@
 <div class="panel-header"><div><h2>Quote Actions</h2><p class="panel-header-hint">Approval requires an explicit administrator action. Customer delivery is a separate step.</p></div></div>
 <div class="form-actions">
 @if($quote->status==='draft')
-<form method="post" action="{{ route('admin.quotes.approve',$quote) }}" onsubmit="return confirm('Approve this reviewed quote?')">@csrf
+<form method="post" enctype="multipart/form-data" action="{{ route('admin.quotes.approve',$quote) }}" onsubmit="return confirm('Approve this reviewed quote?')">@csrf
 <input type="hidden" name="expected_revision" value="{{ $quote->revision }}">
+<div class="field"><label for="approved_quote_file">Reviewed PDF (optional)</label>
+<input id="approved_quote_file" class="input" type="file" name="file" accept="application/pdf">
+<p class="hint">Attach the exact reviewed PDF to allow verified PDF emailing. Without it, the approved quote can be shared by secure link.</p></div>
 <button class="btn btn-primary" type="submit">Approve Quote</button></form>
+@endif
+@if(in_array($quote->status,['approved','sent'],true) && $quote->approved_pdf_sha256)
+<a class="btn btn-outline" href="{{ route('admin.quotes.approvedPdf',$quote) }}">Download Approved PDF</a>
 @endif
 @if($quote->status==='archived')
 <form method="post" action="{{ route('admin.quotes.restore',$quote) }}">@csrf<button class="btn btn-outline" type="submit">Restore Quote</button></form>
