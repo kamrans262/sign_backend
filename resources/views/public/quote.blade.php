@@ -208,6 +208,9 @@
       <h2>General Terms &amp; Conditions</h2>
       <p>{{ trim((string) $quote->terms) === '' ? 'No terms and conditions have been provided.' : $quote->terms }}</p>
     </section>
+    @if(isset($signing) && isset($signingToken))
+      @include('public.signing-form')
+    @endif
   </main>
 </body>
 </html>
