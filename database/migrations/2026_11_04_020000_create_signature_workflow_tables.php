@@ -15,6 +15,10 @@ return new class extends Migration {
             $table->uuid('request_uuid')->unique();
             $table->uuid('document_uuid')->unique();
             $table->uuid('signer_uuid')->unique();
+            $table->uuid('business_signer_uuid')->nullable()->unique();
+            $table->foreignId('business_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('business_signer_name', 255)->nullable();
+            $table->string('mode', 20)->default('remote');
             $table->char('token_sha256', 64)->unique();
             $table->string('signer_name', 255);
             $table->string('signer_email', 255);
