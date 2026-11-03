@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\SignatureRequest as Signing;
 use App\Services\SignatureWorkflowService;
+use App\Services\SignatureCompletionService;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\JsonResponse;
 use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +18,10 @@ use Illuminate\View\View;
 
 final class SignatureRequestController extends Controller
 {
-    public function __construct(private readonly SignatureWorkflowService $workflow) {}
+    public function __construct(
+        private readonly SignatureWorkflowService $workflow,
+        private readonly SignatureCompletionService $completion,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -73,4 +79,68 @@ final class SignatureRequestController extends Controller
         return redirect()->route('admin.signatures.show',$signature)
             ->with('success','The signing link was revoked.');
     }
+    public function signedPdf(Request $request,int $signature)
+    {
+        $record=Signing::query()->with('artifact')->findOrFail($signature);
+        abort_unless($record->status==='signed' && $record->artifact,404);
+        $bytes=$this->completion->bytes($record->artifact);
+        AuditLogger::record('admin.signature.signed_pdf_downloaded',
+            $request->user(),$record,$record->company,
+            metadata:['quote_id'=>$record->service_quote_id],request:$request);
+        return response($bytes,200,[
+            'Content-Type'=>'application/pdf',
+            'Content-Disposition'=>'attachment; filename="Sign2Digital_Signed_Quote.pdf"',
+            'Cache-Control'=>'private, no-store',
+            'X-Content-Type-Options'=>'nosniff',
+        ]);
+    }
+
+    public function resend(Request $request,int $signature): RedirectResponse
+    {
+        if (in_array((string)config('mail.default'),['log','array','null'],true)) {
+            return redirect()->route('admin.signatures.show',$signature)
+                ->withErrors(['email'=>'Email transport is not configured.']);
+        }
+        $token=$this->workflow::freshToken();
+        $record=DB::transaction(function () use ($request,$signature,$token) {
+            $record=Signing::query()->with('quote')->lockForUpdate()->findOrFail($signature);
+            abort_unless($record->mode==='remote',409);
+            $this->workflow->validForSigning($record);
+            $record->update(['token_sha256'=>hash('sha256',$token)]);
+            $this->workflow->event($record,'request_link_rotated',$request,$request->user()->id);
+            return $record;
+        });
+        try {
+            $url=$this->workflow->publicUrl($token);
+            Mail::raw("Please sign your Sign2Digital quote using this secure link:\n".$url,
+                fn($message)=>$message->to($record->signer_email)
+                    ->subject('Sign2Digital signature reminder'));
+        } catch (\Throwable $error) {
+            report($error);
+            return redirect()->route('admin.signatures.show',$signature)
+                ->withErrors(['email'=>'The signing reminder could not be delivered.']);
+        }
+        $record->update(['status'=>'sent','sent_at'=>now()]);
+        $this->workflow->event($record,'reminder_sent',$request,$request->user()->id,
+            ['channel'=>'email']);
+        AuditLogger::record('admin.signature.reminder_sent',$request->user(),$record,
+            $record->company,request:$request);
+        return redirect()->route('admin.signatures.show',$signature)
+            ->with('success','Signature reminder sent and previous link revoked.');
+    }
+
+    public function resendSigned(Request $request,int $signature): RedirectResponse
+    {
+        $record=Signing::query()->with('artifact')->findOrFail($signature);
+        abort_unless($record->status==='signed' && $record->artifact,404);
+        if (!$this->completion->emailFinalPdf($record->artifact)) {
+            return redirect()->route('admin.signatures.show',$signature)
+                ->withErrors(['email'=>'The signed PDF could not be emailed.']);
+        }
+        AuditLogger::record('admin.signature.signed_pdf_resent',$request->user(),
+            $record,$record->company,request:$request);
+        return redirect()->route('admin.signatures.show',$signature)
+            ->with('success','Signed PDF emailed to the customer.');
+    }
+
 }
