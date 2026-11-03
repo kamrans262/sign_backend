@@ -62,7 +62,8 @@
     <div class="field"><strong>Subtotal</strong><p>{{ $quote->currency }} {{ number_format(($quote->subtotal_minor ?? 0)/100,2) }}</p></div>
     <div class="field"><strong>VAT Amount</strong><p>{{ $quote->currency }} {{ number_format(($quote->vat_minor ?? 0)/100,2) }}</p></div>
     <div class="field"><strong>Grand Total</strong><p>{{ $quote->currency }} {{ number_format(($quote->total_minor ?? 0)/100,2) }}</p></div>
-    <div class="field"><strong>Deposit Amount</strong><p>{{ $quote->currency }} {{ number_format(($quote->deposit_minor ?? 0)/100,2) }}</p></div>
+    <div class="field"><strong>Deposit Amount</strong><p>{{ $quote->deposit_minor===null?'Incomplete':$quote->currency.' '.number_format($quote->deposit_minor/100,2) }}</p></div>
+    <div class="field"><strong>Remaining After Deposit</strong><p>{{ $quote->total_minor===null||$quote->deposit_minor===null?'Incomplete':$quote->currency.' '.number_format(($quote->total_minor-$quote->deposit_minor)/100,2) }}</p></div>
     <div class="field full"><strong>Terms &amp; Conditions</strong><p style="white-space:pre-wrap">{{ $quote->terms ?: '—' }}</p></div>
     @foreach(['iban'=>'IBAN / Account','accountHolder'=>'Account Holder','street'=>'Payment Street','buildingNumber'=>'Building Number','postalCode'=>'Postal Code','city'=>'City','country'=>'Country','paymentReference'=>'Reference'] as $key=>$label)
       @if(!empty($quote->payment_details[$key]))
@@ -98,8 +99,8 @@
 <div class="field"><label for="valid_until">Valid Until</label><input class="input" id="valid_until" name="valid_until" type="date" value="{{ old('valid_until',$editing?$quote->valid_until?->format('Y-m-d'):'') }}"></div>
 <div class="field"><label for="currency">Currency</label><select class="input" id="currency" name="currency">@foreach(['CHF','EUR','GBP','USD'] as $cur)
 <option value="{{ $cur }}" {{ old('currency',$editing?$quote->currency:'CHF')===$cur?'selected':'' }}>{{ $cur }}</option>@endforeach</select></div>
-<div class="field"><label for="vat_basis_points">VAT (basis points; 800 = 8%) *</label><input class="input" id="vat_basis_points" name="vat_basis_points" type="number" min="0" max="10000" required value="{{ old('vat_basis_points',$editing?$quote->vat_basis_points:0) }}"></div>
-<div class="field"><label for="deposit_basis_points">Deposit (basis points) *</label><input class="input" id="deposit_basis_points" name="deposit_basis_points" type="number" min="0" max="10000" required value="{{ old('deposit_basis_points',$editing?$quote->deposit_basis_points:0) }}"></div>
+<div class="field"><label for="vat_percent">VAT (%) *</label><input class="input" id="vat_percent" name="vat_percent" type="number" min="0" max="100" step="0.01" required value="{{ old('vat_percent',$editing?number_format($quote->vat_basis_points/100,2,'.',''):0) }}"><p class="hint">Enter 13 for 13%, or 8.1 for 8.1%.</p></div>
+<div class="field"><label for="deposit_percent">Deposit (%) *</label><input class="input" id="deposit_percent" name="deposit_percent" type="number" min="0" max="100" step="0.01" required value="{{ old('deposit_percent',$editing?number_format($quote->deposit_basis_points/100,2,'.',''):0) }}"><p class="hint">Enter 30 for 30%. Deposit is calculated on the total including VAT.</p></div>
 <div class="field full"><label for="terms">Terms &amp; Conditions</label><textarea id="terms" name="terms" class="input" rows="5" maxlength="20000">{{ old('terms',$editing?$quote->terms:'') }}</textarea></div>
 <div class="field full"><h2>Payment Instructions</h2><p class="hint">Use only verified account information. QR-bill data is never manufactured.</p></div>
 <div class="field"><label for="payment_iban">IBAN / Account</label><input class="input" id="payment_iban" name="payment_details[iban]" maxlength="255" value="{{ old('payment_details.iban', $editing ? ($quote->payment_details['iban'] ?? '') : '') }}"></div>
