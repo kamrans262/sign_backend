@@ -61,6 +61,17 @@ class ServiceQuoteController extends Controller
         ]));
     }
 
+    /**
+     * The admin editor accepts human-readable percent values (13, 8.1, 30).
+     * API and database amounts remain integer basis points (1300, 810, 3000).
+     * Never use floating point for percentage conversion.
+     */
+    private function percentToBasisPoints(string $percent): int
+    {
+        $parts=explode('.', $percent, 2);
+        return ((int)$parts[0])*100 + (int)str_pad($parts[1]??'', 2, '0');
+    }
+
     private function fields(Request $request, ?ServiceQuote $existing): array
     {
         $data=$request->validate([
@@ -76,8 +87,12 @@ class ServiceQuoteController extends Controller
             'quote_date'=>['required','date_format:Y-m-d'],
             'valid_until'=>['nullable','date_format:Y-m-d','after_or_equal:quote_date'],
             'currency'=>['required',Rule::in(['CHF','EUR','GBP','USD'])],
-            'vat_basis_points'=>['required','integer','between:0,10000'],
-            'deposit_basis_points'=>['required','integer','between:0,10000'],
+            // New admin form: percentages. Keep legacy basis-point form posts
+            // supported for existing integrations and regression tests.
+            'vat_percent'=>['required_without:vat_basis_points','nullable','regex:/^\\d{1,3}(\\.\\d{1,2})?$/','numeric','between:0,100'],
+            'deposit_percent'=>['required_without:deposit_basis_points','nullable','regex:/^\\d{1,3}(\\.\\d{1,2})?$/','numeric','between:0,100'],
+            'vat_basis_points'=>['required_without:vat_percent','nullable','integer','between:0,10000'],
+            'deposit_basis_points'=>['required_without:deposit_percent','nullable','integer','between:0,10000'],
             'terms'=>['nullable','string','max:20000'],
             'payment_details'=>['nullable','array:iban,accountHolder,street,buildingNumber,postalCode,city,country,paymentReference'],
             'payment_details.*'=>['nullable','string','max:255'],
@@ -88,6 +103,19 @@ class ServiceQuoteController extends Controller
             'items.*.dimensions'=>['nullable','string','max:255'],
             'items.*.unit_price'=>['nullable','regex:/^\d{1,11}(\.\d{1,2})?$/'],
         ]);
+        foreach (['vat', 'deposit'] as $kind) {
+            $percentKey=$kind.'_percent';
+            $basisKey=$kind.'_basis_points';
+            if (isset($data[$percentKey]) && isset($data[$basisKey])) {
+                throw ValidationException::withMessages([
+                    $percentKey=>'Provide a percentage, not both percentage and basis points.',
+                ]);
+            }
+            if (isset($data[$percentKey])) {
+                $data[$basisKey]=$this->percentToBasisPoints((string)$data[$percentKey]);
+            }
+            unset($data[$percentKey]);
+        }
         if ($existing && $existing->company_id !== (int)$data['company_id']) {
             throw ValidationException::withMessages(['company_id'=>'Existing quote company is immutable.']);
         }
