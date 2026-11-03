@@ -125,6 +125,7 @@ class M6ServiceQuoteManagementTest extends TestCase
             ->assertCreated()->json('data.quote.id');
         $this->asTenant($bUser,$b);
         $this->getJson('/api/v1/quotes/'.$id)->assertNotFound();
+        $this->get('/api/v1/quotes/'.$id.'/approved-pdf')->assertNotFound();
         $this->patchJson('/api/v1/quotes/'.$id,$this->draft($bClient))->assertNotFound();
         $this->deleteJson('/api/v1/quotes/'.$id)->assertNotFound();
         $this->postJson('/api/v1/quotes/'.$id.'/approve',['confirmed'=>true])->assertNotFound();
@@ -232,4 +233,37 @@ class M6ServiceQuoteManagementTest extends TestCase
         $this->assertDatabaseHas('service_quotes',['id'=>$quote->id,'status'=>'approved']);
         $this->assertDatabaseCount('service_quote_revisions',2);
     }
+    public function test_m7_approval_rejects_stale_reviewed_revision_and_preserves_draft(): void
+    {
+        $owner = $this->owner('m7-owner@example.test');
+        $company = $this->company($owner, 'M7 Revision');
+        $client = $this->client($company);
+        $this->asTenant($owner, $company);
+        $created = $this->postJson('/api/v1/quotes', $this->draft($client))
+            ->assertCreated()->assertJsonPath('data.quote.revision', 1);
+        $id = $created->json('data.quote.id');
+        $changed = $this->draft($client);
+        $changed['items'][0]['unit_price_minor'] = 23456;
+        $changed['expected_revision'] = 1;
+        $this->patchJson('/api/v1/quotes/'.$id, $changed)
+            ->assertOk()->assertJsonPath('data.quote.revision', 2);
+
+        $this->postJson('/api/v1/quotes/'.$id.'/approve', [
+            'confirmed' => true, 'expected_revision' => 1,
+        ])->assertStatus(409);
+        $this->assertDatabaseHas('service_quotes', [
+            'id' => $id, 'status' => 'draft', 'revision' => 2,
+        ]);
+        $this->assertDatabaseCount('service_quote_revisions', 2);
+
+        $this->postJson('/api/v1/quotes/'.$id.'/approve', [
+            'confirmed' => true, 'expected_revision' => 2,
+        ])->assertOk()->assertJsonPath('data.quote.status', 'approved')
+            ->assertJsonPath('data.quote.revision', 3);
+        $this->assertDatabaseCount('service_quote_revisions', 3);
+        $this->postJson('/api/v1/quotes/'.$id.'/approve', [
+            'confirmed' => true, 'expected_revision' => 2,
+        ])->assertStatus(409);
+    }
+
 }
