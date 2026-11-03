@@ -12,6 +12,43 @@ TEMP_MIGRATION=0
 OLD=""
 
 fail() { printf 'BLOCK: %s\n' "$1" >&2; exit 1; }
+
+# A previous attempt may have successfully created private backups even
+# though the old checkout does not yet ignore storage/backups/. Exclude only
+# those new untracked backup files. Never discard or overwrite any other work.
+clean_except_backups() {
+  local entry
+  while IFS= read -r entry; do
+    [[ -z "$entry" ]] && continue
+    if [[ "$entry" == '?? storage/backups/'* ]]; then
+      continue
+    fi
+    return 1
+  done < <(git status --porcelain=v1 --untracked-files=all)
+  return 0
+}
+
+# Determine whether the add-only migration has been fully installed by
+# reading the real migrations table AND all three expected columns. This
+# supports safe continuation after backup succeeded and migration already ran.
+migration_state() {
+  php -r '
+    require getcwd()."/vendor/autoload.php";
+    $app=require getcwd()."/bootstrap/app.php";
+    $app->make(\Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
+    $name="2026_11_04_010000_add_approved_pdf_integrity_to_service_quotes";
+    $db=\Illuminate\\Support\\Facades\\DB::table("migrations")
+        ->where("migration",$name)->count();
+    $cols=0;
+    foreach (["approved_pdf_path","approved_pdf_sha256","approved_pdf_revision"] as $col) {
+      if (\Illuminate\\Support\\Facades\\Schema::hasColumn("service_quotes",$col)) { ++$cols; }
+    }
+    if ($db===1 && $cols===3) { echo "PRESENT"; }
+    elseif ($db===0 && $cols===0) { echo "ABSENT"; }
+    else { echo "PARTIAL"; }
+  '
+}
+
 restore_on_error() {
   local result=$?
   trap - ERR
@@ -32,7 +69,7 @@ trap restore_on_error ERR
 NEW="$1"
 [[ "$NEW" =~ ^[0-9a-f]{40}$ ]] || fail "Provide the exact approved 40-character release commit SHA."
 [[ -f ".env" && -f "artisan" && -f "vendor/autoload.php" ]] || fail "Run inside the deployed Laravel root."
-[[ -z "$(git status --porcelain)" ]] || fail "Uncommitted server changes: stop instead of overwriting."
+clean_except_backups || fail "Uncommitted changes outside protected backups: stop without overwriting."
 OLD="$(git rev-parse HEAD)"
 [[ "$OLD" == "$EXPECTED_OLD" ]] || fail "Production has changed since preflight; verify current commit again."
 [[ -z "$(git branch --show-current)" ]] || fail "Expected detached production commit; stop to preserve branch safety."
@@ -52,18 +89,30 @@ git show "$FETCHED:scripts/m7_release_backup.php" | php
 # Apply only the new nullable M7 columns, while old M6 PHP is still live.
 # The migration is loaded from the reviewed target commit and then removed
 # before the tracked release files are switched in.
-git show "$FETCHED:$MIGRATION" > "$MIGRATION"
-TEMP_MIGRATION=1
-php artisan migrate --force --path="$MIGRATION"
-rm -f "$MIGRATION"
-TEMP_MIGRATION=0
+STATE="$(migration_state)"
+case "$STATE" in
+  PRESENT)
+    printf '%s\n' "M7_MIGRATION_ALREADY_APPLIED: verified database record and three columns."
+    ;;
+  ABSENT)
+    git show "$FETCHED:$MIGRATION" > "$MIGRATION"
+    TEMP_MIGRATION=1
+    php artisan migrate --force --path="$MIGRATION"
+    rm -f "$MIGRATION"
+    TEMP_MIGRATION=0
+    [[ "$(migration_state)" == "PRESENT" ]] || fail "Migration did not leave the expected schema."
+    ;;
+  *)
+    fail "Partial or inconsistent M7 schema: stop; do not force a second migration."
+    ;;
+esac
 
-[[ -z "$(git status --porcelain)" ]] || fail "Worktree changed unexpectedly after isolated migration."
+clean_except_backups || fail "Worktree changed outside protected backups after migration."
 git switch --detach "$FETCHED"
 SWITCHED=1
 php artisan optimize:clear
 php scripts/m7_release_preflight.php --require-migrated
-[[ -z "$(git status --porcelain)" ]] || fail "Post-deploy tracked working tree is not clean."
+clean_except_backups || fail "Post-deploy tracked working tree is not clean."
 trap - ERR
 printf 'M7_DEPLOY_OK: %s\n' "$(git rev-parse --short HEAD)"
 printf 'Previous M6 commit: %s\n' "$OLD"
