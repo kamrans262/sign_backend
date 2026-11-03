@@ -32,6 +32,7 @@ Preserve every original Create Quote, Quote AI Processing, Review Quote, Quote P
 - Quote write: `POST /api/v1/quotes`, `PATCH /api/v1/quotes/{quote}`, `POST /api/v1/quotes/{quote}/approve`, `POST /api/v1/quotes/{quote}/share`, `DELETE /api/v1/quotes/{quote}` require `quotes.write`.
 - AI extraction: `POST /api/v1/quotes/prepare/text|audio|image` is authenticated, tenant-scoped and rate-limited. The OpenAI API key exists only in Laravel's private `.env`; no key is compiled into the app.
 - Public customer view: `GET /quote-view/{quote}` requires signed and unexpired link, an approved/sent (not archived) quote and matching link version.
+- PDF attachment delivery: `POST /api/v1/quotes/{quote}/share-email-pdf` accepts authenticated multipart form with an approved quote PDF under 5 MB. The Laravel server validates the PDF structure, emails the actual attachment together with the signed customer-view URL and records delivery only on success. The existing Attach PDF toggle controls whether Flutter uses this endpoint or link-only email.
 - Company-linked quote history appears in Jobs and Clients only if the member separately has `quotes.read`.
 - Admin `/admin/quotes` uses existing Laravel administrator guards and original admin theme; a separate signing module owns actual document signing, not M6.
 
@@ -45,10 +46,11 @@ Preserve every original Create Quote, Quote AI Processing, Review Quote, Quote P
 
 ## Live test cases to execute after a user-approved deployment
 
-- Sign in with verified user and active company; run Text / Voice / handwritten-photo quote extraction with genuine data. Confirm work descriptions are supported and prices/VAT/measurements are not fabricated.
+- Sign in with verified user and active company; run Text / Voice / handwritten-photo quote extraction with genuine data.
+- Test email in both modes: Attach PDF on (customer receives actual Flutter-generated PDF + signed link) and off (customer receives link-only email); ensure invalid PDFs are rejected without status Sent. Confirm work descriptions are supported and prices/VAT/measurements are not fabricated.
 - Save a draft, reopen from Job Quotes, edit a quote number, add multiple line items and verify currency amounts and Swiss payment fields.
 - Approve a fully priced quote and open the existing Preview/Download PDF/Send screens. Confirm that a quote cannot be edited or shared without approval; stale draft receives clear conflict, not overwritten data.
-- Send email via configured SMTP and open the expiring secure link on a real customer device. Verify real delivery, content, expiry, tampering, archive/restore revocation and printing.
+- Send email via configured SMTP and open the expiring secure link on a real customer device. Verify real delivery, content, expiry, tampering, archive/restore revocation and printing. Compare the attached PDF text/amounts with the server-hosted customer quote before acceptance.
 - Switch companies and log out. Verify no old local quote, payment or recipient details remain. Revoke `quotes.read` and `quotes.write`, confirm denied API and UI effects.
 - Test narrow portrait and tablets/landscape, voice microphone permissions on iOS/Android, JPG/PNG selection, offline errors, upload size and repeated send.
 
