@@ -174,6 +174,58 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $this->assertDatabaseCount('service_quotes',1);
     }
 
+
+    public function test_manual_quote_numbers_are_company_unique_without_altering_audit_reference(): void
+    {
+        [$owner,$company,$client]=$this->tenant();
+        $payload=$this->draft($client);
+        $payload['quote_number']='R-2026/004';
+        $first=$this->postJson('/api/v1/quotes',$payload)
+            ->assertCreated()->assertJsonPath('data.quote.quote_number','R-2026/004');
+        $firstId=$first->json('data.quote.id');
+        $immutableRef=sprintf('Q-%d-%06d',now()->year,$firstId);
+        $this->assertDatabaseHas('service_quotes',[
+            'id'=>$firstId,
+            'reference_number'=>$immutableRef,
+            'custom_quote_number'=>'R-2026/004',
+        ]);
+
+        $this->postJson('/api/v1/quotes',$payload)
+            ->assertUnprocessable()->assertJsonValidationErrors('quote_number');
+        $payload['quote_number']='R-2026/005';
+        $this->patchJson('/api/v1/quotes/'.$firstId,$payload)
+            ->assertOk()->assertJsonPath('data.quote.quote_number','R-2026/005');
+        $this->assertDatabaseHas('service_quotes',[
+            'id'=>$firstId,'reference_number'=>$immutableRef,
+            'custom_quote_number'=>'R-2026/005',
+        ]);
+        $this->postJson('/api/v1/quotes',$payload)->assertUnprocessable();
+        $this->postJson('/api/v1/quotes',array_merge($payload,[
+            'quote_number'=>'<script>alert(1)</script>',
+        ]))->assertUnprocessable();
+
+        $this->postJson('/api/v1/quotes/'.$firstId.'/approve',
+            ['confirmed'=>true])->assertOk();
+        $signed=$this->postJson('/api/v1/quotes/'.$firstId.'/share',[
+            'method'=>'secure_link',
+        ])->assertOk()->json('data.secure_link');
+        $this->get($signed)->assertOk()->assertSee('R-2026/005');
+
+        $another=User::factory()->create(['is_active'=>true]);
+        $otherCompany=Company::create(['owner_user_id'=>$another->id,
+            'name'=>'Another Company','country_iso_code'=>'CH','status'=>'active']);
+        $otherCompany->users()->attach($another->id,['role'=>'owner','status'=>'active']);
+        $otherClient=Client::create(['company_id'=>$otherCompany->id,
+            'full_name'=>'New Customer','source'=>'manual']);
+        $this->asTenant($another,$otherCompany);
+        $second=$this->draft($otherClient);
+        $second['quote_number']='R-2026/005';
+        $this->postJson('/api/v1/quotes',$second)->assertCreated()
+            ->assertJsonPath('data.quote.quote_number','R-2026/005');
+        $this->getJson('/api/v1/quotes/'.$firstId)->assertNotFound();
+    }
+
+
     public function test_ai_unsupported_upload_rejected_without_external_network_and_key_stays_server_only():void
     {
         [,,$client]=$this->tenant();
