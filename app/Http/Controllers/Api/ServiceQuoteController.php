@@ -85,6 +85,7 @@ class ServiceQuoteController extends Controller
             'client_email' => ['nullable','email','max:255'],
             'client_phone' => ['nullable','string','max:60'],
             'billing_address' => ['nullable','string','max:4000'],
+            'expected_revision' => ['sometimes','integer','min:1'],
             'quote_date' => ['required','date_format:Y-m-d'],
             'valid_until' => ['nullable','date_format:Y-m-d','after_or_equal:quote_date'],
             'currency' => ['required', Rule::in(['CHF','EUR','GBP','USD'])],
@@ -176,11 +177,13 @@ class ServiceQuoteController extends Controller
         $company = $this->company($request);
         $items = $data['items'];
         unset($data['items']);
+        $expectedRevision = $data['expected_revision'] ?? null;
+        unset($data['expected_revision']);
         $data['service_job_id'] = $data['job_id'] ?? null;
         unset($data['job_id']);
         $data = array_merge($data, $this->amounts($items,
             (int)$data['vat_basis_points'], (int)$data['deposit_basis_points']));
-        return DB::transaction(function () use ($request,$quote,$data,$items,$company): ServiceQuote {
+        return DB::transaction(function () use ($request,$quote,$data,$items,$company,$expectedRevision): ServiceQuote {
             if ($quote === null) {
                 $quote = ServiceQuote::create(array_merge($data, [
                     'company_id'=>$company->id,
@@ -190,6 +193,15 @@ class ServiceQuoteController extends Controller
                 ]));
                 $quote->update(['reference_number'=>sprintf('Q-%d-%06d', now()->year, $quote->id)]);
             } else {
+                // Lock and compare the latest revision inside this transaction;
+                // two devices must never silently overwrite one another.
+                $quote = ServiceQuote::query()
+                    ->where('company_id',$company->id)
+                    ->lockForUpdate()->findOrFail($quote->id);
+                if ($expectedRevision !== null &&
+                    (int)$quote->revision !== (int)$expectedRevision) {
+                    abort(409, 'Quote was updated elsewhere. Reload before editing.');
+                }
                 abort_if($quote->status !== 'draft', 409,
                     'Approved, sent or archived quotes are immutable. Create a new draft.');
                 // Immutable company, original author and reference remain server-owned.

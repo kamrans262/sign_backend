@@ -65,6 +65,7 @@ class ServiceQuoteController extends Controller
     {
         $data=$request->validate([
             'company_id'=>['required','integer',Rule::exists('companies','id')->where('status','active')],
+            'expected_revision'=>['nullable','integer','min:1'],
             'client_id'=>['nullable','integer'],
             'service_job_id'=>['nullable','integer'],
             'quote_number'=>['nullable','string','max:40','regex:~^[A-Za-z0-9][A-Za-z0-9 _./-]*$~'],
@@ -145,6 +146,8 @@ class ServiceQuoteController extends Controller
         $data['items']=$items;
         $data['client_name']=trim($data['client_name']);
         $data['terms']=trim((string)($data['terms']??''));
+        // Revision is a concurrency guard, not a database column update.
+        $data['expected_revision']=$data['expected_revision']??null;
         $data['source_method']='manual';
         $subtotal=0;
         $complete=true;
@@ -169,8 +172,9 @@ class ServiceQuoteController extends Controller
     {
         $data=$this->fields($request,$quote);
         $items=$data['items'];
-        unset($data['items']);
-        return DB::transaction(function () use ($request,$quote,$data,$items):ServiceQuote {
+        $expectedRevision=$data['expected_revision']??null;
+        unset($data['items'],$data['expected_revision']);
+        return DB::transaction(function () use ($request,$quote,$data,$items,$expectedRevision):ServiceQuote {
             if (!$quote) {
                 $quote=ServiceQuote::create(array_merge($data,[
                     'created_by'=>$request->user()->id,
@@ -180,6 +184,11 @@ class ServiceQuoteController extends Controller
                 ]));
                 $quote->update(['reference_number'=>sprintf('Q-%d-%06d',now()->year,$quote->id)]);
             } else {
+                $quote=ServiceQuote::query()->lockForUpdate()->findOrFail($quote->id);
+                if ($expectedRevision !== null &&
+                    (int)$expectedRevision !== (int)$quote->revision) {
+                    abort(409,'This quote changed in another session. Reload it.');
+                }
                 abort_unless($quote->status==='draft',409);
                 $quote->update(array_merge($data,['updated_by'=>$request->user()->id,
                     'revision'=>$quote->revision+1]));

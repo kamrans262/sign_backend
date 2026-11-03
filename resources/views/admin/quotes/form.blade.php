@@ -75,7 +75,7 @@
 
 @if(!$readonly)
 <form method="post" action="{{ $editing?route('admin.quotes.update',$quote):route('admin.quotes.store') }}">
-@csrf @if($editing) @method('put') @endif
+@csrf @if($editing) @method('put') <input type="hidden" name="expected_revision" value="{{ $quote->revision }}"> @endif
 <section class="panel">
 <div class="panel-header"><div><h2>Quote Details</h2><p class="panel-header-hint">Only drafts can be edited. Each save creates a new auditable revision.</p></div></div>
 <div class="fields">
