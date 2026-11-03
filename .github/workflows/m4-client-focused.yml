@@ -16,6 +16,7 @@ on:
       - 'resources/views/admin/clients/**'
       - 'resources/views/admin/layout.blade.php'
       - 'tests/Feature/M4ClientManagementTest.php'
+      - 'tests/Feature/M4Stage2SecurityAndReleaseTest.php'
   workflow_dispatch:
 
 permissions:
@@ -57,9 +58,9 @@ jobs:
         run: cp .env.example .env && php artisan key:generate
       - name: Lint scoped PHP and compile existing admin views
         run: php -l app/Http/Controllers/Api/ClientController.php && php -l app/Http/Controllers/Admin/ClientController.php && php -l routes/api.php && php -l routes/web.php && php artisan view:cache
-      - name: Test M4 on SQLite
-        run: php artisan test --filter=M4ClientManagementTest
-      - name: Test M4 on MySQL 8
+      - name: Test combined M3 and M4 tenant workflows on SQLite
+        run: php artisan test --filter='M(3CompanyManagement|4ClientManagement|4Stage2SecurityAndRelease)Test'
+      - name: Test combined M3 and M4 tenant workflows on MySQL 8
         env:
           DB_CONNECTION: mysql
           DB_URL: ''
@@ -68,4 +69,6 @@ jobs:
           DB_DATABASE: sign2digital_m4_ci
           DB_USERNAME: sign_ci
           DB_PASSWORD: sign-ci-only
-        run: php artisan test --filter=M4ClientManagementTest
+        run: php artisan test --filter='M(3CompanyManagement|4ClientManagement|4Stage2SecurityAndRelease)Test'
+      - name: Guard M2 email OTP and admin authentication
+        run: php artisan test --filter=M2EmailOtpAuthTest
