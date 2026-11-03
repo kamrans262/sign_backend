@@ -50,7 +50,7 @@ class ServiceJobController extends Controller
             'clients' => Client::query()->with('company:id,name')
                 ->orderBy('full_name')->get(['id','company_id','full_name','company_name']),
             'members' => User::query()->where('is_active', true)
-                ->whereHas('companies', fn ($company) => $company->wherePivot('status', 'active'))
+                ->whereHas('companies', fn ($company) => $company->where('company_user.status', 'active'))
                 ->orderBy('name')->get(['id','name','email']),
         ];
     }

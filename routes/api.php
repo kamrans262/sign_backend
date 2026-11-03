@@ -115,14 +115,14 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
 
         // M5: real company-isolated customer jobs (not Laravel queue jobs).
         Route::middleware(['company.access', 'company.permission:jobs.read'])->group(function (): void {
-            Route::get('/jobs', [\\App\\Http\\Controllers\\Api\\ServiceJobController::class, 'index']);
-            Route::get('/jobs/{job}', [\\App\\Http\\Controllers\\Api\\ServiceJobController::class, 'show'])->whereNumber('job');
+            Route::get('/jobs', [\App\Http\\Controllers\\Api\\ServiceJobController::class, 'index']);
+            Route::get('/jobs/{job}', [\App\Http\\Controllers\\Api\\ServiceJobController::class, 'show'])->whereNumber('job');
         });
         Route::middleware(['company.access', 'company.permission:jobs.write'])->group(function (): void {
-            Route::post('/jobs', [\\App\\Http\\Controllers\\Api\\ServiceJobController::class, 'store']);
-            Route::patch('/jobs/{job}', [\\App\\Http\\Controllers\\Api\\ServiceJobController::class, 'update'])->whereNumber('job');
-            Route::delete('/jobs/{job}', [\\App\\Http\\Controllers\\Api\\ServiceJobController::class, 'destroy'])->whereNumber('job');
-            Route::post('/jobs/{job}/restore', [\\App\\Http\\Controllers\\Api\\ServiceJobController::class, 'restore'])->whereNumber('job');
+            Route::post('/jobs', [\App\Http\\Controllers\\Api\\ServiceJobController::class, 'store']);
+            Route::patch('/jobs/{job}', [\App\Http\\Controllers\\Api\\ServiceJobController::class, 'update'])->whereNumber('job');
+            Route::delete('/jobs/{job}', [\App\Http\\Controllers\\Api\\ServiceJobController::class, 'destroy'])->whereNumber('job');
+            Route::post('/jobs/{job}/restore', [\App\Http\\Controllers\\Api\\ServiceJobController::class, 'restore'])->whereNumber('job');
         });
 
         Route::middleware('company.access')->get('/company-context', function (Request $request) {

@@ -34,8 +34,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
-        Route::resource('jobs', \\App\\Http\\Controllers\\Admin\\ServiceJobController::class)->except(['show']);
-        Route::post('/jobs/{job}/restore', [\\App\\Http\\Controllers\\Admin\\ServiceJobController::class, 'restore'])
+        Route::resource('jobs', \App\Http\\Controllers\\Admin\\ServiceJobController::class)->except(['show']);
+        Route::post('/jobs/{job}/restore', [\App\Http\\Controllers\\Admin\\ServiceJobController::class, 'restore'])
             ->whereNumber('job')->name('jobs.restore');
         Route::resource('clients', \App\Http\Controllers\Admin\ClientController::class)->except(['show']);
         Route::post('/clients/{client}/restore', [\App\Http\Controllers\Admin\ClientController::class, 'restore'])
