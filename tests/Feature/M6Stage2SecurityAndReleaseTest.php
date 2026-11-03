@@ -250,6 +250,35 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
     }
 
 
+    public function test_pdf_attachment_email_requires_real_pdf_and_does_not_claim_fake_delivery(): void
+    {
+        [,,$client]=$this->tenant();
+        $quoteId=$this->approvedQuote($client);
+        Mail::fake();
+        config(['mail.default'=>'smtp']);
+
+        $invalid=UploadedFile::fake()->create('fake.pdf',1,'application/pdf');
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
+                'recipient_email'=>'customer@example.test',
+                'message'=>'Please review the attached quote.',
+                'file'=>$invalid,
+            ])->assertUnprocessable();
+        $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'approved']);
+
+        $pdf=UploadedFile::fake()->createWithContent('quote.pdf',
+            "%PDF-1.4\n1 0 obj\n<</Type/Catalog>>\nendobj\n%%EOF\n");
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
+                'recipient_email'=>'customer@example.test',
+                'message'=>'Please review the attached quote.',
+                'file'=>$pdf,
+            ])->assertOk()
+            ->assertJsonPath('data.delivered',true)
+            ->assertJsonPath('data.pdf_attached',true);
+        $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'sent']);
+    }
+
     public function test_ai_unsupported_upload_rejected_without_external_network_and_key_stays_server_only():void
     {
         [,,$client]=$this->tenant();
