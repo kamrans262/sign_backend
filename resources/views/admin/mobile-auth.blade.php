@@ -1,8 +1,11 @@
 @extends('admin.layout')
-@section('title', 'Mobile Authentication')
-@section('breadcrumb', 'Mobile Authentication')
-@section('heading', 'Mobile Authentication')
-@section('description', 'Monitor email OTP verification for mobile accounts. Administrator sign-in continues to use your existing password-only process.')
+@section('title', 'Users — Email OTP Activity')
+@section('breadcrumb', 'Users / Email OTP Activity')
+@section('heading', 'Email OTP Activity')
+@section('description', 'Review email verification attempts for the same user accounts managed under Users. Administrator sign-in remains password-only.')
+@section('header_actions')
+  <a class="btn btn-outline" href="{{ route('admin.users.index') }}"><x-admin.icon name="arrow-left" /> Back to Users</a>
+@endsection
 
 @section('content')
 <section class="metrics" aria-label="Authentication statistics">
