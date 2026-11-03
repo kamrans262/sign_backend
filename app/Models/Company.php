@@ -21,6 +21,11 @@ class Company extends Model
         return [];
     }
 
+    public function clients(): HasMany
+    {
+        return $this->hasMany(Client::class);
+    }
+
     public function invitations(): HasMany
     {
         return $this->hasMany(CompanyInvitation::class);
