@@ -16,6 +16,15 @@ Route::prefix('v1/auth')->middleware('throttle:mobile-auth')->group(function ():
 });
 
 
+// M8: customer capability access requires an unguessable, expiring request token.
+// The existing quote-view URL remains read-only, not a signing credential.
+Route::get('/api/public/signing/{token}',
+    [\App\Http\Controllers\Api\PublicSignatureController::class, 'open'])
+    ->middleware('throttle:30,1')->name('signing.public.api');
+Route::get('/api/public/signing/{token}/pdf',
+    [\App\Http\Controllers\Api\PublicSignatureController::class, 'approvedPdf'])
+    ->middleware('throttle:15,1')->name('signing.public.pdf');
+
 Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
     Route::post('/v1/auth/logout', [\App\Http\Controllers\Api\MobileAuthController::class, 'logout']);
     // Existing route retained for older clients.
@@ -143,6 +152,25 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::delete('/quotes/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class,'archive'])->whereNumber('quote');
             Route::post('/quotes/prepare/{method}', [\App\Http\Controllers\Api\QuoteAiController::class,'prepare'])
                 ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
+        });
+
+        // M8: tenant-scoped signing-request lifecycle.
+        Route::middleware(['company.access', 'company.permission:quotes.read'])->group(function (): void {
+            Route::get('/quotes/{quote}/signature-requests',
+                [\App\Http\Controllers\Api\SignatureRequestController::class,'index'])->whereNumber('quote');
+            Route::get('/signature-requests/{signature}',
+                [\App\Http\Controllers\Api\SignatureRequestController::class,'show'])->whereNumber('signature');
+        });
+        Route::middleware(['company.access', 'company.permission:quotes.write'])->group(function (): void {
+            Route::post('/quotes/{quote}/signature-requests',
+                [\App\Http\Controllers\Api\SignatureRequestController::class,'store'])
+                ->whereNumber('quote')->middleware('throttle:10,1');
+            Route::post('/signature-requests/{signature}/revoke',
+                [\App\Http\Controllers\Api\SignatureRequestController::class,'revoke'])
+                ->whereNumber('signature')->middleware('throttle:10,1');
+            Route::post('/signature-requests/{signature}/resend',
+                [\App\Http\Controllers\Api\SignatureRequestController::class,'resend'])
+                ->whereNumber('signature')->middleware('throttle:10,1');
         });
 
         Route::middleware('company.access')->get('/company-context', function (Request $request) {
