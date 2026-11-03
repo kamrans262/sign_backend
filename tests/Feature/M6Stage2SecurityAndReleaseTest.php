@@ -139,6 +139,14 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         ])->assertStatus(503);
         $this->assertDatabaseHas('service_quotes',['id'=>$id,'status'=>'approved']);
         Mail::assertNothingSent();
+        // The null transport silently discards outgoing email, so it must
+        // not report a successful customer delivery or transition to Sent.
+        config(['mail.default'=>'null']);
+        $this->postJson('/api/v1/quotes/'.$id.'/share',[
+            'method'=>'email','recipient_email'=>'customer@example.test',
+        ])->assertStatus(503);
+        $this->assertDatabaseHas('service_quotes',['id'=>$id,'status'=>'approved']);
+        Mail::assertNothingSent();
     }
 
     public function test_payment_payload_restricts_keys_and_server_rejects_untrusted_amounts_and_cross_client_jobs(): void
