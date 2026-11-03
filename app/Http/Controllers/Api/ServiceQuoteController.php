@@ -274,31 +274,58 @@ class ServiceQuoteController extends Controller
 
     public function approve(Request $request, int $quote): JsonResponse
     {
-        $request->validate(['confirmed'=>['required','accepted']]);
-        $item = $this->scoped($request,$quote);
-        abort_if($item->status !== 'draft',409,'Only a draft can be approved.');
-        if ($item->client_name === '' || trim((string)$item->terms) === '' ||
-            $item->items->isEmpty() || $item->total_minor === null) {
-            throw ValidationException::withMessages(['quote'=>'Complete client, terms and every price before approval.']);
-        }
-        foreach ($item->items as $row) {
-            if ($row->quantity === null || $row->unit_price_minor === null ||
-                $row->title === '' ||
-                ($row->dimensions !== null && trim($row->dimensions) === '') ||
-                !empty($row->unresolved_fields)) {
-                throw ValidationException::withMessages(['items'=>'Resolve every field before approval.']);
+        // Backwards-compatible optional revision guard. Updated clients submit
+        // the last revision they reviewed to avoid approving stale amounts.
+        $input = $request->validate([
+            'confirmed' => ['required', 'accepted'],
+            'expected_revision' => ['sometimes', 'integer', 'min:1'],
+        ]);
+        $company = $this->company($request);
+        $item = DB::transaction(function () use ($request, $quote, $company, $input): ServiceQuote {
+            // Approval must re-read and lock the draft inside the transaction.
+            // Otherwise an edit/approval race can approve unreviewed pricing.
+            $item = ServiceQuote::query()
+                ->where('company_id', $company->id)
+                ->lockForUpdate()
+                ->with('items')
+                ->findOrFail($quote);
+            if (isset($input['expected_revision']) &&
+                (int) $item->revision !== (int) $input['expected_revision']) {
+                abort(409, 'Quote was updated elsewhere. Reload before approving.');
             }
-        }
-        DB::transaction(function () use ($request,$item):void {
-            $item->update(['status'=>'approved','approved_at'=>now(),
-                'updated_by'=>$request->user()->id,'revision'=>$item->revision+1]);
-            $item->revisions()->create(['revision'=>$item->revision,
-                'snapshot'=>$this->payload($item->fresh()->load('items')),
-                'actor_user_id'=>$request->user()->id,'created_at'=>now()]);
-            AuditLogger::record('mobile.quote.approved',$request->user(),$item,
-                $this->company($request),request:$request);
+            abort_if($item->status !== 'draft', 409, 'Only a draft can be approved.');
+            if ($item->client_name === '' || trim((string) $item->terms) === '' ||
+                $item->items->isEmpty() || $item->total_minor === null) {
+                throw ValidationException::withMessages([
+                    'quote' => 'Complete client, terms and every price before approval.',
+                ]);
+            }
+            foreach ($item->items as $row) {
+                if ($row->quantity === null || $row->unit_price_minor === null ||
+                    $row->title === '' ||
+                    ($row->dimensions !== null && trim($row->dimensions) === '') ||
+                    !empty($row->unresolved_fields)) {
+                    throw ValidationException::withMessages([
+                        'items' => 'Resolve every field before approval.',
+                    ]);
+                }
+            }
+            $item->update([
+                'status' => 'approved', 'approved_at' => now(),
+                'updated_by' => $request->user()->id,
+                'revision' => $item->revision + 1,
+            ]);
+            $item->revisions()->create([
+                'revision' => $item->revision,
+                'snapshot' => $this->payload($item->fresh()->load('items')),
+                'actor_user_id' => $request->user()->id,
+                'created_at' => now(),
+            ]);
+            AuditLogger::record('mobile.quote.approved', $request->user(), $item,
+                $company, request: $request);
+            return $item->fresh()->load('items');
         });
-        return response()->json(['data'=>['quote'=>$this->payload($item->fresh()->load('items'))]]);
+        return response()->json(['data' => ['quote' => $this->payload($item)]]);
     }
 
     public function archive(Request $request, int $quote): JsonResponse
