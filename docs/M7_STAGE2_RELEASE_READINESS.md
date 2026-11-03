@@ -17,7 +17,7 @@
 5. Existing admin approve form now posts a hidden `expected_revision`; no visual change.
 6. Added `M7QuoteApprovalTest` for stale admin review, correct approval and preventing approval of empty work-item collections. Existing mobile `M6ServiceQuoteManagementTest` now covers stale revision, correct revision and duplicate approval. Flutter repository regression checks the approved request revision and HTTP 409 response.
 7. A new M7 workflow per repository is configured to run on pushes to this M7 branch. Backend workflow retains PHP/Blade, SQLite and MySQL 8 M4–M6 focused coverage plus M7 tests; Flutter workflow runs focused analyzer and existing quote UI tests.
-8. Static comparison with M6: no existing widget/layout, navigation, color, text input or screen files were modified on the M7 branch. The only Flutter production code change is `remote_quote_repository.dart`.
+8. Original M7 Stage 2 snapshot had no UI screen changes. The 2026-11-04 independent re-audit subsequently corrected fractional VAT/deposit formatting and decimal keyboard behavior within existing screens, without changing layout/navigation/colors/components. See `docs/M7_INDEPENDENT_REAUDIT_2026-11-04.md`.
 
 ## API compatibility
 `POST /api/v1/quotes/{quote}/approve`: confirmed=true; optionally expected_revision=current displayed revision. Missing revision accepted to preserve M6 clients; updated Flutter submits it. 200 on success, 409 on stale/already-approved, 422 on incomplete; tenant/RBAC stays unchanged.
@@ -57,3 +57,7 @@
 - No new OpenAI key or migration is introduced by M7 Stage 2.
 
 **Decision:** M7 Stage 2 code and test coverage prepared, but release readiness is conditional. Do NOT deploy until gates pass.
+
+## 2026-11-04 independent re-audit addendum (supersedes earlier snapshot)
+
+For the current authoritative risk and verification status, see `docs/M7_INDEPENDENT_REAUDIT_2026-11-04.md`. Changes after the original Stage 2 snapshot: M7 test filters fixed to execute real approval regressions in both DB engines, admin approval tests now use real edit endpoints, archive/restore operations use row locks, null mailer no longer causes fake Sent, fractional VAT/deposit precision preserved across Flutter review/preview/PDF. The existing 900px landscape width constraint remains unchanged. The backend still accepts non-canonical client-supplied PDF attachment bytes; this is a release blocker. CI and live Hostinger verification remain unconfirmed. **Do not deploy yet.**
