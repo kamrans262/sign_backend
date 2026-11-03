@@ -7,6 +7,8 @@ use App\Models\Company;
 use App\Models\ServiceQuote;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class M7QuoteApprovalTest extends TestCase
@@ -114,6 +116,43 @@ class M7QuoteApprovalTest extends TestCase
         $this->post('/admin/quotes/'.$quote->id.'/approve',[
             'expected_revision'=>2,
         ])->assertStatus(409);
+    }
+
+    public function test_admin_can_freeze_and_download_the_exact_approved_pdf(): void
+    {
+        Storage::fake('local');
+        $quote=$this->createAdminDraft();
+        $pdf="%PDF-1.4\n1 0 obj\n<</Type/Catalog>>\nendobj\n%%EOF\n";
+        $this->post('/admin/quotes/'.$quote->id.'/approve',[
+            'expected_revision'=>1,
+            'file'=>UploadedFile::fake()->createWithContent('approved.pdf',$pdf),
+        ])->assertRedirect();
+        $fresh=ServiceQuote::findOrFail($quote->id);
+        $this->assertSame('approved',$fresh->status);
+        $this->assertSame(2,(int)$fresh->approved_pdf_revision);
+        $this->assertSame(hash('sha256',$pdf),$fresh->approved_pdf_sha256);
+        $this->assertSame($pdf,Storage::disk('local')->get($fresh->approved_pdf_path));
+        $this->get('/admin/quotes/'.$quote->id.'/approved-pdf')
+            ->assertOk()
+            ->assertHeader('Content-Type','application/pdf')
+            ->assertContent($pdf);
+        $this->get('/admin/quotes/'.$quote->id.'/edit')
+            ->assertOk()->assertSee('Download Approved PDF');
+    }
+
+    public function test_admin_rejects_invalid_pdf_without_approving(): void
+    {
+        Storage::fake('local');
+        $quote=$this->createAdminDraft();
+        $this->post('/admin/quotes/'.$quote->id.'/approve',[
+            'expected_revision'=>1,
+            'file'=>UploadedFile::fake()->createWithContent('fake.pdf','not a PDF'),
+        ])->assertSessionHasErrors('file');
+        $this->assertDatabaseHas('service_quotes',[
+            'id'=>$quote->id,'status'=>'draft','revision'=>1,
+        ]);
+        $this->get('/admin/quotes/'.$quote->id.'/approved-pdf')
+            ->assertStatus(409);
     }
 
 }
