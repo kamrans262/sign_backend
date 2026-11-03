@@ -331,7 +331,7 @@ class ServiceQuoteController extends Controller
 
     public function publicShow(Request $request, int $quote)
     {
-        $item=ServiceQuote::query()->with('items')->findOrFail($quote);
+        $item=ServiceQuote::query()->with(['items','company:id,name,address,email,phone_number,vat_number'])->findOrFail($quote);
         abort_unless(in_array($item->status,['approved','sent'],true),404);
         if (!$request->expectsJson()) {
             return response()->view('public.quote',['quote'=>$item],200,
