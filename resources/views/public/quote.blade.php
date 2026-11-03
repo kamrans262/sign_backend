@@ -125,7 +125,7 @@
   <main>
     <section class="document-card" aria-label="Quote">
       <div class="document-top">
-        <img class="document-logo" src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" width="132" height="43" alt="Sign2Digital">
+        <img class="document-logo" src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" width="132" height="43" alt="{{ $quote->company?->name ?: 'Sign2Digital' }}">
         <div class="document-id">
           <div class="document-type">Quote</div>
           <div class="document-number">{{ $quote->custom_quote_number ?: $quote->reference_number }}</div>
