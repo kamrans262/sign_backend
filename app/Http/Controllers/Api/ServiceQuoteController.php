@@ -481,9 +481,9 @@ class ServiceQuoteController extends Controller
         $number = $item->custom_quote_number ?: $item->reference_number;
         $filename = 'Sign2Digital_Quote_'.preg_replace('/[^A-Za-z0-9_-]/','_', $number).'.pdf';
         try {
-            Mail::raw("Quote {$number}\\n\\n".($data['message']??'')."\\n\\n".
+            Mail::raw("Quote {$number}\n\n".($data['message']??'')."\n\n".
                 "The exact approved quote PDF is attached. Review the same approved ".
-                "quote using this secure seven-day link:\\n".$link,
+                "quote using this secure seven-day link:\n".$link,
                 function ($mail) use ($data,$number,$bytes,$filename): void {
                     $mail->to($data['recipient_email'])
                         ->subject('Sign2Digital quote '.$number)
