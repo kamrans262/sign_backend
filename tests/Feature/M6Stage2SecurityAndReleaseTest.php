@@ -70,7 +70,10 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
 
         $this->assertIsString($signed);
         $this->get($signed)->assertOk()->assertSee('Stage2 Company')
-            ->assertSee('Repair work');
+            ->assertSee('Repair work')
+            ->assertSee('Deposit due (30%)')
+            ->assertSee('Remaining after deposit')
+            ->assertSee('CHF 121.07');
         $this->getJson($signed)->assertOk()->assertJsonPath('data.quote.status','approved');
         $this->get('/quote-view/'.$id)->assertForbidden();
 
