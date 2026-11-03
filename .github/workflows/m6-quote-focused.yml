@@ -13,6 +13,8 @@ on:
       - 'database/migrations/2026_11_03_500000_create_service_quotes_tables.php'
       - 'resources/views/admin/quotes/**'
       - 'tests/Feature/M6ServiceQuoteManagementTest.php'
+      - 'tests/Feature/M6Stage2SecurityAndReleaseTest.php'
+      - 'resources/views/public/quote.blade.php'
       - 'config/services.php'
       - 'app/Http/Controllers/Api/ServiceJobController.php'
       - 'app/Http/Controllers/Api/ClientController.php'
@@ -68,9 +70,9 @@ jobs:
       - name: Prepare isolated environment
         run: cp .env.example .env && php artisan key:generate
       - name: Lint scoped M5 PHP and compile admin Blade
-        run: php -l app/Models/ServiceJob.php && php -l app/Models/Company.php && php -l app/Models/Client.php && php -l app/Http/Controllers/Api/ServiceJobController.php && php -l app/Http/Controllers/Api/ClientController.php && php -l app/Http/Controllers/Admin/ServiceJobController.php && php -l database/migrations/2026_11_03_400000_create_service_jobs_tables.php && php -l routes/api.php && php -l routes/web.php && php -l tests/Feature/M5Stage2SecurityAndReleaseTest.php && php -l scripts/m5_release_preflight.php && php -l app/Http/Controllers/Api/ServiceQuoteController.php && php -l app/Http/Controllers/Api/QuoteAiController.php && php -l app/Http/Controllers/Admin/ServiceQuoteController.php && php -l app/Models/ServiceQuote.php && php -l app/Models/ServiceQuoteItem.php && php -l app/Models/ServiceQuoteRevision.php && php -l database/migrations/2026_11_03_500000_create_service_quotes_tables.php && php -l tests/Feature/M6ServiceQuoteManagementTest.php && php artisan view:cache
+        run: php -l app/Models/ServiceJob.php && php -l app/Models/Company.php && php -l app/Models/Client.php && php -l app/Http/Controllers/Api/ServiceJobController.php && php -l app/Http/Controllers/Api/ClientController.php && php -l app/Http/Controllers/Admin/ServiceJobController.php && php -l database/migrations/2026_11_03_400000_create_service_jobs_tables.php && php -l routes/api.php && php -l routes/web.php && php -l tests/Feature/M5Stage2SecurityAndReleaseTest.php && php -l scripts/m5_release_preflight.php && php -l app/Http/Controllers/Api/ServiceQuoteController.php && php -l app/Http/Controllers/Api/QuoteAiController.php && php -l app/Http/Controllers/Admin/ServiceQuoteController.php && php -l app/Models/ServiceQuote.php && php -l app/Models/ServiceQuoteItem.php && php -l app/Models/ServiceQuoteRevision.php && php -l database/migrations/2026_11_03_500000_create_service_quotes_tables.php && php -l tests/Feature/M6ServiceQuoteManagementTest.php && php -l tests/Feature/M6Stage2SecurityAndReleaseTest.php && php artisan view:cache
       - name: Verify M4 client and M5 job flows with SQLite
-        run: php artisan test --filter='M(4ClientManagement|5ServiceJobManagement|5Stage2SecurityAndRelease|6ServiceQuoteManagement)Test'
+        run: php artisan test --filter='M(4ClientManagement|5ServiceJobManagement|5Stage2SecurityAndRelease|6ServiceQuoteManagement|6Stage2SecurityAndRelease)Test'
       - name: Verify M4 client and M5 job flows with MySQL 8
         env:
           DB_CONNECTION: mysql
@@ -80,4 +82,4 @@ jobs:
           DB_DATABASE: sign2digital_m6_ci
           DB_USERNAME: sign_ci
           DB_PASSWORD: sign-ci-only
-        run: php artisan test --filter='M(4ClientManagement|5ServiceJobManagement|6ServiceQuoteManagement)Test'
+        run: php artisan test --filter='M(4ClientManagement|5ServiceJobManagement|6ServiceQuoteManagement|6Stage2SecurityAndRelease)Test'
