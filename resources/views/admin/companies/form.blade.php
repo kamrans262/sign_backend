@@ -142,10 +142,13 @@
             <td><span class="pill {{ $member->pivot->status === 'active' && $member->is_active ? 'green' : 'red' }}"><span class="pill-dot"></span> {{ $member->pivot->status === 'active' && $member->is_active ? 'Active' : 'Inactive' }}</span></td>
             <td>
               @if($member->id !== $company->owner_user_id)
-                <form method="post" action="{{ route('admin.companies.members.destroy', [$company, $member]) }}" onsubmit="return confirm('Remove this company membership?')">
-                  @csrf @method('delete')
-                  <button class="btn btn-small btn-danger" type="submit">Remove</button>
-                </form>
+                <div class="actions">
+                  <a class="btn btn-small btn-outline" href="{{ route('admin.companies.members.edit', [$company, $member]) }}">Edit Access</a>
+                  <form method="post" action="{{ route('admin.companies.members.destroy', [$company, $member]) }}" onsubmit="return confirm('Remove this company membership?')">
+                    @csrf @method('delete')
+                    <button class="btn btn-small btn-danger" type="submit">Remove</button>
+                  </form>
+                </div>
               @else
                 <span class="muted">Owner</span>
               @endif
