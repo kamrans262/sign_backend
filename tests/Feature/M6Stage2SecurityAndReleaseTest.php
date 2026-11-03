@@ -105,6 +105,29 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $this->assertDatabaseCount('service_quote_revisions',2);
     }
 
+
+    public function test_stale_revision_is_rejected_before_it_can_overwrite_another_device(): void
+    {
+        [,,$client]=$this->tenant();
+        $source=$this->draft($client);
+        $id=$this->postJson('/api/v1/quotes',$source)->assertCreated()
+            ->assertJsonPath('data.quote.revision',1)->json('data.quote.id');
+        $first=$source;
+        $first['expected_revision']=1;
+        $first['terms']='New terms saved by device A';
+        $this->patchJson('/api/v1/quotes/'.$id,$first)->assertOk()
+            ->assertJsonPath('data.quote.revision',2);
+        $stale=$source;
+        $stale['expected_revision']=1;
+        $stale['terms']='Outdated terms from device B';
+        $this->patchJson('/api/v1/quotes/'.$id,$stale)->assertStatus(409);
+        $this->getJson('/api/v1/quotes/'.$id)->assertOk()
+            ->assertJsonPath('data.quote.terms','New terms saved by device A')
+            ->assertJsonPath('data.quote.revision',2);
+        $this->assertDatabaseCount('service_quote_revisions',2);
+    }
+
+
     public function test_email_unconfigured_refuses_delivery_and_never_fakes_sent(): void
     {
         [,,$client]=$this->tenant();
