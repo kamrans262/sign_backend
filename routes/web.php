@@ -9,6 +9,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('admin.login'));
 
+// M8: separate signature-request capability. The legacy approved-quote
+// viewing URL below never grants permission to sign.
+Route::get('/sign/{token}',
+    [\App\Http\Controllers\Api\PublicSignatureController::class, 'browser'])
+    ->middleware('throttle:30,1')->name('signing.public.browser');
+
 // Customer quote view: time-limited, tamper-evident signed URLs only.
 Route::get('/quote-view/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class, 'publicShow'])
     ->middleware('signed')->whereNumber('quote')->name('quotes.public');
