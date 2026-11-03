@@ -292,7 +292,7 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $this->get('/api/v1/quotes/'.$quoteId.'/approved-pdf')
             ->assertOk()
             ->assertHeader('Content-Type','application/pdf')
-            ->assertHeader('Cache-Control','private, no-store, max-age=0')
+            ->assertHeader('Cache-Control','max-age=0, no-store, private')
             ->assertContent($canonicalBytes);
 
         $invalid=UploadedFile::fake()->create('fake.pdf',1,'application/pdf');
