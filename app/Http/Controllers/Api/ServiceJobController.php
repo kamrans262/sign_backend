@@ -15,6 +15,17 @@ use Illuminate\Validation\ValidationException;
 
 class ServiceJobController extends Controller
 {
+    private function canReadQuotes(Request $request): bool
+    {
+        $company = $this->company($request);
+        $member = $company->users()->where('users.id', $request->user()->id)
+            ->wherePivot('status', 'active')->first();
+        if (!$member) return false;
+        if (in_array($member->pivot->role, ['owner', 'admin'], true)) return true;
+        $perms = json_decode((string) $member->pivot->permissions, true);
+        return is_array($perms) && in_array('quotes.read', $perms, true);
+    }
+
     private function company(Request $request): Company
     {
         $company = $request->attributes->get('company');
@@ -154,11 +165,24 @@ class ServiceJobController extends Controller
 
     public function show(Request $request, int $job): JsonResponse
     {
+        $target = $this->scoped($request, $job);
+        $canSeeQuotes = $this->canReadQuotes($request);
+        $quotes = $canSeeQuotes
+            ? $target->serviceQuotes()->whereNot('status', 'archived')->orderByDesc('id')
+                ->get(['id', 'reference_number', 'status', 'total_minor', 'currency'])
+                ->map(fn ($quote) => [
+                    'id' => $quote->id,
+                    'reference_number' => $quote->reference_number,
+                    'status' => $quote->status,
+                    'total_minor' => $quote->total_minor,
+                    'currency' => $quote->currency,
+                ])->values()
+            : [];
         return response()->json(['data' => [
-            'job' => $this->payload($this->scoped($request, $job)),
+            'job' => $this->payload($target),
             // Related modules will populate these only after their own real persistence.
             'sections' => [
-                'quotes' => [], 'signed_quotes' => [], 'addenda' => [], 'documents' => [],
+                'quotes' => $quotes, 'signed_quotes' => [], 'addenda' => [], 'documents' => [],
                 'photos' => [], 'notes' => [], 'purchases' => [], 'time' => [],
                 'deposits' => [], 'site_reports' => [], 'acceptance' => [], 'invoices' => [],
             ],

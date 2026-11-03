@@ -276,7 +276,8 @@ class ServiceQuoteController extends Controller
     {
         $item = $this->scoped($request,$quote);
         abort_if($item->status === 'archived',409);
-        $item->update(['status'=>'archived','archived_at'=>now(),
+        $item->update(['status_before_archive'=>$item->status,
+            'status'=>'archived','archived_at'=>now(),
             'updated_by'=>$request->user()->id]);
         AuditLogger::record('mobile.quote.archived',$request->user(),$item,
             $this->company($request),request:$request);

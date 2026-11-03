@@ -193,7 +193,7 @@ class ServiceQuoteController extends Controller
     {
         $target=ServiceQuote::with('items')->findOrFail($quote);
         abort_unless($target->status==='draft',409);
-        if (!$target->total_minor || !$target->client_name || !$target->terms ||
+        if ($target->total_minor === null || !$target->client_name || !$target->terms ||
             $target->items->contains(fn($i)=>$i->quantity===null ||
                 $i->unit_price_minor===null || ($i->dimensions!==null && trim($i->dimensions)===''))) {
             return back()->withErrors(['quote'=>'Complete client, prices and terms before approval.']);

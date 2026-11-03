@@ -25,6 +25,17 @@ class ClientController extends Controller
         return $company;
     }
 
+    private function canReadQuotes(Request $request): bool
+    {
+        $company = $this->company($request);
+        $member = $company->users()->where('users.id', $request->user()->id)
+            ->wherePivot('status', 'active')->first();
+        if (!$member) return false;
+        if (in_array($member->pivot->role, ['owner', 'admin'], true)) return true;
+        $perms = json_decode((string) $member->pivot->permissions, true);
+        return is_array($perms) && in_array('quotes.read', $perms, true);
+    }
+
     private function canReadJobs(Request $request): bool
     {
         $company = $this->company($request);
@@ -124,6 +135,18 @@ class ClientController extends Controller
     {
         $target = $this->scoped($request, $client);
         $canReadJobs = $this->canReadJobs($request);
+        $canReadQuotes = $this->canReadQuotes($request);
+        $quotes = $canReadQuotes
+            ? $target->serviceQuotes()->whereNot('status', 'archived')->latest('id')
+                ->get(['id', 'reference_number', 'status', 'total_minor', 'currency'])
+                ->map(fn ($quote) => [
+                    'id' => $quote->id,
+                    'reference_number' => $quote->reference_number,
+                    'status' => $quote->status,
+                    'total_minor' => $quote->total_minor,
+                    'currency' => $quote->currency,
+                ])->values()
+            : [];
         $jobs = $canReadJobs
             ? $target->serviceJobs()->latest('id')->get()->map(fn ($job) => [
                 'id' => $job->id,
@@ -135,7 +158,7 @@ class ClientController extends Controller
             : [];
         return response()->json(['data' => [
             'client' => $this->profile($target, $canReadJobs),
-            'jobs' => $jobs, 'quotes' => [], 'documents' => [],
+            'jobs' => $jobs, 'quotes' => $quotes, 'documents' => [],
             'invoices' => [], 'notes_history' => [],
         ]]);
     }
