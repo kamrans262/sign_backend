@@ -65,6 +65,7 @@ $required = [
     ['DELETE', 'api/v1/quotes/{quote}', 'company.permission:quotes.write'],
     ['POST', 'api/v1/quotes/{quote}/approve', 'company.permission:quotes.write'],
     ['POST', 'api/v1/quotes/{quote}/share', 'company.permission:quotes.write'],
+    ['POST', 'api/v1/quotes/{quote}/share-email-pdf', 'company.permission:quotes.write'],
     ['POST', 'api/v1/quotes/prepare/{method}', 'company.permission:quotes.write'],
     ['GET', 'admin/quotes', 'platform.admin'],
     ['GET', 'admin/quotes/create', 'platform.admin'],

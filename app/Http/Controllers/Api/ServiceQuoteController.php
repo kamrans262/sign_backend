@@ -352,6 +352,58 @@ class ServiceQuoteController extends Controller
         return response()->json(['data'=>['delivered'=>true]]);
     }
 
+    public function shareEmailPdf(Request $request, int $quote): JsonResponse
+    {
+        $data = $request->validate([
+            'recipient_email'=>['required','email','max:255'],
+            'message'=>['nullable','string','max:2000'],
+            'file'=>['required','file','max:5120'],
+        ]);
+        $item = $this->scoped($request, $quote);
+        abort_unless(in_array($item->status,['approved','sent'],true),409,
+            'Approve the quote before emailing a PDF.');
+        $uploaded = $request->file('file');
+        if (!$uploaded || !$uploaded->isValid()) {
+            throw ValidationException::withMessages(['file'=>'The selected PDF cannot be read.']);
+        }
+        $bytes = file_get_contents($uploaded->getRealPath());
+        // Do not attach arbitrary files merely renamed with a .pdf suffix.
+        // Accept only a bounded, recognizable PDF; no web-root persistence.
+        if (!is_string($bytes) || strlen($bytes)<12 ||
+            strlen($bytes)>5*1024*1024 ||
+            !str_starts_with($bytes,'%PDF-') ||
+            !str_contains(substr($bytes,-4096),'%%EOF')) {
+            throw ValidationException::withMessages(['file'=>'Upload a valid PDF smaller than 5 MB.']);
+        }
+        if (in_array((string) config('mail.default'),['log','array','null'],true)) {
+            return response()->json(['message'=>'Email delivery is not configured.'],503);
+        }
+        $link = URL::temporarySignedRoute('quotes.public',
+            now()->addDays(7),['quote'=>$item->id,'v'=>$item->link_version]);
+        $number = $item->custom_quote_number ?: $item->reference_number;
+        $filename = 'Sign2Digital_Quote_'.preg_replace('/[^A-Za-z0-9_-]/','_', $number).'.pdf';
+        try {
+            Mail::raw("Quote {$number}\n\n".($data['message']??'')."\n\n".
+                "The reviewed quote PDF is attached. Confirm the same approved ".
+                "information through this secure seven-day link:\n".$link,
+                function ($mail) use ($data,$number,$bytes,$filename): void {
+                    $mail->to($data['recipient_email'])
+                        ->subject('Sign2Digital quote '.$number)
+                        ->attachData($bytes,$filename,['mime'=>'application/pdf']);
+                });
+        } catch (\Throwable $error) {
+            report($error);
+            return response()->json(['message'=>'Unable to send the quote PDF email.'],502);
+        }
+        $item->update(['status'=>'sent','sent_at'=>now(),'updated_by'=>$request->user()->id]);
+        AuditLogger::record('mobile.quote.sent',$request->user(),$item,
+            $this->company($request),
+            metadata:['method'=>'email','pdf_attachment'=>true],request:$request);
+        return response()->json(['data'=>[
+            'delivered'=>true, 'pdf_attached'=>true,
+        ]]);
+    }
+
     public function revisions(Request $request,int $quote): JsonResponse
     {
         $item=$this->scoped($request,$quote);

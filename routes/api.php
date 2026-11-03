@@ -137,6 +137,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/quotes/{quote}/approve', [\App\Http\Controllers\Api\ServiceQuoteController::class,'approve'])->whereNumber('quote');
             Route::post('/quotes/{quote}/share', [\App\Http\Controllers\Api\ServiceQuoteController::class,'share'])->whereNumber('quote')
                 ->middleware('throttle:10,1');
+            Route::post('/quotes/{quote}/share-email-pdf', [\App\Http\Controllers\Api\ServiceQuoteController::class,'shareEmailPdf'])
+                ->whereNumber('quote')->middleware('throttle:10,1');
             Route::delete('/quotes/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class,'archive'])->whereNumber('quote');
             Route::post('/quotes/prepare/{method}', [\App\Http\Controllers\Api\QuoteAiController::class,'prepare'])
                 ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
