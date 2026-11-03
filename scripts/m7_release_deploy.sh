@@ -17,15 +17,13 @@ fail() { printf 'BLOCK: %s\n' "$1" >&2; exit 1; }
 # though the old checkout does not yet ignore storage/backups/. Exclude only
 # those new untracked backup files. Never discard or overwrite any other work.
 clean_except_backups() {
-  local entry
-  while IFS= read -r entry; do
-    [[ -z "$entry" ]] && continue
-    if [[ "$entry" == '?? storage/backups/'* ]]; then
-      continue
-    fi
-    return 1
-  done < <(git status --porcelain=v1 --untracked-files=all)
-  return 0
+  local changes unexpected
+  # Capture status before filtering; never mask a failed git status command.
+  # Process substitution (< <(...)) is unreliable on some Hostinger shells.
+  changes="$(git status --porcelain=v1 --untracked-files=all)" || return 1
+  [[ -z "$changes" ]] && return 0
+  unexpected="$(printf '%s\n' "$changes" | grep -v '^?? storage/backups/' || true)"
+  [[ -z "$unexpected" ]]
 }
 
 # Determine whether the add-only migration has been fully installed by
