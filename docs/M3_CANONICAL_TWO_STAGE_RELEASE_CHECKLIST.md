@@ -36,7 +36,9 @@ Earlier "M3 Stage 1", "M3 Stage 2", and "M3 Stage 3" commits together represent 
 - Flutter, **passed**: [run 41625628643](https://github.com/kamrans262/sign_app/actions/runs/41625628643) — analyzer, company APIs, setup screens, M2 auth, responsive landscape checks.
 - Additional final release compatibility gate (verified): PHP **8.4.1 or newer** is required by the **current composer.lock** (locked Symfony 8.1 components). Although composer.json declares ^8.3, PHP 8.3 fails Composer platform checks. **PHP 8.4 CI passed**: [run 41626826060](https://github.com/kamrans262/sign_backend/actions/runs/41626826060) — Composer install, syntax/view checks, SQLite, MySQL 8 and M2 OTP targeted regressions. No dependency versions were changed. Actual Hostinger PHP remains unverified.
 
-## Production deployment gate
+## Production deployment gate — DEFERRED / superseded by combined release
+
+**Important update (November 3, 2026):** The user explicitly deferred M3 and M4 production deployment until the end of the development work. **Do not use the earlier M3-only rollout steps below as authorization to deploy M3 independently.** The combined, authoritative release gate is [M4 Stage 2 + deferred M3/M4 handoff](M4_STAGE2_AND_M3_M4_DEFERRED_DEPLOYMENT.md). The following steps are retained as historical safety checks only.
 
 **Do not claim a release until every item has been verified.** Production environment access, MySQL backup and live email/device acceptance are not available solely through the GitHub connection.
 
