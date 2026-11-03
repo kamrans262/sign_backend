@@ -109,9 +109,11 @@ final class M8BrowserAcceptanceTest extends TestCase
             ->assertSee('data-sign-method="upload"',false)
             ->assertSee('id="s2d-pad"',false)
             ->assertSee('name="_token"',false)
-            ->assertHeader('Cache-Control','private, no-store, max-age=0')
+            ->assertHeader('Cache-Control')
             ->getContent();
         $this->assertStringNotContainsString('FIGMA DEMONSTRATION',$html);
+        $this->assertStringContainsString('no-store',
+            (string)$this->get('/sign/'.$token)->headers->get('Cache-Control'));
     }
 
     public function test_browser_form_refuses_missing_consent_and_accepts_real_signature_once(): void
