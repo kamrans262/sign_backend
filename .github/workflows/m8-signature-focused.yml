@@ -21,6 +21,7 @@ on:
       - 'routes/**'
       - 'tests/Feature/M8SignatureRequestFoundationTest.php'
       - 'tests/Feature/M8SigningCompletionTest.php'
+      - 'tests/Feature/M8BrowserAcceptanceTest.php'
   workflow_dispatch:
 
 permissions:
@@ -59,11 +60,11 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - name: Lint M8 PHP and compile Blade
         run: |
-          for file in app/Models/SignatureRequest.php app/Models/SignatureEvent.php app/Models/SignedDocumentArtifact.php app/Services/SignatureWorkflowService.php app/Services/SignatureCompletionService.php app/Services/SignedPdfService.php app/Http/Controllers/Api/InPersonSigningController.php app/Http/Controllers/Api/SignedDocumentController.php app/Http/Controllers/Api/SignatureRequestController.php app/Http/Controllers/Api/PublicSignatureController.php app/Http/Controllers/Admin/SignatureRequestController.php database/migrations/2026_11_04_020000_create_signature_workflow_tables.php tests/Feature/M8SignatureRequestFoundationTest.php tests/Feature/M8SigningCompletionTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          for file in app/Models/SignatureRequest.php app/Models/SignatureEvent.php app/Models/SignedDocumentArtifact.php app/Services/SignatureWorkflowService.php app/Services/SignatureCompletionService.php app/Services/SignedPdfService.php app/Http/Controllers/Api/InPersonSigningController.php app/Http/Controllers/Api/SignedDocumentController.php app/Http/Controllers/Api/SignatureRequestController.php app/Http/Controllers/Api/PublicSignatureController.php app/Http/Controllers/Admin/SignatureRequestController.php database/migrations/2026_11_04_020000_create_signature_workflow_tables.php tests/Feature/M8SignatureRequestFoundationTest.php tests/Feature/M8SigningCompletionTest.php tests/Feature/M8BrowserAcceptanceTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
           php artisan view:cache
           php artisan route:list --path=api/public/signing
       - name: M8 and M7 SQLite regression
-        run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion)Test'
+        run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion|8BrowserAcceptance)Test'
       - name: M8 MySQL 8 regression
         env:
           DB_CONNECTION: mysql
@@ -73,4 +74,4 @@ jobs:
           DB_DATABASE: sign2digital_m8_ci
           DB_USERNAME: sign_ci
           DB_PASSWORD: sign-ci-only
-        run: php artisan test --filter='M8(SignatureRequestFoundation|SigningCompletion)Test'
+        run: php artisan test --filter='M8(SignatureRequestFoundation|SigningCompletion|BrowserAcceptance)Test'
