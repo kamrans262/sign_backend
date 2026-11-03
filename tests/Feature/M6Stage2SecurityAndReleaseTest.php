@@ -300,7 +300,7 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'approved']);
 
         $pdf=UploadedFile::fake()->createWithContent('quote.pdf',
-            "%PDF-1.4\n1 0 obj\n<</Type/Catalog>>\nendobj\n%%EOF\n");
+            "%PDF-1.4\nDIFFERENT CLIENT-SUPPLIED PDF\n%%EOF\n");
         $this->withHeader('Accept','application/json')->post(
             '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
                 'recipient_email'=>'customer@example.test',
@@ -320,6 +320,28 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
             '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
                 'recipient_email'=>'customer@example.test',
             ])->assertStatus(503);
+    }
+
+    public function test_legacy_approved_quote_cannot_email_an_unbound_pdf_but_secure_link_still_works(): void
+    {
+        [,,$client]=$this->tenant();
+        Storage::fake('local');
+        $quoteId=$this->approvedQuote($client); // Old M6 / admin approval.
+        Mail::fake();
+        config(['mail.default'=>'smtp']);
+        $untrusted=UploadedFile::fake()->createWithContent('untrusted.pdf',
+            "%PDF-1.4\nUNVERIFIED\n%%EOF\n");
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
+                'recipient_email'=>'customer@example.test','file'=>$untrusted,
+            ])->assertStatus(409)
+            ->assertJsonPath('message',
+                'This quote has no verified approved PDF. Send the secure link instead.');
+        $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'approved']);
+        Mail::assertNothingSent();
+        $this->postJson('/api/v1/quotes/'.$quoteId.'/share',[
+            'method'=>'secure_link',
+        ])->assertOk()->assertJsonPath('data.delivered',false);
     }
 
     public function test_ai_unsupported_upload_rejected_without_external_network_and_key_stays_server_only():void
