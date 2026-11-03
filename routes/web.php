@@ -45,6 +45,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/quotes/{quote}/edit', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'edit'])->whereNumber('quote')->name('quotes.edit');
         Route::put('/quotes/{quote}', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'update'])->whereNumber('quote')->name('quotes.update');
         Route::post('/quotes/{quote}/approve', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'approve'])->whereNumber('quote')->name('quotes.approve');
+        Route::get('/quotes/{quote}/approved-pdf', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'approvedPdf'])->whereNumber('quote')->name('quotes.approvedPdf');
         Route::delete('/quotes/{quote}', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'archive'])->whereNumber('quote')->name('quotes.archive');
         Route::post('/quotes/{quote}/restore', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'restore'])->whereNumber('quote')->name('quotes.restore');
         Route::post('/jobs/{job}/restore', [\App\Http\Controllers\Admin\ServiceJobController::class, 'restore'])
