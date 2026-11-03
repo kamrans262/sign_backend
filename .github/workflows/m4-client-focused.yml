@@ -17,6 +17,7 @@ on:
       - 'resources/views/admin/layout.blade.php'
       - 'tests/Feature/M4ClientManagementTest.php'
       - 'tests/Feature/M4Stage2SecurityAndReleaseTest.php'
+      - 'scripts/m3_m4_release_preflight.php'
   workflow_dispatch:
 
 permissions:
@@ -57,7 +58,7 @@ jobs:
       - name: Prepare isolated environment
         run: cp .env.example .env && php artisan key:generate
       - name: Lint scoped PHP and compile existing admin views
-        run: php -l app/Http/Controllers/Api/ClientController.php && php -l app/Http/Controllers/Admin/ClientController.php && php -l routes/api.php && php -l routes/web.php && php artisan view:cache
+        run: php -l app/Http/Controllers/Api/ClientController.php && php -l app/Http/Controllers/Admin/ClientController.php && php -l routes/api.php && php -l routes/web.php && php -l scripts/m3_m4_release_preflight.php && php artisan view:cache
       - name: Test combined M3 and M4 tenant workflows on SQLite
         run: php artisan test --filter='M(3CompanyManagement|4ClientManagement|4Stage2SecurityAndRelease)Test'
       - name: Test combined M3 and M4 tenant workflows on MySQL 8
