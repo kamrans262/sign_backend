@@ -180,6 +180,29 @@ final class SignatureRequestController extends Controller
         return response()->json(['data'=>['request'=>$this->result($item)]]);
     }
 
+    public function rotateLink(Request $request, int $signature): JsonResponse
+    {
+        $company=$this->company($request);
+        $token=$this->workflow::freshToken();
+        $item=DB::transaction(function () use ($request,$signature,$company,$token) {
+            $item=Signing::query()->where('company_id',$company->id)
+                ->lockForUpdate()->with('quote')->findOrFail($signature);
+            abort_unless($item->mode==='remote',409);
+            $this->workflow->validForSigning($item);
+            $item->update(['token_sha256'=>hash('sha256',$token)]);
+            $this->workflow->event($item,'request_link_rotated',$request,
+                $request->user()->id,['channel'=>'copy_link']);
+            AuditLogger::record('mobile.signature.link_rotated',$request->user(),
+                $item,$company,request:$request);
+            return $item;
+        });
+        return response()->json(['data'=>[
+            'request'=>$this->result($item),
+            'secure_link'=>$this->workflow->publicUrl($token),
+            'delivered'=>false,
+        ]],200,['Cache-Control'=>'private, no-store']);
+    }
+
     public function resend(Request $request, int $signature): JsonResponse
     {
         if (in_array((string) config('mail.default'), ['log','array','null'], true)) {
