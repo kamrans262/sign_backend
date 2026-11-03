@@ -53,6 +53,6 @@
 - Manual/real device permission UX and store build checks are final Stage 2 gates. Focused CI is not a substitute for physical iPhone and Android verification.
 - Branches: `sign_backend/feature/m4-client-management-2026-11-03` and `sign_app/feature/m4-client-management-2026-11-03`. No deployment or main merge.
 
-## Next Stage
+## Stage 2 status and handoff
 
-**Stage 2 — Testing, Verification & Deployment**: confirm focused branch CI on both sides, inspect production Hostinger PHP >=8.4.1, verified DB+private storage backups, dry-run migration status, deploy only after safe checks, validate live client create/edit/search/import/permission revocation/company switching in admin and on phones/tablets, then record release SHA.
+**Stage 2 code/security/release-readiness verification was completed on the combined M3+M4 branches**, including focused backend, Flutter and migration compatibility checks. The user explicitly instructed that **both M3 and M4 deployment be deferred until the end of development**. No production migration, backend switch, app release or database mutation was performed. See [M4 Stage 2 and deferred M3+M4 deployment](M4_STAGE2_AND_M3_M4_DEFERRED_DEPLOYMENT.md) for test evidence, remaining physical-device tests, readiness gates and the eventual single deployment procedure.
