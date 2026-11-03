@@ -72,9 +72,10 @@
   </table></div>
   <div class="totals">
     <p><span>Subtotal</span><strong>{{ $quote->currency }} {{ number_format($quote->subtotal_minor/100,2) }}</strong></p>
-    <p><span>VAT</span><strong>{{ $quote->currency }} {{ number_format($quote->vat_minor/100,2) }}</strong></p>
+    <p><span>VAT ({{ number_format($quote->vat_basis_points/100,2) }}%)</span><strong>{{ $quote->currency }} {{ number_format($quote->vat_minor/100,2) }}</strong></p>
     <p class="total"><span>Total</span><span>{{ $quote->currency }} {{ number_format($quote->total_minor/100,2) }}</span></p>
-    <p><span>Deposit requested</span><strong>{{ $quote->currency }} {{ number_format($quote->deposit_minor/100,2) }}</strong></p>
+    <p><span>Deposit due ({{ number_format($quote->deposit_basis_points/100,2) }}%)</span><strong>{{ $quote->currency }} {{ number_format($quote->deposit_minor/100,2) }}</strong></p>
+    <p><span>Remaining after deposit</span><strong>{{ $quote->currency }} {{ number_format(($quote->total_minor-$quote->deposit_minor)/100,2) }}</strong></p>
   </div>
   @if(!empty($quote->payment_details))
   <h2>Payment Instructions</h2>
