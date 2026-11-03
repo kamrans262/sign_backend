@@ -27,6 +27,7 @@ return new class extends Migration {
             $table->json('payment_details')->nullable();
             $table->string('source_method', 30)->default('manual');
             $table->string('status', 20)->default('draft'); // draft, approved, sent, archived
+            $table->string('status_before_archive', 20)->nullable();
             $table->unsignedInteger('revision')->default(1);
             $table->unsignedBigInteger('subtotal_minor')->nullable();
             $table->unsignedBigInteger('vat_minor')->nullable();
