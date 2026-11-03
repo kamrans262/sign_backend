@@ -35,13 +35,13 @@ migration_state() {
   php -r '
     require getcwd()."/vendor/autoload.php";
     $app=require getcwd()."/bootstrap/app.php";
-    $app->make(\Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
+    $app->make(\Illuminate\Contracts\\Console\\Kernel::class)->bootstrap();
     $name="2026_11_04_010000_add_approved_pdf_integrity_to_service_quotes";
-    $db=\Illuminate\\Support\\Facades\\DB::table("migrations")
+    $db=\Illuminate\Support\\Facades\\DB::table("migrations")
         ->where("migration",$name)->count();
     $cols=0;
     foreach (["approved_pdf_path","approved_pdf_sha256","approved_pdf_revision"] as $col) {
-      if (\Illuminate\\Support\\Facades\\Schema::hasColumn("service_quotes",$col)) { ++$cols; }
+      if (\Illuminate\Support\\Facades\\Schema::hasColumn("service_quotes",$col)) { ++$cols; }
     }
     if ($db===1 && $cols===3) { echo "PRESENT"; }
     elseif ($db===0 && $cols===0) { echo "ABSENT"; }
