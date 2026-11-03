@@ -25,7 +25,18 @@ class ClientController extends Controller
         return $company;
     }
 
-    private function profile(Client $client): array
+    private function canReadJobs(Request $request): bool
+    {
+        $company = $this->company($request);
+        $member = $company->users()->where('users.id', $request->user()->id)
+            ->wherePivot('status', 'active')->first();
+        if (!$member) return false;
+        if (in_array($member->pivot->role, ['owner', 'admin'], true)) return true;
+        $permissions = json_decode((string) $member->pivot->permissions, true);
+        return is_array($permissions) && in_array('jobs.read', $permissions, true);
+    }
+
+    private function profile(Client $client, bool $canReadJobs = false): array
     {
         return [
             'id' => $client->id,
@@ -39,9 +50,7 @@ class ClientController extends Controller
             'email' => $client->email ?? '',
             'notes' => $client->notes ?? '',
             'source' => $client->source,
-            // Job/quote/document relationships are introduced by their own
-            // modules. Never fabricate historical records for live clients.
-            'job_count' => 0,
+            'job_count' => $canReadJobs ? $client->serviceJobs()->count() : 0,
             'created_at' => $client->created_at?->toIso8601String(),
             'updated_at' => $client->updated_at?->toIso8601String(),
         ];
@@ -100,8 +109,9 @@ class ClientController extends Controller
             });
         }
         $page = $query->orderByDesc('id')->paginate((int) ($data['per_page'] ?? 50));
+        $canReadJobs = $this->canReadJobs($request);
         return response()->json(['data' => [
-            'clients' => $page->getCollection()->map(fn (Client $client) => $this->profile($client))->values(),
+            'clients' => $page->getCollection()->map(fn (Client $client) => $this->profile($client, $canReadJobs))->values(),
             'pagination' => [
                 'page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
@@ -113,9 +123,19 @@ class ClientController extends Controller
     public function show(Request $request, int $client): JsonResponse
     {
         $target = $this->scoped($request, $client);
+        $canReadJobs = $this->canReadJobs($request);
+        $jobs = $canReadJobs
+            ? $target->serviceJobs()->latest('id')->get()->map(fn ($job) => [
+                'id' => $job->id,
+                'reference_number' => $job->reference_number,
+                'title' => $job->title,
+                'status' => $job->category,
+                'due_date' => $job->due_date?->format('Y-m-d'),
+            ])->values()
+            : [];
         return response()->json(['data' => [
-            'client' => $this->profile($target),
-            'jobs' => [], 'quotes' => [], 'documents' => [],
+            'client' => $this->profile($target, $canReadJobs),
+            'jobs' => $jobs, 'quotes' => [], 'documents' => [],
             'invoices' => [], 'notes_history' => [],
         ]]);
     }

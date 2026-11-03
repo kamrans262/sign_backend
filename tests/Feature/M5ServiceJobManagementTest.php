@@ -164,6 +164,30 @@ class M5ServiceJobManagementTest extends TestCase
         $this->getJson('/api/v1/jobs')->assertForbidden();
     }
 
+    public function test_client_history_exposes_only_real_jobs_and_only_to_job_readers(): void
+    {
+        $owner = $this->account('owner@example.test');
+        $reader = $this->account('client-reader@example.test');
+        $company = $this->company($owner, 'A');
+        $company->users()->attach($reader->id, [
+            'role' => 'member', 'status' => 'active',
+            'permissions' => json_encode(['clients.read']),
+        ]);
+        $client = $this->client($company);
+        $this->asTenant($owner, $company);
+        $this->postJson('/api/v1/jobs', $this->draft($client))->assertCreated();
+        $this->getJson('/api/v1/clients/'.$client->id)->assertOk()
+            ->assertJsonPath('data.client.job_count', 1)
+            ->assertJsonCount(1, 'data.jobs');
+        $this->getJson('/api/v1/clients')->assertOk()
+            ->assertJsonPath('data.clients.0.job_count', 1);
+        $this->asTenant($reader, $company);
+        $this->getJson('/api/v1/clients/'.$client->id)->assertOk()
+            ->assertJsonPath('data.client.job_count', 0)
+            ->assertJsonCount(0, 'data.jobs');
+        $this->getJson('/api/v1/jobs')->assertForbidden();
+    }
+
     public function test_invalid_dates_budget_and_foreign_client_fail_without_side_effects(): void
     {
         $owner = $this->account('owner@example.test');
