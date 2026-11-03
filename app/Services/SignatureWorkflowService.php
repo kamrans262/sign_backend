@@ -53,6 +53,9 @@ final class SignatureWorkflowService
                 hash('sha256', ($quote->terms ?? '')."\n".$quote->approved_pdf_sha256))) {
             throw new HttpException(410, 'The approved document is no longer available for this request.');
         }
+        if ($quote->company?->status !== 'active') {
+            throw new HttpException(403,'The signing business is inactive.');
+        }
         $this->approvedBytes($quote);
         return $quote;
     }
