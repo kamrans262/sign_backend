@@ -289,6 +289,11 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $this->assertSame((int)$stored->revision,(int)$stored->approved_pdf_revision);
         $this->assertSame($canonicalBytes,Storage::disk('local')
             ->get($stored->approved_pdf_path));
+        $this->get('/api/v1/quotes/'.$quoteId.'/approved-pdf')
+            ->assertOk()
+            ->assertHeader('Content-Type','application/pdf')
+            ->assertHeader('Cache-Control','private, no-store, max-age=0')
+            ->assertContent($canonicalBytes);
 
         $invalid=UploadedFile::fake()->create('fake.pdf',1,'application/pdf');
         $this->withHeader('Accept','application/json')->post(
@@ -320,6 +325,8 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
             '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
                 'recipient_email'=>'customer@example.test',
             ])->assertStatus(503);
+        $this->get('/api/v1/quotes/'.$quoteId.'/approved-pdf')
+            ->assertStatus(503);
     }
 
     public function test_legacy_approved_quote_cannot_email_an_unbound_pdf_but_secure_link_still_works(): void
@@ -338,6 +345,8 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
             ->assertJsonPath('message',
                 'This quote has no verified approved PDF. Send the secure link instead.');
         $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'approved']);
+        $this->getJson('/api/v1/quotes/'.$quoteId.'/approved-pdf')
+            ->assertStatus(409);
         Mail::assertNothingSent();
         $this->postJson('/api/v1/quotes/'.$quoteId.'/share',[
             'method'=>'secure_link',
