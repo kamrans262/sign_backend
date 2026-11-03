@@ -1,0 +1,12 @@
+{
+  "name": "sign2digital-m8-browser-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local-only synthetic Chromium signing checks",
+  "scripts": {
+    "test": "node m8_chromium_acceptance.js"
+  },
+  "devDependencies": {
+    "playwright": "1.58.2"
+  }
+}
