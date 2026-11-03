@@ -30,9 +30,19 @@ Later modules should build on this consolidated M4 baseline or a reviewed integr
 - **Additional security verification:** same user belonging to two companies cannot mix records by switching the company header; revoked members cannot read/import; archived and company admin filters are independent; M3 and M4 routes coexist; unknown address-book country is **not** incorrectly fabricated as Switzerland.
 - **Laravel CI:** combined M3+M4 feature/tenant/permissions tests passed on SQLite and MySQL 8; M2 mobile OTP/admin auth regression tests passed; PHP syntax and existing Blade compilation verified.
 - **Flutter CI:** combined M3 company API/landscape/auth tests and M4 API/Add Client/Clients/Client Details/import UI tests passed. Additional widget test covers device permission denial, reviewing selected contacts without an upload, cancelling without upload, and explicit confirmation sending only one chosen contact.
-- **Native Android compile:** validate the `flutter_contacts` integration with the dedicated Stage 2 Android **debug APK compile** workflow. This is a build/compile check, not phone permission acceptance or distribution.
+- **Native Android compile PASSED:** the `flutter_contacts` integration compiled into a debug APK successfully in [Android build run 41636896430](https://github.com/kamrans262/sign_app/actions/runs/41636896430). This is a compile check, **not** physical Android contact permission acceptance, an iOS build, an APK distribution, or a production deployment.
 - Existing UI-only demo client repository is preserved for isolated previews. Real mobile sessions use the authenticated `RemoteClientRepository`; company context is enforced on requests and checked on responses.
 - **Known future module boundary:** Previous Jobs, Quotes, Documents and Invoice tabs stay present, but their actual history will be populated only by their corresponding modules. Do not report demo history as real database history.
+
+## Passing combined Stage 2 CI references
+
+| Focused verification | Result | Evidence |
+| --- | --- | --- |
+| Laravel PHP 8.4 M2/M3/M4 regression, SQLite and MySQL 8, admin Blade/preflight lint | **PASS** | [run 41637250491](https://github.com/kamrans262/sign_backend/actions/runs/41637250491) |
+| Flutter M3+M4 company/client/auth/review tests and scoped analyzer | **PASS** | [run 41636807104](https://github.com/kamrans262/sign_app/actions/runs/41636807104) |
+| Android native debug compilation with contacts plugin | **PASS** | [run 41636896430](https://github.com/kamrans262/sign_app/actions/runs/41636896430) |
+
+CI provides isolated compile and test evidence only; it does **not** establish a production deployment, an iOS native compile, or on-device acceptance.
 
 ## Combined future deployment: blocking preflight
 
