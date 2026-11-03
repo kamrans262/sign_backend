@@ -34,7 +34,7 @@ The current Laravel `main` and Flutter `main` branches remain untouched. Clients
 ## Verification and release evidence
 
 - **Laravel focused CI:** passed on SHA `6258d740891b02d75da23965f287f6d57120a345`: syntax/view compilation, M3 tests on isolated SQLite **and MySQL 8**, and prior M2 OTP tests.
-- **Flutter focused CI:** inspect the newest run on the M3 Flutter feature branch; final success must be verified before claiming all checks passed.
+- **Flutter focused CI:** passed on SHA `df62f94ba092483c6f7fbb43817c797d10a3c8d4`, run [41619743091](https://github.com/kamrans262/sign_app/actions/runs/41619743091). Focused analyzer and company API/screen plus M2 authentication regression tests all succeeded.
 - No live Hostinger migration, SMTP send or actual phone/tablet device check is claimed here. CI uses isolated database, fake mail and file storage.
 - No `main` merge, production deploy, existing company row deletion or Flutter redesign is part of this stage.
 
