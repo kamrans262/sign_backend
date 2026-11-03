@@ -44,25 +44,41 @@ class M7QuoteApprovalTest extends TestCase
         $this->get('/admin/quotes/'.$quote->id.'/edit')->assertOk()
             ->assertSee('name="expected_revision"',false);
         $this->assertSame(1,(int)$quote->revision);
-        $quote->update(['revision'=>2,'terms'=>'Updated after prior review']);
+        // Simulate a real second edit via the administrator endpoint rather
+        // than manipulating the revision counter directly in the database.
+        $this->put('/admin/quotes/'.$quote->id, [
+            'expected_revision'=>1,
+            'company_id'=>$quote->company_id,
+            'client_id'=>$quote->client_id,
+            'client_name'=>'Test Customer',
+            'quote_date'=>'2026-11-03',
+            'currency'=>'CHF',
+            'vat_basis_points'=>810,
+            'deposit_basis_points'=>3000,
+            'terms'=>'Updated after prior review',
+            'items'=>[['title'=>'Measured repair','quantity'=>2,'unit_price'=>'90.00']],
+        ])->assertRedirect();
+        $this->assertDatabaseHas('service_quotes', [
+            'id'=>$quote->id,'revision'=>2,'total_minor'=>19458,
+        ]);
         $this->post('/admin/quotes/'.$quote->id.'/approve',[
             'expected_revision'=>1,
         ])->assertStatus(409);
         $this->assertDatabaseHas('service_quotes',[
             'id'=>$quote->id,'status'=>'draft','revision'=>2,
         ]);
-        $this->assertDatabaseCount('service_quote_revisions',1);
+        $this->assertDatabaseCount('service_quote_revisions',2);
         $this->post('/admin/quotes/'.$quote->id.'/approve',[
             'expected_revision'=>2,
         ])->assertRedirect();
         $this->assertDatabaseHas('service_quotes',[
             'id'=>$quote->id,'status'=>'approved','revision'=>3,
         ]);
-        $this->assertDatabaseCount('service_quote_revisions',2);
+        $this->assertDatabaseCount('service_quote_revisions',3);
         $this->post('/admin/quotes/'.$quote->id.'/approve',[
             'expected_revision'=>2,
         ])->assertStatus(409);
-        $this->assertDatabaseCount('service_quote_revisions',2);
+        $this->assertDatabaseCount('service_quote_revisions',3);
     }
 
     public function test_admin_does_not_approve_draft_with_no_items(): void
