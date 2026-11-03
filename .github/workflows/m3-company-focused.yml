@@ -21,6 +21,11 @@ on:
       - 'tests/Feature/M3CompanyManagementTest.php'
       - 'scripts/m3_production_preflight.php'
       - 'resources/views/admin/companies/form.blade.php'
+      - 'resources/views/admin/layout.blade.php'
+      - 'resources/views/admin/dashboard.blade.php'
+      - 'resources/views/admin/users/index.blade.php'
+      - 'resources/views/admin/mobile-auth.blade.php'
+      - 'tests/Feature/M2EmailOtpAuthTest.php'
   workflow_dispatch:
 
 permissions:
