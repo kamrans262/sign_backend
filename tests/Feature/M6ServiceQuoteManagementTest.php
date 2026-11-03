@@ -96,7 +96,9 @@ class M6ServiceQuoteManagementTest extends TestCase
             ->assertOk()->assertJsonPath('data.delivered',false)
             ->json('data.secure_link');
         $this->assertIsString($link);
-        $this->get($link)->assertOk()->assertJsonPath('data.quote.status','approved');
+        $this->getJson($link)->assertOk()->assertJsonPath('data.quote.status','approved');
+        $this->get($link)->assertOk()->assertSee('Install windows')
+            ->assertSee('Quote')->assertDontSee('Draft: fictional');
         $this->get('/quote-view/'.$id)->assertForbidden();
         Mail::fake();
         config(['mail.default'=>'smtp']);

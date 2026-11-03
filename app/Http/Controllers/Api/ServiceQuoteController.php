@@ -329,10 +329,14 @@ class ServiceQuoteController extends Controller
             ->get(['revision','snapshot','created_at'])->toArray()]]);
     }
 
-    public function publicShow(Request $request, int $quote): JsonResponse
+    public function publicShow(Request $request, int $quote)
     {
         $item=ServiceQuote::query()->with('items')->findOrFail($quote);
         abort_unless(in_array($item->status,['approved','sent'],true),404);
+        if (!$request->expectsJson()) {
+            return response()->view('public.quote',['quote'=>$item],200,
+                ['Cache-Control'=>'no-store','X-Robots-Tag'=>'noindex']);
+        }
         $data=$this->payload($item);
         unset($data['company_id'],$data['client_id'],$data['job_id'],
             $data['payment_details']);
