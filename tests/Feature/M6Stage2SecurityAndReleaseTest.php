@@ -70,7 +70,16 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
 
         $this->assertIsString($signed);
         $this->get($signed)->assertOk()->assertSee('Stage2 Company')
-            ->assertSee('Repair work');
+            ->assertSee('Repair work')
+            ->assertSee('Quote Preview')
+            ->assertSee('Bill To:')
+            ->assertSee('Payment Details')
+            ->assertSee('General Terms &amp; Conditions', false)
+            ->assertSee('class="item-table"', false)
+            ->assertDontSee('Prepared with Sign2Digital')
+            ->assertDontSee('This secure quote link expires automatically.')
+            ->assertDontSee('Print or Save as PDF')
+            ->assertDontSee('Revision');
         $this->getJson($signed)->assertOk()->assertJsonPath('data.quote.status','approved');
         $this->get('/quote-view/'.$id)->assertForbidden();
 
@@ -360,8 +369,8 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
             'method'=>'secure_link',
         ])->assertOk()->json('data.secure_link');
         $this->get($link)->assertOk()
-            ->assertSee('VAT (8.10%)')
-            ->assertSee('Deposit due (12.50%)')
+            ->assertSee('Tax (8.1%)')
+            ->assertSee('Deposit due (12.5%)')
             ->assertSee('Remaining after deposit')
             ->assertSee('567.52');
     }
