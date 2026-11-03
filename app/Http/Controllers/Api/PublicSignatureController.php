@@ -7,6 +7,7 @@ use App\Models\SignatureRequest as Signing;
 use App\Services\SignatureWorkflowService;
 use App\Services\SignatureCompletionService;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ final class PublicSignatureController extends Controller
         abort_unless((bool) preg_match('/^[A-Za-z0-9_-]{43}$/D', $token), 404);
         $item = Signing::query()->with('quote.items')
             ->where('token_sha256', hash('sha256', $token))->firstOrFail();
+        abort_unless($item->mode === 'remote',404);
         $this->workflow->validForSigning($item);
         return $item;
     }
@@ -147,7 +149,8 @@ final class PublicSignatureController extends Controller
     {
         $record=$this->requestForToken($token);
         abort_unless($record->mode === 'remote', 404);
-        $fields=$request->validate([
+        // Avoid flashing sensitive signature image data into web sessions.
+        $validator=Validator::make($request->all(),[
             'quoteId'=>['required','string','max:32'],
             'documentId'=>['required','uuid'],
             'requestId'=>['required','uuid'],
@@ -160,6 +163,8 @@ final class PublicSignatureController extends Controller
             'consentAccepted'=>['required','accepted'],
             'capturedAt'=>['nullable','date'],
         ]);
+        abort_if($validator->fails(),422,'Invalid or incomplete signature submission.');
+        $fields=$validator->validated();
         abort_unless(
             hash_equals((string)$record->request_uuid,(string)$fields['requestId']) &&
             hash_equals((string)$record->document_uuid,(string)$fields['documentId']) &&
