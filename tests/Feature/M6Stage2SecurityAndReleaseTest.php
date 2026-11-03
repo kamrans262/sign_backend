@@ -347,6 +347,23 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $this->put('/admin/quotes/'.$quote->id, $edit)
             ->assertSessionHasErrors('vat_percent');
         $this->assertSame(810, (int)$quote->fresh()->vat_basis_points);
+        $this->post('/admin/quotes/'.$quote->id.'/approve')->assertRedirect();
+        $this->get('/admin/quotes/'.$quote->id.'/edit')->assertOk()
+            ->assertSee('Remaining After Deposit')
+            ->assertSee('CHF 567.52');
+
+        // A signed customer quote must show the same verified amounts.
+        $owner = $company->owner;
+        Sanctum::actingAs($owner);
+        $this->withHeader('X-Company-Id', (string)$company->id);
+        $link = $this->postJson('/api/v1/quotes/'.$quote->id.'/share', [
+            'method'=>'secure_link',
+        ])->assertOk()->json('data.secure_link');
+        $this->get($link)->assertOk()
+            ->assertSee('VAT (8.10%)')
+            ->assertSee('Deposit due (12.50%)')
+            ->assertSee('Remaining after deposit')
+            ->assertSee('567.52');
     }
 
 
