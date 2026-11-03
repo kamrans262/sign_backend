@@ -54,10 +54,16 @@
 - Confirm Hostinger's *actual* production backend branch and full SHA; historical M6 handoff said not deployed but user later reported it deployed.
 - Obtain user deployment authorization, verified MySQL/private storage/.env backups, rollback plan and read-only preflight before any migration/deployment. Never change APP_KEY.
 - Confirm updated mobile release targets same backend API contract; run client-side regression and physical landscape test.
-- No new OpenAI key or migration is introduced by M7 Stage 2.
+- No new OpenAI key is introduced; the 2026-11-04 approval-bound PDF security update adds one **add-only** Laravel migration, not yet deployed.
 
 **Decision:** M7 Stage 2 code and test coverage prepared, but release readiness is conditional. Do NOT deploy until gates pass.
 
 ## 2026-11-04 independent re-audit addendum (supersedes earlier snapshot)
 
 For the current authoritative risk and verification status, see `docs/M7_INDEPENDENT_REAUDIT_2026-11-04.md`. Changes after the original Stage 2 snapshot: M7 test filters fixed to execute real approval regressions in both DB engines, admin approval tests now use real edit endpoints, archive/restore operations use row locks, null mailer no longer causes fake Sent, fractional VAT/deposit precision preserved across Flutter review/preview/PDF. The existing 900px landscape width constraint remains unchanged. The backend still accepts non-canonical client-supplied PDF attachment bytes; this is a release blocker. CI and live Hostinger verification remain unconfirmed. **Do not deploy yet.**
+
+## 2026-11-04 approval-bound PDF release addendum — latest source status
+
+See `docs/M7_APPROVAL_BOUND_PDF_INTEGRITY_2026-11-04.md` for the authoritative contract and risks. Flutter sends the generated PDF at approval; Laravel privately freezes it against the locked revision, and email only attaches those exact SHA-256-verified bytes. The previous statement that later arbitrary uploaded attachments remain acceptable no longer applies to this branch. Old/admin-approved quotes without an approval-bound PDF can share secure links but **cannot** email an unverified PDF; an explicit re-approval/migration flow for historical records is not yet implemented. Laravel migration `2026_11_04_010000_add_approved_pdf_integrity_to_service_quotes.php` must be deployed only after DB and private-store backup/read-back, and Flutter + backend need a coordinated rollout. Malicious PDF semantic equality with structured quote is not independently verified; hash-binding guarantees byte integrity relative to authenticated approval, not independently rendered content verification.
+
+**Isolated verification (2026-11-04):** Flutter M7 CI: analyze clean, 114 tests passed. Laravel M7 CI: PHP/Blade and SQLite 38 tests (434 assertions), MySQL 8 32 tests (357 assertions) passed. Not a claim of live SMTP, deployed API, old-client, iOS or production acceptance. **No deployment or merge performed.**
