@@ -114,7 +114,7 @@
       body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       main { max-width: none; }
       .screen-header { height: 72px; }
-      .document-card, .payment-card, .terms-section { break-inside: avoid; }
+      .payment-card, .terms-section, .signature-fields { break-inside: avoid; }
       .item-table thead { display: table-header-group; }
       .item-table tr { break-inside: avoid; }
     }
