@@ -154,6 +154,7 @@
 <div class="form-actions">
 @if($quote->status==='draft')
 <form method="post" action="{{ route('admin.quotes.approve',$quote) }}" onsubmit="return confirm('Approve this reviewed quote?')">@csrf
+<input type="hidden" name="expected_revision" value="{{ $quote->revision }}">
 <button class="btn btn-primary" type="submit">Approve Quote</button></form>
 @endif
 @if($quote->status==='archived')
