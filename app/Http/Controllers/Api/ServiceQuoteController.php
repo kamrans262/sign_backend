@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -59,6 +60,7 @@ class ServiceQuoteController extends Controller
             'vat_minor' => $quote->vat_minor,
             'total_minor' => $quote->total_minor,
             'deposit_minor' => $quote->deposit_minor,
+            'approved_pdf_available' => $quote->approved_pdf_sha256 !== null,
             'approved_at' => $quote->approved_at?->toIso8601String(),
             'sent_at' => $quote->sent_at?->toIso8601String(),
             'items' => $quote->items->map(fn ($item) => [
@@ -73,6 +75,33 @@ class ServiceQuoteController extends Controller
                 'unresolved_fields' => $item->unresolved_fields ?? [],
             ])->values(),
         ];
+    }
+
+    /**
+     * Accept the exact customer document being authorized, not an arbitrary
+     * later email attachment. It remains private and immutable after approval.
+     */
+    private function verifiedPdfUpload(Request $request): ?string
+    {
+        $uploaded = $request->file('file');
+        if ($uploaded === null) {
+            return null; // Legacy/admin approval can still send a secure link.
+        }
+        if (!$uploaded->isValid()) {
+            throw ValidationException::withMessages([
+                'file' => 'The selected quote PDF cannot be read.',
+            ]);
+        }
+        $bytes = file_get_contents($uploaded->getRealPath());
+        if (!is_string($bytes) || strlen($bytes) < 12 ||
+            strlen($bytes) > 5*1024*1024 ||
+            !str_starts_with($bytes, '%PDF-') ||
+            !str_contains(substr($bytes, -4096), '%%EOF')) {
+            throw ValidationException::withMessages([
+                'file' => 'Provide a valid quote PDF under 5 MB.',
+            ]);
+        }
+        return $bytes;
     }
 
     private function fields(Request $request): array
@@ -274,44 +303,98 @@ class ServiceQuoteController extends Controller
 
     public function approve(Request $request, int $quote): JsonResponse
     {
-        $request->validate(['confirmed'=>['required','accepted']]);
-        $item = $this->scoped($request,$quote);
-        abort_if($item->status !== 'draft',409,'Only a draft can be approved.');
-        if ($item->client_name === '' || trim((string)$item->terms) === '' ||
-            $item->items->isEmpty() || $item->total_minor === null) {
-            throw ValidationException::withMessages(['quote'=>'Complete client, terms and every price before approval.']);
-        }
-        foreach ($item->items as $row) {
-            if ($row->quantity === null || $row->unit_price_minor === null ||
-                $row->title === '' ||
-                ($row->dimensions !== null && trim($row->dimensions) === '') ||
-                !empty($row->unresolved_fields)) {
-                throw ValidationException::withMessages(['items'=>'Resolve every field before approval.']);
+        // Backwards-compatible optional revision guard. Updated clients submit
+        // the last revision they reviewed to avoid approving stale amounts.
+        $input = $request->validate([
+            'confirmed' => ['required', 'accepted'],
+            'file' => ['nullable','file','max:5120'],
+            'expected_revision' => ['sometimes', 'integer', 'min:1'],
+        ]);
+        $company = $this->company($request);
+        $approvedPdf = $this->verifiedPdfUpload($request);
+        $item = DB::transaction(function () use ($request, $quote, $company, $input, $approvedPdf): ServiceQuote {
+            // Approval must re-read and lock the draft inside the transaction.
+            // Otherwise an edit/approval race can approve unreviewed pricing.
+            $item = ServiceQuote::query()
+                ->where('company_id', $company->id)
+                ->lockForUpdate()
+                ->with('items')
+                ->findOrFail($quote);
+            if (isset($input['expected_revision']) &&
+                (int) $item->revision !== (int) $input['expected_revision']) {
+                abort(409, 'Quote was updated elsewhere. Reload before approving.');
             }
-        }
-        DB::transaction(function () use ($request,$item):void {
-            $item->update(['status'=>'approved','approved_at'=>now(),
-                'updated_by'=>$request->user()->id,'revision'=>$item->revision+1]);
-            $item->revisions()->create(['revision'=>$item->revision,
-                'snapshot'=>$this->payload($item->fresh()->load('items')),
-                'actor_user_id'=>$request->user()->id,'created_at'=>now()]);
-            AuditLogger::record('mobile.quote.approved',$request->user(),$item,
-                $this->company($request),request:$request);
+            abort_if($item->status !== 'draft', 409, 'Only a draft can be approved.');
+            if ($item->client_name === '' || trim((string) $item->terms) === '' ||
+                $item->items->isEmpty() || $item->total_minor === null) {
+                throw ValidationException::withMessages([
+                    'quote' => 'Complete client, terms and every price before approval.',
+                ]);
+            }
+            foreach ($item->items as $row) {
+                if ($row->quantity === null || $row->unit_price_minor === null ||
+                    $row->title === '' ||
+                    ($row->dimensions !== null && trim($row->dimensions) === '') ||
+                    !empty($row->unresolved_fields)) {
+                    throw ValidationException::withMessages([
+                        'items' => 'Resolve every field before approval.',
+                    ]);
+                }
+            }
+            $item->update([
+                'status' => 'approved', 'approved_at' => now(),
+                'updated_by' => $request->user()->id,
+                'revision' => $item->revision + 1,
+            ]);
+            if ($approvedPdf !== null) {
+                $sha = hash('sha256', $approvedPdf);
+                $path = 'quotes/approved/'.$company->id.'/'.$item->id.'/'.
+                    $item->revision.'/'.$sha.'.pdf';
+                // The local disk is storage/app/private, never the web root.
+                if (!Storage::disk('local')->put($path, $approvedPdf)) {
+                    throw ValidationException::withMessages([
+                        'file' => 'The approved PDF could not be stored privately.',
+                    ]);
+                }
+                $item->update([
+                    'approved_pdf_path' => $path,
+                    'approved_pdf_sha256' => $sha,
+                    'approved_pdf_revision' => $item->revision,
+                ]);
+            }
+            $item->revisions()->create([
+                'revision' => $item->revision,
+                'snapshot' => $this->payload($item->fresh()->load('items')),
+                'actor_user_id' => $request->user()->id,
+                'created_at' => now(),
+            ]);
+            AuditLogger::record('mobile.quote.approved', $request->user(), $item,
+                $company, request: $request);
+            return $item->fresh()->load('items');
         });
-        return response()->json(['data'=>['quote'=>$this->payload($item->fresh()->load('items'))]]);
+        return response()->json(['data' => ['quote' => $this->payload($item)]]);
     }
 
     public function archive(Request $request, int $quote): JsonResponse
     {
-        $item = $this->scoped($request,$quote);
-        abort_if($item->status === 'archived',409);
-        $item->update(['status_before_archive'=>$item->status,
-            'status'=>'archived','archived_at'=>now(),
-            'link_version'=>$item->link_version + 1,
-            'updated_by'=>$request->user()->id]);
-        AuditLogger::record('mobile.quote.archived',$request->user(),$item,
-            $this->company($request),request:$request);
-        return response()->json(['message'=>'Quote archived.']);
+        // A concurrent approval cannot overwrite a just-archived quote, or
+        // leave a stale pre-approval status for the administrator to restore.
+        $company = $this->company($request);
+        DB::transaction(function () use ($request, $quote, $company): void {
+            $item = ServiceQuote::query()->where('company_id', $company->id)
+                ->lockForUpdate()->findOrFail($quote);
+            abort_if($item->status === 'archived', 409);
+            $item->update([
+                'status_before_archive' => $item->status,
+                'status' => 'archived',
+                'archived_at' => now(),
+                'link_version' => $item->link_version + 1,
+                'updated_by' => $request->user()->id,
+            ]);
+            AuditLogger::record('mobile.quote.archived', $request->user(),
+                $item, $company, request: $request);
+        });
+        return response()->json(['message' => 'Quote archived.']);
     }
 
     public function share(Request $request, int $quote): JsonResponse
@@ -334,7 +417,7 @@ class ServiceQuoteController extends Controller
                 'expires_at'=>now()->addDays(7)->toIso8601String(),
                 'delivered'=>false]]);
         }
-        if (in_array((string) config('mail.default'), ['log','array'], true)) {
+        if (in_array((string) config('mail.default'), ['log','array','null'], true)) {
             return response()->json(['message'=>'Email delivery is not configured.'],503);
         }
         try {
@@ -352,40 +435,84 @@ class ServiceQuoteController extends Controller
         return response()->json(['data'=>['delivered'=>true]]);
     }
 
+    /**
+     * The private, revision-bound document is the only authoritative PDF.
+     * Missing files and modified files fail closed; never expose disk paths.
+     */
+    private function approvedPdfBytes(ServiceQuote $item): ?string
+    {
+        if (!$item->approved_pdf_path || !$item->approved_pdf_sha256 ||
+            (int)$item->approved_pdf_revision !== (int)$item->revision) {
+            return null;
+        }
+        $disk = Storage::disk('local');
+        if (!$disk->exists($item->approved_pdf_path)) {
+            report(new \RuntimeException('Approved quote PDF missing from private storage.'));
+            abort(503, 'Approved PDF is unavailable.');
+        }
+        $bytes = $disk->get($item->approved_pdf_path);
+        if (!is_string($bytes) ||
+            !hash_equals((string)$item->approved_pdf_sha256, hash('sha256', $bytes))) {
+            report(new \RuntimeException('Approved quote PDF digest mismatch.'));
+            abort(503, 'Approved PDF integrity verification failed.');
+        }
+        return $bytes;
+    }
+
+    public function approvedPdf(Request $request, int $quote)
+    {
+        // Scoped to company and quotes.read. No customer/public access.
+        $item = $this->scoped($request, $quote);
+        abort_unless(in_array($item->status, ['approved','sent'], true), 409);
+        $bytes = $this->approvedPdfBytes($item);
+        abort_if($bytes === null, 409, 'This quote has no verified approved PDF.');
+        $filename = 'Sign2Digital_Quote_'.
+            preg_replace('/[^A-Za-z0-9_-]/', '_',
+                $item->custom_quote_number ?: $item->reference_number).'.pdf';
+        return response($bytes, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     public function shareEmailPdf(Request $request, int $quote): JsonResponse
     {
         $data = $request->validate([
-            'recipient_email'=>['required','email','max:255'],
-            'message'=>['nullable','string','max:2000'],
-            'file'=>['required','file','max:5120'],
+            'recipient_email' => ['required','email','max:255'],
+            'message' => ['nullable','string','max:2000'],
+            // Kept for old M6 Flutter clients. These bytes are NOT emailed.
+            'file' => ['nullable','file','max:5120'],
         ]);
         $item = $this->scoped($request, $quote);
-        abort_unless(in_array($item->status,['approved','sent'],true),409,
+        abort_unless(in_array($item->status, ['approved','sent'], true), 409,
             'Approve the quote before emailing a PDF.');
-        $uploaded = $request->file('file');
-        if (!$uploaded || !$uploaded->isValid()) {
-            throw ValidationException::withMessages(['file'=>'The selected PDF cannot be read.']);
+
+        // A later upload is never the attachment. Read the approval-bound copy.
+        $bytes = $this->approvedPdfBytes($item);
+        if ($bytes === null) {
+            return response()->json([
+                'message' => 'This quote has no verified approved PDF. Send the secure link instead.',
+            ], 409);
         }
-        $bytes = file_get_contents($uploaded->getRealPath());
-        // Do not attach arbitrary files merely renamed with a .pdf suffix.
-        // Accept only a bounded, recognizable PDF; no web-root persistence.
-        if (!is_string($bytes) || strlen($bytes)<12 ||
-            strlen($bytes)>5*1024*1024 ||
-            !str_starts_with($bytes,'%PDF-') ||
-            !str_contains(substr($bytes,-4096),'%%EOF')) {
-            throw ValidationException::withMessages(['file'=>'Upload a valid PDF smaller than 5 MB.']);
+        // Keep legacy multipart clients compatible, but reject invalid inputs
+        // instead of silently accepting an arbitrary document.
+        if ($request->hasFile('file')) {
+            $this->verifiedPdfUpload($request);
         }
-        if (in_array((string) config('mail.default'),['log','array','null'],true)) {
+        if (in_array((string) config('mail.default'), ['log','array','null'], true)) {
             return response()->json(['message'=>'Email delivery is not configured.'],503);
         }
+
         $link = URL::temporarySignedRoute('quotes.public',
-            now()->addDays(7),['quote'=>$item->id,'v'=>$item->link_version]);
+            now()->addDays(7), ['quote'=>$item->id,'v'=>$item->link_version]);
         $number = $item->custom_quote_number ?: $item->reference_number;
         $filename = 'Sign2Digital_Quote_'.preg_replace('/[^A-Za-z0-9_-]/','_', $number).'.pdf';
         try {
             Mail::raw("Quote {$number}\n\n".($data['message']??'')."\n\n".
-                "The reviewed quote PDF is attached. Confirm the same approved ".
-                "information through this secure seven-day link:\n".$link,
+                "The exact approved quote PDF is attached. Review the same approved ".
+                "quote using this secure seven-day link:\n".$link,
                 function ($mail) use ($data,$number,$bytes,$filename): void {
                     $mail->to($data['recipient_email'])
                         ->subject('Sign2Digital quote '.$number)
@@ -393,14 +520,21 @@ class ServiceQuoteController extends Controller
                 });
         } catch (\Throwable $error) {
             report($error);
-            return response()->json(['message'=>'Unable to send the quote PDF email.'],502);
+            return response()->json(['message'=>'Unable to send the approved PDF email.'],502);
         }
-        $item->update(['status'=>'sent','sent_at'=>now(),'updated_by'=>$request->user()->id]);
+        // Don't revive a quote archived while the mail provider was processing.
+        ServiceQuote::query()->whereKey($item->id)
+            ->whereIn('status',['approved','sent'])
+            ->update(['status'=>'sent','sent_at'=>now(),'updated_by'=>$request->user()->id]);
         AuditLogger::record('mobile.quote.sent',$request->user(),$item,
-            $this->company($request),
-            metadata:['method'=>'email','pdf_attachment'=>true],request:$request);
+            $this->company($request), metadata:[
+                'method'=>'email','pdf_attachment'=>true,
+                'approved_pdf_sha256'=>$item->approved_pdf_sha256,
+                'approved_pdf_revision'=>$item->approved_pdf_revision,
+            ],request:$request);
         return response()->json(['data'=>[
-            'delivered'=>true, 'pdf_attached'=>true,
+            'delivered'=>true,'pdf_attached'=>true,
+            'approved_pdf_sha256'=>$item->approved_pdf_sha256,
         ]]);
     }
 
