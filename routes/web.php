@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('admin.login'));
 
+// Customer quote view: time-limited, tamper-evident signed URLs only.
+Route::get('/quote-view/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class, 'publicShow'])
+    ->middleware('signed')->whereNumber('quote')->name('quotes.public');
+
 // Route-backed assets: shared-hosting public_html does not have to duplicate
 // files from Laravel's public/ directory. Only the two known files are served.
 Route::get('/admin/assets/{file}', function (string $file) {
@@ -35,6 +39,14 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
         Route::resource('jobs', \App\Http\Controllers\Admin\ServiceJobController::class)->except(['show']);
+        Route::get('/quotes', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'index'])->name('quotes.index');
+        Route::get('/quotes/create', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'create'])->name('quotes.create');
+        Route::post('/quotes', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'store'])->name('quotes.store');
+        Route::get('/quotes/{quote}/edit', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'edit'])->whereNumber('quote')->name('quotes.edit');
+        Route::put('/quotes/{quote}', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'update'])->whereNumber('quote')->name('quotes.update');
+        Route::post('/quotes/{quote}/approve', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'approve'])->whereNumber('quote')->name('quotes.approve');
+        Route::delete('/quotes/{quote}', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'archive'])->whereNumber('quote')->name('quotes.archive');
+        Route::post('/quotes/{quote}/restore', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'restore'])->whereNumber('quote')->name('quotes.restore');
         Route::post('/jobs/{job}/restore', [\App\Http\Controllers\Admin\ServiceJobController::class, 'restore'])
             ->whereNumber('job')->name('jobs.restore');
         Route::resource('clients', \App\Http\Controllers\Admin\ClientController::class)->except(['show']);

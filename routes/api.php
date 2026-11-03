@@ -125,6 +125,23 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/jobs/{job}/restore', [\App\Http\Controllers\Api\ServiceJobController::class, 'restore'])->whereNumber('job');
         });
 
+        // M6: tenant-scoped quotes; AI is always proxied by Laravel, never by client keys.
+        Route::middleware(['company.access','company.permission:quotes.read'])->group(function (): void {
+            Route::get('/quotes', [\App\Http\Controllers\Api\ServiceQuoteController::class,'index']);
+            Route::get('/quotes/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class,'show'])->whereNumber('quote');
+            Route::get('/quotes/{quote}/revisions', [\App\Http\Controllers\Api\ServiceQuoteController::class,'revisions'])->whereNumber('quote');
+        });
+        Route::middleware(['company.access','company.permission:quotes.write'])->group(function (): void {
+            Route::post('/quotes', [\App\Http\Controllers\Api\ServiceQuoteController::class,'store']);
+            Route::patch('/quotes/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class,'update'])->whereNumber('quote');
+            Route::post('/quotes/{quote}/approve', [\App\Http\Controllers\Api\ServiceQuoteController::class,'approve'])->whereNumber('quote');
+            Route::post('/quotes/{quote}/share', [\App\Http\Controllers\Api\ServiceQuoteController::class,'share'])->whereNumber('quote')
+                ->middleware('throttle:10,1');
+            Route::delete('/quotes/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class,'archive'])->whereNumber('quote');
+            Route::post('/quotes/prepare/{method}', [\App\Http\Controllers\Api\QuoteAiController::class,'prepare'])
+                ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
+        });
+
         Route::middleware('company.access')->get('/company-context', function (Request $request) {
             $company = $request->attributes->get('company');
             return response()->json(['data' => [

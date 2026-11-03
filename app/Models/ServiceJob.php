@@ -27,6 +27,11 @@ class ServiceJob extends Model
         ];
     }
 
+    public function serviceQuotes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ServiceQuote::class);
+    }
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);

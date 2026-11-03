@@ -16,6 +16,11 @@ class Client extends Model
         'email', 'notes', 'source',
     ];
 
+    public function serviceQuotes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ServiceQuote::class);
+    }
+
     public function serviceJobs(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(ServiceJob::class);
