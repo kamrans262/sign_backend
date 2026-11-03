@@ -7,14 +7,20 @@ on:
       - '.github/workflows/m8-signature-focused.yml'
       - 'app/Models/Signature*.php'
       - 'app/Models/SignedDocumentArtifact.php'
-      - 'app/Services/SignatureWorkflowService.php'
-      - 'app/Http/Controllers/Api/*Signature*.php'
+      - 'app/Services/*Signature*.php'
+      - 'app/Services/SignedPdfService.php'
+      - 'app/Http/Controllers/Api/*Sign*.php'
+      - 'app/Http/Controllers/Api/SignedDocumentController.php'
       - 'app/Http/Controllers/Admin/SignatureRequestController.php'
       - 'database/migrations/2026_11_04_020000_create_signature_workflow_tables.php'
       - 'resources/views/admin/signatures/**'
+      - 'resources/views/public/**'
+      - 'composer.json'
+      - 'composer.lock'
       - 'resources/views/admin/layout.blade.php'
       - 'routes/**'
       - 'tests/Feature/M8SignatureRequestFoundationTest.php'
+      - 'tests/Feature/M8SigningCompletionTest.php'
   workflow_dispatch:
 
 permissions:
@@ -53,11 +59,11 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - name: Lint M8 PHP and compile Blade
         run: |
-          for file in app/Models/SignatureRequest.php app/Models/SignatureEvent.php app/Models/SignedDocumentArtifact.php app/Services/SignatureWorkflowService.php app/Http/Controllers/Api/SignatureRequestController.php app/Http/Controllers/Api/PublicSignatureController.php app/Http/Controllers/Admin/SignatureRequestController.php database/migrations/2026_11_04_020000_create_signature_workflow_tables.php tests/Feature/M8SignatureRequestFoundationTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          for file in app/Models/SignatureRequest.php app/Models/SignatureEvent.php app/Models/SignedDocumentArtifact.php app/Services/SignatureWorkflowService.php app/Services/SignatureCompletionService.php app/Services/SignedPdfService.php app/Http/Controllers/Api/InPersonSigningController.php app/Http/Controllers/Api/SignedDocumentController.php app/Http/Controllers/Api/SignatureRequestController.php app/Http/Controllers/Api/PublicSignatureController.php app/Http/Controllers/Admin/SignatureRequestController.php database/migrations/2026_11_04_020000_create_signature_workflow_tables.php tests/Feature/M8SignatureRequestFoundationTest.php tests/Feature/M8SigningCompletionTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
           php artisan view:cache
           php artisan route:list --path=api/public/signing
       - name: M8 and M7 SQLite regression
-        run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation)Test'
+        run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion)Test'
       - name: M8 MySQL 8 regression
         env:
           DB_CONNECTION: mysql
@@ -67,4 +73,4 @@ jobs:
           DB_DATABASE: sign2digital_m8_ci
           DB_USERNAME: sign_ci
           DB_PASSWORD: sign-ci-only
-        run: php artisan test --filter=M8SignatureRequestFoundationTest
+        run: php artisan test --filter='M8(SignatureRequestFoundation|SigningCompletion)Test'
