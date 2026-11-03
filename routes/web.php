@@ -68,6 +68,12 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'upload'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.upload');
         Route::get('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'download'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.download');
         Route::delete('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'remove'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.destroy');
+        Route::get('/signatures', [\App\Http\Controllers\Admin\SignatureRequestController::class,'index'])->name('signatures.index');
+        Route::get('/signatures/{signature}', [\App\Http\Controllers\Admin\SignatureRequestController::class,'show'])
+            ->whereNumber('signature')->name('signatures.show');
+        Route::post('/signatures/{signature}/revoke',
+            [\App\Http\Controllers\Admin\SignatureRequestController::class,'revoke'])
+            ->whereNumber('signature')->middleware('throttle:10,1')->name('signatures.revoke');
         Route::get('/audit', AuditController::class)->name('audit');
         Route::get('/mobile-auth', \App\Http\Controllers\Admin\MobileAuthController::class)->name('mobile-auth');
     });
