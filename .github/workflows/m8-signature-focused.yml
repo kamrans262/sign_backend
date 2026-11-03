@@ -1,0 +1,70 @@
+name: M8 Digital Signatures focused backend verification
+
+on:
+  push:
+    branches: [feature/m8-digital-signatures-2026-11-04]
+    paths:
+      - '.github/workflows/m8-signature-focused.yml'
+      - 'app/Models/Signature*.php'
+      - 'app/Models/SignedDocumentArtifact.php'
+      - 'app/Services/SignatureWorkflowService.php'
+      - 'app/Http/Controllers/Api/*Signature*.php'
+      - 'app/Http/Controllers/Admin/SignatureRequestController.php'
+      - 'database/migrations/2026_11_04_020000_create_signature_workflow_tables.php'
+      - 'resources/views/admin/signatures/**'
+      - 'resources/views/admin/layout.blade.php'
+      - 'routes/**'
+      - 'tests/Feature/M8SignatureRequestFoundationTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign2digital-m8-backend
+  cancel-in-progress: true
+
+jobs:
+  m8-focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-only
+          MYSQL_DATABASE: sign2digital_m8_ci
+          MYSQL_USER: sign_ci
+          MYSQL_PASSWORD: sign-ci-only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s
+          --health-timeout=4s
+          --health-retries=25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, pdo_mysql, mbstring, openssl, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint M8 PHP and compile Blade
+        run: |
+          for file in app/Models/SignatureRequest.php app/Models/SignatureEvent.php app/Models/SignedDocumentArtifact.php app/Services/SignatureWorkflowService.php app/Http/Controllers/Api/SignatureRequestController.php app/Http/Controllers/Api/PublicSignatureController.php app/Http/Controllers/Admin/SignatureRequestController.php database/migrations/2026_11_04_020000_create_signature_workflow_tables.php tests/Feature/M8SignatureRequestFoundationTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          php artisan view:cache
+          php artisan route:list --path=api/public/signing
+      - name: M8 and M7 SQLite regression
+        run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation)Test'
+      - name: M8 MySQL 8 regression
+        env:
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_m8_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
+        run: php artisan test --filter=M8SignatureRequestFoundationTest
