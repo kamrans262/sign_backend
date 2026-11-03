@@ -435,6 +435,48 @@ class ServiceQuoteController extends Controller
         return response()->json(['data'=>['delivered'=>true]]);
     }
 
+    /**
+     * The private, revision-bound document is the only authoritative PDF.
+     * Missing files and modified files fail closed; never expose disk paths.
+     */
+    private function approvedPdfBytes(ServiceQuote $item): ?string
+    {
+        if (!$item->approved_pdf_path || !$item->approved_pdf_sha256 ||
+            (int)$item->approved_pdf_revision !== (int)$item->revision) {
+            return null;
+        }
+        $disk = Storage::disk('local');
+        if (!$disk->exists($item->approved_pdf_path)) {
+            report(new \RuntimeException('Approved quote PDF missing from private storage.'));
+            abort(503, 'Approved PDF is unavailable.');
+        }
+        $bytes = $disk->get($item->approved_pdf_path);
+        if (!is_string($bytes) ||
+            !hash_equals((string)$item->approved_pdf_sha256, hash('sha256', $bytes))) {
+            report(new \RuntimeException('Approved quote PDF digest mismatch.'));
+            abort(503, 'Approved PDF integrity verification failed.');
+        }
+        return $bytes;
+    }
+
+    public function approvedPdf(Request $request, int $quote)
+    {
+        // Scoped to company and quotes.read. No customer/public access.
+        $item = $this->scoped($request, $quote);
+        abort_unless(in_array($item->status, ['approved','sent'], true), 409);
+        $bytes = $this->approvedPdfBytes($item);
+        abort_if($bytes === null, 409, 'This quote has no verified approved PDF.');
+        $filename = 'Sign2Digital_Quote_'.
+            preg_replace('/[^A-Za-z0-9_-]/', '_',
+                $item->custom_quote_number ?: $item->reference_number).'.pdf';
+        return response($bytes, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     public function shareEmailPdf(Request $request, int $quote): JsonResponse
     {
         $data = $request->validate([
@@ -447,30 +489,17 @@ class ServiceQuoteController extends Controller
         abort_unless(in_array($item->status, ['approved','sent'], true), 409,
             'Approve the quote before emailing a PDF.');
 
-        // Never trust an attachment supplied *after* approval. The only PDF
-        // that can leave this endpoint is the exact one frozen at approval.
-        if (!$item->approved_pdf_path || !$item->approved_pdf_sha256 ||
-            (int)$item->approved_pdf_revision !== (int)$item->revision) {
+        // A later upload is never the attachment. Read the approval-bound copy.
+        $bytes = $this->approvedPdfBytes($item);
+        if ($bytes === null) {
             return response()->json([
                 'message' => 'This quote has no verified approved PDF. Send the secure link instead.',
             ], 409);
         }
-
-        // Validate legacy multipart uploads for file hygiene, but ignore
-        // their contents. The original approved bytes remain authoritative.
+        // Keep legacy multipart clients compatible, but reject invalid inputs
+        // instead of silently accepting an arbitrary document.
         if ($request->hasFile('file')) {
             $this->verifiedPdfUpload($request);
-        }
-        $disk = Storage::disk('local');
-        if (!$disk->exists($item->approved_pdf_path)) {
-            report(new \RuntimeException('Approved quote PDF missing from private storage.'));
-            return response()->json(['message'=>'Approved PDF is unavailable.'],503);
-        }
-        $bytes = $disk->get($item->approved_pdf_path);
-        if (!is_string($bytes) ||
-            !hash_equals((string)$item->approved_pdf_sha256, hash('sha256', $bytes))) {
-            report(new \RuntimeException('Approved quote PDF digest mismatch.'));
-            return response()->json(['message'=>'Approved PDF integrity verification failed.'],503);
         }
         if (in_array((string) config('mail.default'), ['log','array','null'], true)) {
             return response()->json(['message'=>'Email delivery is not configured.'],503);
