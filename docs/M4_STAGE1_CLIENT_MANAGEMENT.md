@@ -39,6 +39,13 @@
 - Device contacts are loaded on demand, not when entering the app. The existing injected demo contacts and UI-only widget tests remain supported.
 - Existing client history tabs stay visible, but real clients do not show fabricated demo jobs/quotes/documents. Links come when their respective backend modules are built.
 
+## Stage 1 focused CI verification (passed)
+
+- **Laravel M4:** [GitHub Actions run 41632340553](https://github.com/kamrans262/sign_backend/actions/runs/41632340553) passed client CRUD/import, tenant isolation, permissions, admin management, PHP syntax/Blade, SQLite and MySQL 8.
+- **Flutter M4:** [GitHub Actions run 41633538467](https://github.com/kamrans262/sign_app/actions/runs/41633538467) passed package resolution, scoped analyzer and focused client repository, existing Add Client, Client Details, Clients navigation and import UI regressions.
+- The prior dashboard test quiescence and lazy menu visibility checks were fixed in **tests only**; no approved UI controls or layout styles were removed.
+- These tests use isolated CI/test data and do **not** prove Hostinger migration, SMTP, or Android/iOS phone-contact permission behavior in a real device build.
+
 ## Known boundaries
 
 - No phone contacts, Laravel clients, or MySQL production records were read or modified in the connected GitHub-only implementation. Production Hostinger migration must occur after backups and PHP/composer compatibility checks.
