@@ -266,7 +266,7 @@ class M3CompanyManagementTest extends TestCase
         $this->get('/admin/companies/'.$companyId.'/edit')->assertOk()
             ->assertSee('Email Invitations')
             ->assertSee('Company Files')
-            ->assertSee('Team Members & Roles');
+            ->assertSee('Team Members & Roles', false);
 
         $this->post('/admin/companies/'.$companyId.'/invitations', [
             'email' => 'new-team@example.test',
