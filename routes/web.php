@@ -86,6 +86,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/signatures/{signature}/revoke',
             [\App\Http\Controllers\Admin\SignatureRequestController::class,'revoke'])
             ->whereNumber('signature')->middleware('throttle:10,1')->name('signatures.revoke');
+        Route::get('/signatures/{signature}/signed-pdf',
+            [\App\Http\Controllers\Admin\SignatureRequestController::class,'signedPdf'])
+            ->whereNumber('signature')->name('signatures.signedPdf');
+        Route::post('/signatures/{signature}/resend',
+            [\App\Http\Controllers\Admin\SignatureRequestController::class,'resend'])
+            ->whereNumber('signature')->middleware('throttle:5,1')->name('signatures.resend');
+        Route::post('/signatures/{signature}/resend-signed',
+            [\App\Http\Controllers\Admin\SignatureRequestController::class,'resendSigned'])
+            ->whereNumber('signature')->middleware('throttle:5,1')->name('signatures.resendSigned');
         Route::get('/audit', AuditController::class)->name('audit');
         Route::get('/mobile-auth', \App\Http\Controllers\Admin\MobileAuthController::class)->name('mobile-auth');
     });
