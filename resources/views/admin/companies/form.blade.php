@@ -159,4 +159,87 @@
   </div>
 </section>
 @endif
+
+
+@if($editing)
+<section class="panel">
+  <div class="panel-header">
+    <div><h2>Company Files</h2><p class="panel-header-hint">Private company logo and PDF terms. Only administrators and authorized company members can access these files.</p></div>
+  </div>
+  <div class="fields">
+    @foreach(['logo' => 'Company Logo', 'terms' => 'Terms & Conditions (PDF)'] as $kind => $label)
+      @php($exists = $kind === 'logo' ? (bool) $company->logo_path : (bool) $company->terms_path)
+      @php($filename = $kind === 'logo' ? $company->logo_original_name : $company->terms_original_name)
+      <div class="field">
+        <label>{{ $label }}</label>
+        <p class="hint">{{ $exists ? ($filename ?? 'Uploaded file') : 'No file uploaded yet.' }}</p>
+        <form method="post" enctype="multipart/form-data" action="{{ route('admin.companies.files.upload', [$company, $kind]) }}">
+          @csrf
+          <input class="input" name="file" type="file" required
+            accept="{{ $kind === 'logo' ? '.png,.jpg,.jpeg,.svg' : '.pdf' }}" aria-label="Upload {{ $label }} (max 2 MB)">
+          <div class="form-actions"><button class="btn btn-primary" type="submit"><x-admin.icon name="upload" /> Upload {{ $label }}</button></div>
+        </form>
+        @if($exists)
+          <a class="btn btn-outline" href="{{ route('admin.companies.files.download', [$company, $kind]) }}">Download current file</a>
+          <form method="post" action="{{ route('admin.companies.files.destroy', [$company, $kind]) }}">
+            @csrf @method('delete')
+            <button type="submit" class="btn btn-danger">Remove {{ $label }}</button>
+          </form>
+        @endif
+      </div>
+    @endforeach
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <div><h2>Email Invitations</h2><p class="panel-header-hint">Invite a team member by email. Codes expire in seven days and cannot be viewed here.</p></div>
+  </div>
+  <form method="post" class="fields" action="{{ route('admin.companies.invitations.store', $company) }}">
+    @csrf
+    <div class="field">
+      <label for="invite_email">Recipient Email</label>
+      <input type="email" name="email" id="invite_email" required class="input" maxlength="255" placeholder="colleague@company.com">
+    </div>
+    <div class="field">
+      <label for="invite_role">Company Role</label>
+      <select id="invite_role" name="role" class="input" required>
+        <option value="member">Member</option>
+        <option value="admin">Company Admin</option>
+      </select>
+    </div>
+    <div class="field full">
+      <button type="submit" class="btn btn-primary"><x-admin.icon name="plus" /> Send Invitation</button>
+    </div>
+  </form>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expiry</th><th>Action</th></tr></thead>
+      <tbody>
+      @forelse($company->invitations->sortByDesc('created_at') as $invite)
+        @php($state = $invite->accepted_at ? 'Accepted' : ($invite->revoked_at ? 'Revoked' : ($invite->expires_at->isPast() ? 'Expired' : 'Pending')))
+        <tr>
+          <td>{{ $invite->email }}</td>
+          <td>{{ ucfirst($invite->role) }}</td>
+          <td><span class="pill {{ $state === 'Accepted' ? 'green' : ($state === 'Pending' ? 'amber' : '') }}">{{ $state }}</span></td>
+          <td class="muted">{{ $invite->expires_at->format('M d, Y') }}</td>
+          <td>
+            @if($state === 'Pending')
+              <form method="post" action="{{ route('admin.companies.invitations.destroy', [$company, $invite]) }}">
+                @csrf @method('delete')
+                <button type="submit" class="btn btn-small btn-outline">Revoke</button>
+              </form>
+            @else
+              <span class="muted">—</span>
+            @endif
+          </td>
+        </tr>
+      @empty
+        <tr><td class="empty" colspan="5">No company invitations yet.</td></tr>
+      @endforelse
+      </tbody>
+    </table>
+  </div>
+</section>
+@endif
 @endsection
