@@ -1,0 +1,48 @@
+name: M8 lock signing PDF dependencies
+
+on:
+  push:
+    branches: [feature/m8-digital-signatures-2026-11-04]
+    paths:
+      - '.github/workflows/m8-lock-deps.yml'
+      - 'composer.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sign2digital-m8-pdf-lock
+  cancel-in-progress: true
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: zlib, mbstring, openssl, fileinfo
+          coverage: none
+      - name: Resolve only the explicitly approved PDF packages
+        run: composer update setasign/fpdf setasign/fpdi --with-all-dependencies --no-scripts --no-interaction --prefer-dist --no-progress
+      - name: Verify composer metadata and exact locked packages
+        run: |
+          composer validate --no-check-publish
+          composer show --locked setasign/fpdf
+          composer show --locked setasign/fpdi
+      - name: Commit reproducible lock file on M8 branch
+        run: |
+          if git diff --quiet -- composer.lock; then
+            echo 'composer.lock already current'
+            exit 0
+          fi
+          git config user.name 'Sign2Digital CI'
+          git config user.email 'ci@localhost'
+          git add composer.lock
+          git commit -m 'M8: lock FPDI and FPDF dependencies'
+          git push origin HEAD:feature/m8-digital-signatures-2026-11-04
