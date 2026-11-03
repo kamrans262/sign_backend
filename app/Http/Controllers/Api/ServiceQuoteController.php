@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -59,6 +60,7 @@ class ServiceQuoteController extends Controller
             'vat_minor' => $quote->vat_minor,
             'total_minor' => $quote->total_minor,
             'deposit_minor' => $quote->deposit_minor,
+            'approved_pdf_available' => $quote->approved_pdf_sha256 !== null,
             'approved_at' => $quote->approved_at?->toIso8601String(),
             'sent_at' => $quote->sent_at?->toIso8601String(),
             'items' => $quote->items->map(fn ($item) => [
@@ -73,6 +75,33 @@ class ServiceQuoteController extends Controller
                 'unresolved_fields' => $item->unresolved_fields ?? [],
             ])->values(),
         ];
+    }
+
+    /**
+     * Accept the exact customer document being authorized, not an arbitrary
+     * later email attachment. It remains private and immutable after approval.
+     */
+    private function verifiedPdfUpload(Request $request): ?string
+    {
+        $uploaded = $request->file('file');
+        if ($uploaded === null) {
+            return null; // Legacy/admin approval can still send a secure link.
+        }
+        if (!$uploaded->isValid()) {
+            throw ValidationException::withMessages([
+                'file' => 'The selected quote PDF cannot be read.',
+            ]);
+        }
+        $bytes = file_get_contents($uploaded->getRealPath());
+        if (!is_string($bytes) || strlen($bytes) < 12 ||
+            strlen($bytes) > 5*1024*1024 ||
+            !str_starts_with($bytes, '%PDF-') ||
+            !str_contains(substr($bytes, -4096), '%%EOF')) {
+            throw ValidationException::withMessages([
+                'file' => 'Provide a valid quote PDF under 5 MB.',
+            ]);
+        }
+        return $bytes;
     }
 
     private function fields(Request $request): array
@@ -278,10 +307,12 @@ class ServiceQuoteController extends Controller
         // the last revision they reviewed to avoid approving stale amounts.
         $input = $request->validate([
             'confirmed' => ['required', 'accepted'],
+            'file' => ['nullable','file','max:5120'],
             'expected_revision' => ['sometimes', 'integer', 'min:1'],
         ]);
         $company = $this->company($request);
-        $item = DB::transaction(function () use ($request, $quote, $company, $input): ServiceQuote {
+        $approvedPdf = $this->verifiedPdfUpload($request);
+        $item = DB::transaction(function () use ($request, $quote, $company, $input, $approvedPdf): ServiceQuote {
             // Approval must re-read and lock the draft inside the transaction.
             // Otherwise an edit/approval race can approve unreviewed pricing.
             $item = ServiceQuote::query()
@@ -315,6 +346,22 @@ class ServiceQuoteController extends Controller
                 'updated_by' => $request->user()->id,
                 'revision' => $item->revision + 1,
             ]);
+            if ($approvedPdf !== null) {
+                $sha = hash('sha256', $approvedPdf);
+                $path = 'quotes/approved/'.$company->id.'/'.$item->id.'/'.
+                    $item->revision.'/'.$sha.'.pdf';
+                // The local disk is storage/app/private, never the web root.
+                if (!Storage::disk('local')->put($path, $approvedPdf)) {
+                    throw ValidationException::withMessages([
+                        'file' => 'The approved PDF could not be stored privately.',
+                    ]);
+                }
+                $item->update([
+                    'approved_pdf_path' => $path,
+                    'approved_pdf_sha256' => $sha,
+                    'approved_pdf_revision' => $item->revision,
+                ]);
+            }
             $item->revisions()->create([
                 'revision' => $item->revision,
                 'snapshot' => $this->payload($item->fresh()->load('items')),
