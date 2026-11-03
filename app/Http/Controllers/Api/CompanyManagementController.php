@@ -108,7 +108,7 @@ class CompanyManagementController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $request->user()->fresh();
         $companies = $user->companies()->wherePivot('status', 'active')
             ->where('companies.status', 'active')
             ->orderBy('companies.name')->get();
