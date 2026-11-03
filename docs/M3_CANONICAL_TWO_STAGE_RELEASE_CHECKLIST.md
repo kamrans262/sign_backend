@@ -34,7 +34,7 @@ Earlier "M3 Stage 1", "M3 Stage 2", and "M3 Stage 3" commits together represent 
 
 - Laravel existing Stage-1 focused run, **passed**: [run 41624971801](https://github.com/kamrans262/sign_backend/actions/runs/41624971801) — SQLite + MySQL 8, M3 + M2 targeted regressions.
 - Flutter, **passed**: [run 41625628643](https://github.com/kamrans262/sign_app/actions/runs/41625628643) — analyzer, company APIs, setup screens, M2 auth, responsive landscape checks.
-- Additional final release compatibility gate (new): PHP **8.4.1 or newer** is required by the **current composer.lock** (locked Symfony 8.1 components). Although composer.json declares ^8.3, running the same locked dependencies under PHP 8.3 failed with Composer platform errors. Do **not** change installed package versions merely to hide the release compatibility issue. Verify the new focused PHP 8.4 CI run and actual Hostinger PHP before deployment.
+- Additional final release compatibility gate (verified): PHP **8.4.1 or newer** is required by the **current composer.lock** (locked Symfony 8.1 components). Although composer.json declares ^8.3, PHP 8.3 fails Composer platform checks. **PHP 8.4 CI passed**: [run 41626826060](https://github.com/kamrans262/sign_backend/actions/runs/41626826060) — Composer install, syntax/view checks, SQLite, MySQL 8 and M2 OTP targeted regressions. No dependency versions were changed. Actual Hostinger PHP remains unverified.
 
 ## Production deployment gate
 
