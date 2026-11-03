@@ -257,25 +257,37 @@ class ServiceQuoteController extends Controller
 
     public function archive(Request $request,int $quote): RedirectResponse
     {
-        $target=ServiceQuote::findOrFail($quote);
-        abort_if($target->status==='archived',409);
-        $target->update(['status_before_archive'=>$target->status,
-            'status'=>'archived','archived_at'=>now(),
-            'link_version'=>$target->link_version + 1]);
-        AuditLogger::record('admin.quote.archived',$request->user(),$target,
-            Company::findOrFail($target->company_id),request:$request);
-        return redirect()->route('admin.quotes.index')->with('success','Quote archived.');
+        return DB::transaction(function () use ($request,$quote): RedirectResponse {
+            $target=ServiceQuote::query()->lockForUpdate()->findOrFail($quote);
+            abort_if($target->status==='archived',409);
+            $target->update([
+                'status_before_archive'=>$target->status,
+                'status'=>'archived',
+                'archived_at'=>now(),
+                'link_version'=>$target->link_version + 1,
+            ]);
+            AuditLogger::record('admin.quote.archived',$request->user(),$target,
+                Company::findOrFail($target->company_id),request:$request);
+            return redirect()->route('admin.quotes.index')->with('success','Quote archived.');
+        });
     }
 
     public function restore(Request $request,int $quote): RedirectResponse
     {
-        $target=ServiceQuote::findOrFail($quote);
-        abort_unless($target->status==='archived',409);
-        $previous=$target->status_before_archive;
-        $target->update(['status'=>in_array($previous,['draft','approved','sent'])?$previous:'draft',
-            'archived_at'=>null,'status_before_archive'=>null]);
-        AuditLogger::record('admin.quote.restored',$request->user(),$target,
-            Company::findOrFail($target->company_id),request:$request);
-        return redirect()->route('admin.quotes.edit',$target)->with('success','Quote restored.');
+        return DB::transaction(function () use ($request,$quote): RedirectResponse {
+            $target=ServiceQuote::query()->lockForUpdate()->findOrFail($quote);
+            abort_unless($target->status==='archived',409);
+            $previous=$target->status_before_archive;
+            $target->update([
+                'status'=>in_array($previous,['draft','approved','sent'],true)
+                    ? $previous : 'draft',
+                'archived_at'=>null,
+                'status_before_archive'=>null,
+            ]);
+            AuditLogger::record('admin.quote.restored',$request->user(),$target,
+                Company::findOrFail($target->company_id),request:$request);
+            return redirect()->route('admin.quotes.edit',$target)->with('success','Quote restored.');
+        });
     }
+
 }
