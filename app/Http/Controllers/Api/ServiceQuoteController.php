@@ -91,7 +91,7 @@ class ServiceQuoteController extends Controller
             'deposit_basis_points' => ['required','integer','between:0,10000'],
             'terms' => ['nullable','string','max:20000'],
             'source_method' => ['nullable',Rule::in(['text','voice','handwrittenPhoto','manual'])],
-            'payment_details' => ['nullable','array'],
+            'payment_details' => ['nullable','array:iban,accountHolder,street,buildingNumber,postalCode,city,country,paymentReference'],
             'payment_details.*' => ['nullable','string','max:255'],
             'items' => ['required','array','min:1','max:25'],
             'items.*.title' => ['required','string','max:255'],
@@ -278,6 +278,7 @@ class ServiceQuoteController extends Controller
         abort_if($item->status === 'archived',409);
         $item->update(['status_before_archive'=>$item->status,
             'status'=>'archived','archived_at'=>now(),
+            'link_version'=>$item->link_version + 1,
             'updated_by'=>$request->user()->id]);
         AuditLogger::record('mobile.quote.archived',$request->user(),$item,
             $this->company($request),request:$request);
@@ -296,7 +297,7 @@ class ServiceQuoteController extends Controller
             'Approve the quote before sharing it.');
         // Signed link expires after 7 days; no public raw ID enumeration.
         $link = URL::temporarySignedRoute('quotes.public',
-            now()->addDays(7), ['quote'=>$item->id]);
+            now()->addDays(7), ['quote'=>$item->id,'v'=>$item->link_version]);
         if ($data['method'] === 'secure_link') {
             AuditLogger::record('mobile.quote.link_generated',$request->user(),$item,
                 $this->company($request),request:$request);
@@ -333,6 +334,8 @@ class ServiceQuoteController extends Controller
     {
         $item=ServiceQuote::query()->with(['items','company:id,name,address,email,phone_number,vat_number'])->findOrFail($quote);
         abort_unless(in_array($item->status,['approved','sent'],true),404);
+        // Archive invalidates all previously issued URLs, including after restore.
+        abort_unless((string)$request->query('v') === (string)$item->link_version,404);
         if (!$request->expectsJson()) {
             return response()->view('public.quote',['quote'=>$item],200,
                 ['Cache-Control'=>'no-store','X-Robots-Tag'=>'noindex']);

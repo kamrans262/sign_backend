@@ -29,6 +29,8 @@ return new class extends Migration {
             $table->string('status', 20)->default('draft'); // draft, approved, sent, archived
             $table->string('status_before_archive', 20)->nullable();
             $table->unsignedInteger('revision')->default(1);
+            // Rotated on archive so previously issued customer URLs cannot revive.
+            $table->unsignedInteger('link_version')->default(1);
             $table->unsignedBigInteger('subtotal_minor')->nullable();
             $table->unsignedBigInteger('vat_minor')->nullable();
             $table->unsignedBigInteger('total_minor')->nullable();

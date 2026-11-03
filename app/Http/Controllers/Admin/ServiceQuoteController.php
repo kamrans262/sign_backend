@@ -77,12 +77,14 @@ class ServiceQuoteController extends Controller
             'vat_basis_points'=>['required','integer','between:0,10000'],
             'deposit_basis_points'=>['required','integer','between:0,10000'],
             'terms'=>['nullable','string','max:20000'],
+            'payment_details'=>['nullable','array:iban,accountHolder,street,buildingNumber,postalCode,city,country,paymentReference'],
+            'payment_details.*'=>['nullable','string','max:255'],
             'items'=>['required','array','min:1','max:25'],
             'items.*.title'=>['nullable','string','max:255'],
             'items.*.description'=>['nullable','string','max:5000'],
             'items.*.quantity'=>['nullable','integer','between:1,100000'],
             'items.*.dimensions'=>['nullable','string','max:255'],
-            'items.*.unit_price'=>['nullable','regex:/^\d+(\.\d{1,2})?$/'],
+            'items.*.unit_price'=>['nullable','regex:/^\d{1,11}(\.\d{1,2})?$/'],
         ]);
         if ($existing && $existing->company_id !== (int)$data['company_id']) {
             throw ValidationException::withMessages(['company_id'=>'Existing quote company is immutable.']);
@@ -109,6 +111,11 @@ class ServiceQuoteController extends Controller
             $minor=null;
             if ($price!=='') {
                 $split=explode('.',$price);
+                if ((int)$split[0] > 10000000000) {
+                    throw ValidationException::withMessages([
+                        'items'=>'Unit price is above the supported limit.',
+                    ]);
+                }
                 $minor=(int)$split[0]*100+(int)str_pad($split[1]??'',2,'0');
             }
             $items[]=[
@@ -216,7 +223,8 @@ class ServiceQuoteController extends Controller
         $target=ServiceQuote::findOrFail($quote);
         abort_if($target->status==='archived',409);
         $target->update(['status_before_archive'=>$target->status,
-            'status'=>'archived','archived_at'=>now()]);
+            'status'=>'archived','archived_at'=>now(),
+            'link_version'=>$target->link_version + 1]);
         AuditLogger::record('admin.quote.archived',$request->user(),$target,
             Company::findOrFail($target->company_id),request:$request);
         return redirect()->route('admin.quotes.index')->with('success','Quote archived.');
