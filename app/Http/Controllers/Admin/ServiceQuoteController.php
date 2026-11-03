@@ -222,14 +222,27 @@ class ServiceQuoteController extends Controller
 
     public function approve(Request $request,int $quote): RedirectResponse
     {
-        $target=ServiceQuote::with('items')->findOrFail($quote);
-        abort_unless($target->status==='draft',409);
-        if ($target->total_minor === null || !$target->client_name || !$target->terms ||
-            $target->items->contains(fn($i)=>$i->quantity===null ||
-                $i->unit_price_minor===null || ($i->dimensions!==null && trim($i->dimensions)===''))) {
-            return back()->withErrors(['quote'=>'Complete client, prices and terms before approval.']);
-        }
-        DB::transaction(function () use ($target,$request):void {
+        $input=$request->validate([
+            'expected_revision'=>['nullable','integer','min:1'],
+        ]);
+        // Keep legacy administrator requests working, but protect the reviewed
+        // revision when the current edit form submits its hidden revision token.
+        return DB::transaction(function () use ($request,$quote,$input): RedirectResponse {
+            $target=ServiceQuote::query()->lockForUpdate()->with('items')
+                ->findOrFail($quote);
+            if (isset($input['expected_revision']) &&
+                (int)$input['expected_revision'] !== (int)$target->revision) {
+                abort(409,'This quote changed in another session. Reload before approving.');
+            }
+            abort_unless($target->status==='draft',409,'Only drafts can be approved.');
+            if ($target->total_minor===null || !trim((string)$target->client_name) ||
+                !trim((string)$target->terms) || $target->items->isEmpty() ||
+                $target->items->contains(fn($i)=>$i->quantity===null ||
+                    $i->unit_price_minor===null || !trim((string)$i->title) ||
+                    ($i->dimensions!==null && trim($i->dimensions)==='') ||
+                    !empty($i->unresolved_fields))) {
+                return back()->withErrors(['quote'=>'Complete client, prices and terms before approval.']);
+            }
             $target->update(['status'=>'approved','approved_at'=>now(),
                 'revision'=>$target->revision+1,'updated_by'=>$request->user()->id]);
             $target->revisions()->create([
@@ -238,8 +251,8 @@ class ServiceQuoteController extends Controller
             ]);
             AuditLogger::record('admin.quote.approved',$request->user(),$target,
                 Company::findOrFail($target->company_id),request:$request);
+            return back()->with('success','Quote approved.');
         });
-        return back()->with('success','Quote approved.');
     }
 
     public function archive(Request $request,int $quote): RedirectResponse
