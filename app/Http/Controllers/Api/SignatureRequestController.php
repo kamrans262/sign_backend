@@ -42,6 +42,8 @@ final class SignatureRequestController extends Controller
             'quote_id' => $item->service_quote_id,
             'job_id' => $item->quote?->service_job_id,
             'signer_name' => $item->signer_name,
+            'mode' => $item->mode,
+            'business_signer_name' => $item->business_signer_name,
             'signer_email' => $item->signer_email,
             'status' => $item->expires_at->isPast() && in_array($item->status, ['ready','sent','viewed'], true)
                 ? 'expired' : $item->status,
@@ -96,11 +98,14 @@ final class SignatureRequestController extends Controller
             $source = ServiceQuote::query()->where('company_id', $company->id)
                 ->lockForUpdate()->findOrFail($quote);
             $this->workflow->approvedBytes($source);
-            if (trim((string) $source->client_email) !== '' &&
+            if (trim((string) $source->client_email) === '' ||
                 mb_strtolower(trim((string) $source->client_email)) !==
                     mb_strtolower(trim($data['signer_email']))) {
                 abort(422, 'Signer email must match the approved customer record.');
             }
+            abort_if(Signing::query()->where('service_quote_id',$source->id)
+                ->where('status','signed')->exists(),409,
+                'This approved quote has already been signed.');
             $active = Signing::query()->where('service_quote_id', $source->id)
                 ->whereIn('status', ['ready','sent','viewed'])
                 ->where('expires_at','>',now())->exists();
@@ -109,6 +114,7 @@ final class SignatureRequestController extends Controller
                 'company_id' => $company->id,
                 'service_quote_id' => $source->id,
                 'created_by' => $request->user()->id,
+                'mode' => 'remote',
                 'request_uuid' => (string) Str::uuid(),
                 'document_uuid' => (string) Str::uuid(),
                 'signer_uuid' => (string) Str::uuid(),
@@ -185,6 +191,7 @@ final class SignatureRequestController extends Controller
             $item = Signing::query()->where('company_id',$company->id)
                 ->lockForUpdate()->with('quote')->findOrFail($signature);
             $this->workflow->validForSigning($item);
+            abort_unless($item->mode === 'remote',409);
             $item->update(['token_sha256'=>hash('sha256',$token)]);
             $this->workflow->event($item,'request_link_rotated',$request,$request->user()->id);
             return $item;
