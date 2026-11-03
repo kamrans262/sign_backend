@@ -33,7 +33,7 @@ class ClientController extends Controller
             'full_name' => $client->full_name,
             'company_name' => $client->company_name ?? '',
             'address' => $client->address ?? '',
-            'country_iso_code' => $client->country_iso_code ?? 'CH',
+            'country_iso_code' => $client->country_iso_code ?? '',
             'dialing_code' => $client->dialing_code ?? '',
             'phone_number' => $client->phone_number ?? '',
             'email' => $client->email ?? '',
