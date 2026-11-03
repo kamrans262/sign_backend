@@ -34,6 +34,7 @@
   <div class="panel-header"><div><h2>Approved Quote Details</h2><p class="panel-header-hint">This quote is read-only after approval. Its saved pricing and terms cannot be silently changed.</p></div></div>
   <div class="fields">
     <div class="field"><strong>Company</strong><p>{{ $quote->company?->name }}</p></div>
+    <div class="field"><strong>Quote Number</strong><p>{{ $quote->custom_quote_number ?: $quote->reference_number }}</p></div>
     <div class="field"><strong>Customer</strong><p>{{ $quote->client_name }}</p></div>
     <div class="field"><strong>Email</strong><p>{{ $quote->client_email ?? '—' }}</p></div>
     <div class="field"><strong>Phone</strong><p>{{ $quote->client_phone ?? '—' }}</p></div>
@@ -88,6 +89,7 @@
 <div class="field"><label for="service_job_id">Linked Job</label><select class="input" id="service_job_id" name="service_job_id">
 <option value="">No Job</option>@foreach($jobs as $j)
 <option value="{{ $j->id }}" {{ (string)old('service_job_id',$editing?$quote->service_job_id:'')===(string)$j->id?'selected':'' }}>{{ $j->reference_number }} — {{ $j->title }} (company #{{ $j->company_id }})</option>@endforeach</select></div>
+<div class="field"><label for="quote_number">Quote Number</label><input class="input" id="quote_number" name="quote_number" maxlength="40" placeholder="Auto-generated if empty" value="{{ old('quote_number', $editing ? ($quote->custom_quote_number ?: $quote->reference_number) : '') }}"></div>
 <div class="field"><label for="client_name">Customer Name *</label><input class="input" id="client_name" name="client_name" maxlength="255" required value="{{ old('client_name',$editing?$quote->client_name:'') }}"></div>
 <div class="field"><label for="client_email">Customer Email</label><input class="input" id="client_email" name="client_email" type="email" value="{{ old('client_email',$editing?$quote->client_email:'') }}"></div>
 <div class="field"><label for="client_phone">Customer Phone</label><input class="input" id="client_phone" name="client_phone" value="{{ old('client_phone',$editing?$quote->client_phone:'') }}"></div>

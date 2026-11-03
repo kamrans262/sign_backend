@@ -14,6 +14,10 @@ return new class extends Migration {
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('reference_number', 40)->unique();
+            // The original Review Quote form supports a user-editable number,
+            // distinct from the immutable server-generated audit reference.
+            $table->string('custom_quote_number', 40)->nullable();
+            $table->unique(['company_id','custom_quote_number']);
             $table->string('client_name', 255)->default('');
             $table->string('client_email', 255)->nullable();
             $table->string('client_phone', 60)->nullable();

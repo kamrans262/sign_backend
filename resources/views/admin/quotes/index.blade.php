@@ -34,7 +34,7 @@
       <tbody>
       @forelse($quotes as $quote)
       <tr>
-        <td><span class="strong">{{ $quote->reference_number }}</span><div class="muted">{{ $quote->quote_date?->format('d M Y') }}</div></td>
+        <td><span class="strong">{{ $quote->custom_quote_number ?: $quote->reference_number }}</span><div class="muted">{{ $quote->quote_date?->format('d M Y') }}</div></td>
         <td>{{ $quote->company?->name ?? '—' }}</td>
         <td>{{ $quote->client_name ?: 'Unassigned' }}</td>
         <td>{{ $quote->service_job_id ?? '—' }}</td>

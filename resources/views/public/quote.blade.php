@@ -36,7 +36,7 @@
 <main>
   <div class="top">
     <div><h1>Quote</h1><strong>{{ $quote->company?->name ?? "Sign2Digital" }}</strong><div class="muted">{{ $quote->company?->address }}</div><div class="muted">{{ $quote->company?->email }}</div><div class="muted">{{ $quote->company?->phone_number }}</div><div class="muted">Prepared with Sign2Digital</div></div>
-    <div><strong>{{ $quote->reference_number }}</strong>
+    <div><strong>{{ $quote->custom_quote_number ?: $quote->reference_number }}</strong>
       <div>{{ $quote->quote_date?->format('d M Y') }}</div>
       <div class="muted">Revision {{ $quote->revision }}</div>
       <div style="margin-top:10px"><span class="tag">{{ ucfirst($quote->status) }}</span></div>

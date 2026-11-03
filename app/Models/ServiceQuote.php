@@ -10,7 +10,7 @@ class ServiceQuote extends Model
 {
     protected $fillable = [
         'company_id','client_id','service_job_id','created_by','updated_by',
-        'reference_number','client_name','client_email','client_phone','billing_address',
+        'reference_number','custom_quote_number','client_name','client_email','client_phone','billing_address',
         'quote_date','valid_until','currency','vat_basis_points','deposit_basis_points',
         'terms','payment_details','source_method','status','status_before_archive','revision','link_version','subtotal_minor',
         'vat_minor','total_minor','deposit_minor','approved_at','sent_at','archived_at',

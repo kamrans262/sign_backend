@@ -40,7 +40,7 @@ class ServiceQuoteController extends Controller
             'client_id' => $quote->client_id,
             'job_id' => $quote->service_job_id,
             'reference_number' => $quote->reference_number,
-            'quote_number' => $quote->reference_number,
+            'quote_number' => $quote->custom_quote_number ?: $quote->reference_number,
             'client_name' => $quote->client_name,
             'client_email' => $quote->client_email ?? '',
             'client_phone' => $quote->client_phone ?? '',
@@ -80,6 +80,7 @@ class ServiceQuoteController extends Controller
         $data = $request->validate([
             'client_id' => ['nullable','integer','min:1'],
             'job_id' => ['nullable','integer','min:1'],
+            'quote_number' => ['nullable','string','max:40','regex:~^[A-Za-z0-9][A-Za-z0-9 _./-]*$~'],
             'client_name' => ['nullable','string','max:255'],
             'client_email' => ['nullable','email','max:255'],
             'client_phone' => ['nullable','string','max:60'],
@@ -104,6 +105,22 @@ class ServiceQuoteController extends Controller
             'items.*.unresolved_fields.*' => ['string','max:100'],
         ]);
         $companyId = $this->company($request)->id;
+        $customQuoteNumber = trim((string)($data['quote_number'] ?? ''));
+        if ($customQuoteNumber !== '') {
+            $duplicate = ServiceQuote::query()
+                ->where('company_id',$companyId)
+                ->where('custom_quote_number',$customQuoteNumber)
+                ->when($request->route('quote'), fn($query) =>
+                    $query->whereKeyNot((int)$request->route('quote')))
+                ->exists();
+            if ($duplicate) {
+                throw ValidationException::withMessages([
+                    'quote_number'=>'This quote number is already used in your company.',
+                ]);
+            }
+        }
+        $data['custom_quote_number'] = $customQuoteNumber ?: null;
+        unset($data['quote_number']);
         if (!empty($data['client_id'])) {
             $valid = Client::query()->where('company_id', $companyId)->whereKey($data['client_id'])->first();
             if (!$valid) throw ValidationException::withMessages(['client_id'=>'Choose a client in this company.']);
@@ -309,10 +326,10 @@ class ServiceQuoteController extends Controller
             return response()->json(['message'=>'Email delivery is not configured.'],503);
         }
         try {
-            Mail::raw("Quote {$item->reference_number}\n\n".($data['message'] ?? '')."\n\n".
+            Mail::raw("Quote ".($item->custom_quote_number ?: $item->reference_number)."\n\n".($data['message'] ?? '')."\n\n".
                 "Review your approved quote using this secure link (valid 7 days):\n".$link,
                 fn($mail)=>$mail->to($data['recipient_email'])->subject(
-                    'Sign2Digital quote '.$item->reference_number));
+                    'Sign2Digital quote '.($item->custom_quote_number ?: $item->reference_number)));
         } catch (\Throwable $error) {
             report($error);
             return response()->json(['message'=>'Unable to send the quote email.'],502);

@@ -67,6 +67,7 @@ class ServiceQuoteController extends Controller
             'company_id'=>['required','integer',Rule::exists('companies','id')->where('status','active')],
             'client_id'=>['nullable','integer'],
             'service_job_id'=>['nullable','integer'],
+            'quote_number'=>['nullable','string','max:40','regex:~^[A-Za-z0-9][A-Za-z0-9 _./-]*$~'],
             'client_name'=>['required','string','max:255'],
             'client_email'=>['nullable','email','max:255'],
             'client_phone'=>['nullable','string','max:60'],
@@ -90,6 +91,20 @@ class ServiceQuoteController extends Controller
             throw ValidationException::withMessages(['company_id'=>'Existing quote company is immutable.']);
         }
         $company=(int)$data['company_id'];
+        $number=trim((string)($data['quote_number']??''));
+        if ($number!=='') {
+            $duplicate=ServiceQuote::query()
+                ->where('company_id',$company)
+                ->where('custom_quote_number',$number)
+                ->when($existing, fn($q)=>$q->whereKeyNot($existing->id))->exists();
+            if ($duplicate) {
+                throw ValidationException::withMessages([
+                    'quote_number'=>'Quote number is already in use in this company.',
+                ]);
+            }
+        }
+        $data['custom_quote_number']=$number!==''?$number:null;
+        unset($data['quote_number']);
         if (!empty($data['client_id'])) {
             if (!Client::query()->where('company_id',$company)->whereKey($data['client_id'])->exists()) {
                 throw ValidationException::withMessages(['client_id'=>'Client must belong to the selected company.']);
