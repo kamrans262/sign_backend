@@ -330,15 +330,24 @@ class ServiceQuoteController extends Controller
 
     public function archive(Request $request, int $quote): JsonResponse
     {
-        $item = $this->scoped($request,$quote);
-        abort_if($item->status === 'archived',409);
-        $item->update(['status_before_archive'=>$item->status,
-            'status'=>'archived','archived_at'=>now(),
-            'link_version'=>$item->link_version + 1,
-            'updated_by'=>$request->user()->id]);
-        AuditLogger::record('mobile.quote.archived',$request->user(),$item,
-            $this->company($request),request:$request);
-        return response()->json(['message'=>'Quote archived.']);
+        // A concurrent approval cannot overwrite a just-archived quote, or
+        // leave a stale pre-approval status for the administrator to restore.
+        $company = $this->company($request);
+        DB::transaction(function () use ($request, $quote, $company): void {
+            $item = ServiceQuote::query()->where('company_id', $company->id)
+                ->lockForUpdate()->findOrFail($quote);
+            abort_if($item->status === 'archived', 409);
+            $item->update([
+                'status_before_archive' => $item->status,
+                'status' => 'archived',
+                'archived_at' => now(),
+                'link_version' => $item->link_version + 1,
+                'updated_by' => $request->user()->id,
+            ]);
+            AuditLogger::record('mobile.quote.archived', $request->user(),
+                $item, $company, request: $request);
+        });
+        return response()->json(['message' => 'Quote archived.']);
     }
 
     public function share(Request $request, int $quote): JsonResponse
