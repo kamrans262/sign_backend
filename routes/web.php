@@ -35,6 +35,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
         Route::post('/companies/{company}/members', [CompanyController::class, 'addMember'])->name('companies.members.store');
+        Route::get('/companies/{company}/members/{user}/edit', [CompanyController::class, 'editMember'])->name('companies.members.edit');
+        Route::patch('/companies/{company}/members/{user}', [CompanyController::class, 'updateMember'])->name('companies.members.update');
         Route::delete('/companies/{company}/members/{user}', [CompanyController::class, 'removeMember'])->name('companies.members.destroy');
         Route::post('/companies/{company}/invitations', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'invite'])->name('companies.invitations.store');
         Route::delete('/companies/{company}/invitations/{invitation}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'revoke'])->name('companies.invitations.destroy');
