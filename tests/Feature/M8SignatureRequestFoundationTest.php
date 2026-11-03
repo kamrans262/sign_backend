@@ -191,6 +191,25 @@ class M8SignatureRequestFoundationTest extends TestCase
         $this->assertDatabaseCount('signature_requests',1);
     }
 
+    public function test_reopening_request_can_rotate_copy_link_without_faking_delivery(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client]=$this->tenant();
+        $quote=$this->approvedQuote($client);
+        [$id,$old]=$this->createRequest($quote);
+        $response=$this->postJson('/api/v1/signature-requests/'.$id.'/rotate-link',[])
+            ->assertOk()->assertJsonPath('data.delivered',false);
+        $new=$response->json('data.secure_link');
+        $this->assertNotSame($old,$new);
+        $this->getJson('/api/public/signing/'.self::token($old))->assertNotFound();
+        $this->getJson('/api/public/signing/'.self::token($new))->assertOk();
+        $this->assertDatabaseHas('signature_requests',[
+            'id'=>$id,'token_sha256'=>hash('sha256',self::token($new)),
+            'status'=>'viewed',
+        ]);
+        $this->assertDatabaseCount('signed_document_artifacts',0);
+    }
+
     public function test_platform_admin_can_inspect_and_revoke_but_not_forge_completion(): void
     {
         Storage::fake('local');
