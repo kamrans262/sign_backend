@@ -99,17 +99,17 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         // M4 Client Management: tenant header and DB permissions are enforced
         // independently for reads and writes, including bulk phone import.
         Route::middleware(['company.access', 'company.permission:clients.read'])->group(function (): void {
-            Route::get('/clients', [\\App\\Http\\Controllers\\Api\\ClientController::class, 'index']);
-            Route::get('/clients/{client}', [\\App\\Http\\Controllers\\Api\\ClientController::class, 'show'])
+            Route::get('/clients', [\App\Http\Controllers\Api\ClientController::class, 'index']);
+            Route::get('/clients/{client}', [\App\Http\Controllers\Api\ClientController::class, 'show'])
                 ->whereNumber('client');
         });
         Route::middleware(['company.access', 'company.permission:clients.write'])->group(function (): void {
-            Route::post('/clients', [\\App\\Http\\Controllers\\Api\\ClientController::class, 'store']);
-            Route::post('/clients/import', [\\App\\Http\\Controllers\\Api\\ClientController::class, 'import'])
+            Route::post('/clients', [\App\Http\Controllers\Api\ClientController::class, 'store']);
+            Route::post('/clients/import', [\App\Http\Controllers\Api\ClientController::class, 'import'])
                 ->middleware('throttle:10,1');
-            Route::patch('/clients/{client}', [\\App\\Http\\Controllers\\Api\\ClientController::class, 'update'])
+            Route::patch('/clients/{client}', [\App\Http\Controllers\Api\ClientController::class, 'update'])
                 ->whereNumber('client');
-            Route::delete('/clients/{client}', [\\App\\Http\\Controllers\\Api\\ClientController::class, 'destroy'])
+            Route::delete('/clients/{client}', [\App\Http\Controllers\Api\ClientController::class, 'destroy'])
                 ->whereNumber('client');
         });
 
