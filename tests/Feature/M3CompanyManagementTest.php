@@ -329,4 +329,88 @@ class M3CompanyManagementTest extends TestCase
         ])->assertForbidden();
         $this->assertDatabaseCount('company_invitations', 0);
     }
+
+    public function test_unverified_email_cannot_discover_or_accept_an_invitation(): void
+    {
+        $owner = $this->account('verified-owner@example.test');
+        $invitee = $this->account('unverified-invitee@example.test');
+        $id = $this->createCompany($owner, 'Verified Invitation Company');
+        $this->postJson('/api/v1/companies/'.$id.'/invitations', [
+            'email' => $invitee->email, 'role' => 'member',
+        ])->assertCreated();
+
+        $code = null;
+        Mail::assertSent(CompanyInvitationMail::class, function ($m) use (&$code) {
+            $code = $m->inviteCode;
+            return true;
+        });
+        $invitee->forceFill(['email_verified_at' => null])->save();
+        Sanctum::actingAs($invitee);
+        $this->getJson('/api/v1/companies/invitations/mine')->assertForbidden();
+        $this->postJson('/api/v1/companies/invitations/accept', ['code' => $code])
+            ->assertUnprocessable();
+        $this->assertDatabaseMissing('company_user', [
+            'company_id' => $id, 'user_id' => $invitee->id,
+        ]);
+
+        // A rejected attempt must not consume an otherwise valid invite.
+        $invitee->forceFill(['email_verified_at' => now()])->save();
+        $this->postJson('/api/v1/companies/invitations/accept', ['code' => $code])
+            ->assertOk()->assertJsonPath('data.active_company_id', $id);
+        $this->postJson('/api/v1/companies/invitations/accept', ['code' => $code])
+            ->assertUnprocessable();
+    }
+
+    public function test_permission_middleware_enforces_database_grants_and_revocation(): void
+    {
+        \Illuminate\Support\Facades\Route::middleware([
+            'auth:sanctum', 'active.user', 'company.access',
+            'company.permission:clients.read',
+        ])->get('/api/v1/m3-permission-probe', fn () => response()->json(['ok' => true]));
+
+        $owner = $this->account('permissions-owner@example.test');
+        $member = $this->account('permissions-member@example.test');
+        $otherOwner = $this->account('another-owner@example.test');
+        $companyId = $this->createCompany($owner, 'Permission Guard Company');
+        $otherCompany = $this->createCompany($otherOwner, 'Separate Company');
+        $company = Company::findOrFail($companyId);
+        $company->users()->attach($member->id, [
+            'role' => 'member', 'status' => 'active', 'permissions' => '[]',
+        ]);
+
+        Sanctum::actingAs($member);
+        $path = '/api/v1/m3-permission-probe';
+        $this->getJson($path)->assertUnprocessable();
+        $this->withHeader('X-Company-Id', (string) $otherCompany)
+            ->getJson($path)->assertForbidden();
+        $this->withHeader('X-Company-Id', (string) $companyId)
+            ->getJson($path)->assertForbidden();
+
+        $company->users()->updateExistingPivot($member->id, [
+            'permissions' => json_encode(['clients.read'], JSON_THROW_ON_ERROR),
+        ]);
+        $this->getJson($path)->assertOk()->assertJsonPath('ok', true);
+
+        $company->users()->updateExistingPivot($member->id, ['status' => 'inactive']);
+        $this->getJson($path)->assertForbidden();
+        $company->users()->updateExistingPivot($member->id, ['status' => 'active']);
+        $company->update(['status' => 'suspended']);
+        $this->getJson($path)->assertForbidden();
+    }
+
+    public function test_company_upload_rejects_wrong_type_and_oversized_files(): void
+    {
+        Storage::fake('local');
+        $owner = $this->account('uploads-owner@example.test');
+        $companyId = $this->createCompany($owner, 'File Validation Company');
+
+        $this->post('/api/v1/companies/'.$companyId.'/files/terms', [
+            'file' => UploadedFile::fake()->create('invalid.png', 10, 'image/png'),
+        ], ['Accept' => 'application/json'])->assertUnprocessable();
+        $this->post('/api/v1/companies/'.$companyId.'/files/logo', [
+            'file' => UploadedFile::fake()->create('huge.png', 2200, 'image/png'),
+        ], ['Accept' => 'application/json'])->assertUnprocessable();
+        $this->assertNull(Company::findOrFail($companyId)->logo_path);
+        $this->assertNull(Company::findOrFail($companyId)->terms_path);
+    }
 }
