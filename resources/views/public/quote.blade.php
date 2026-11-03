@@ -103,8 +103,12 @@
     .terms-section { margin-top: 20px; padding: 0; }
     .terms-section h2 { margin: 0 0 15px; font-size: 15px; font-weight: 600; line-height: 1.4; }
     .terms-section p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--placeholder); white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 500; }
-    @media (max-width: 380px) {
+    /* Same responsive thresholds as Flutter's document sections: bill-to
+       stacks when its inner card is below 340px; table narrows below 360px. */
+    @media (max-width: 421px) {
       .billing-section { grid-template-columns: minmax(0,1fr); gap: 15px; }
+    }
+    @media (max-width: 401px) {
       .item-table th, .item-table td { font-size: 10px; }
       .item-table th:first-child, .item-table td:first-child { padding-left: 8px; }
       .item-table th:last-child, .item-table td:last-child { padding-right: 6px; }
