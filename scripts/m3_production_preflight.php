@@ -26,7 +26,7 @@ $check = static function (string $label, bool $ok) use (&$checks): void {
     printf("%s %s\n", $ok ? 'PASS' : 'BLOCK', $label);
 };
 
-$check('PHP >= 8.3 (Laravel 13 composer requirement)', PHP_VERSION_ID >= 80300);
+$check('PHP >= 8.4.1 (current composer.lock Symfony requirements)', PHP_VERSION_ID >= 80401);
 $check('Production environment', app()->environment('production'));
 $check('Application debug disabled', config('app.debug') === false);
 $check('HTTPS application URL', parse_url((string) config('app.url'), PHP_URL_SCHEME) === 'https');
