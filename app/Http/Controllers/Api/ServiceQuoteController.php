@@ -370,7 +370,7 @@ class ServiceQuoteController extends Controller
                 'expires_at'=>now()->addDays(7)->toIso8601String(),
                 'delivered'=>false]]);
         }
-        if (in_array((string) config('mail.default'), ['log','array'], true)) {
+        if (in_array((string) config('mail.default'), ['log','array','null'], true)) {
             return response()->json(['message'=>'Email delivery is not configured.'],503);
         }
         try {
