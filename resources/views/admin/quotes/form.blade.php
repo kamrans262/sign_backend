@@ -62,7 +62,7 @@
     <div class="field"><strong>Subtotal</strong><p>{{ $quote->currency }} {{ number_format(($quote->subtotal_minor ?? 0)/100,2) }}</p></div>
     <div class="field"><strong>VAT Amount</strong><p>{{ $quote->currency }} {{ number_format(($quote->vat_minor ?? 0)/100,2) }}</p></div>
     <div class="field"><strong>Grand Total</strong><p>{{ $quote->currency }} {{ number_format(($quote->total_minor ?? 0)/100,2) }}</p></div>
-    <div class="field"><strong>Deposit Amount</strong><p>{{ $quote->deposit_minor===null?'Incomplete':$quote->currency.' '.number_format($quote->deposit_minor/100,2) }}</p></div>
+        <div class="field"><strong>Deposit Amount</strong><p>{{ $quote->deposit_minor===null?'Incomplete':$quote->currency.' '.number_format($quote->deposit_minor/100,2) }}</p></div>
     <div class="field"><strong>Remaining After Deposit</strong><p>{{ $quote->total_minor===null||$quote->deposit_minor===null?'Incomplete':$quote->currency.' '.number_format(($quote->total_minor-$quote->deposit_minor)/100,2) }}</p></div>
     <div class="field full"><strong>Terms &amp; Conditions</strong><p style="white-space:pre-wrap">{{ $quote->terms ?: '—' }}</p></div>
     @foreach(['iban'=>'IBAN / Account','accountHolder'=>'Account Holder','street'=>'Payment Street','buildingNumber'=>'Building Number','postalCode'=>'Postal Code','city'=>'City','country'=>'Country','paymentReference'=>'Reference'] as $key=>$label)
@@ -154,8 +154,15 @@
 <div class="panel-header"><div><h2>Quote Actions</h2><p class="panel-header-hint">Approval requires an explicit administrator action. Customer delivery is a separate step.</p></div></div>
 <div class="form-actions">
 @if($quote->status==='draft')
-<form method="post" action="{{ route('admin.quotes.approve',$quote) }}" onsubmit="return confirm('Approve this reviewed quote?')">@csrf
+<form method="post" enctype="multipart/form-data" action="{{ route('admin.quotes.approve',$quote) }}" onsubmit="return confirm('Approve this reviewed quote?')">@csrf
+<input type="hidden" name="expected_revision" value="{{ $quote->revision }}">
+<div class="field"><label for="approved_quote_file">Reviewed PDF (optional)</label>
+<input id="approved_quote_file" class="input" type="file" name="file" accept="application/pdf">
+<p class="hint">Attach the exact reviewed PDF to allow verified PDF emailing. Without it, the approved quote can be shared by secure link.</p></div>
 <button class="btn btn-primary" type="submit">Approve Quote</button></form>
+@endif
+@if(in_array($quote->status,['approved','sent'],true) && $quote->approved_pdf_sha256)
+<a class="btn btn-outline" href="{{ route('admin.quotes.approvedPdf',$quote) }}">Download Approved PDF</a>
 @endif
 @if($quote->status==='archived')
 <form method="post" action="{{ route('admin.quotes.restore',$quote) }}">@csrf<button class="btn btn-outline" type="submit">Restore Quote</button></form>
