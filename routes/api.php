@@ -202,6 +202,9 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/signature-requests/{signature}/revoke',
                 [\App\Http\Controllers\Api\SignatureRequestController::class,'revoke'])
                 ->whereNumber('signature')->middleware('throttle:10,1');
+            Route::post('/signature-requests/{signature}/rotate-link',
+                [\App\Http\Controllers\Api\SignatureRequestController::class,'rotateLink'])
+                ->whereNumber('signature')->middleware('throttle:10,1');
             Route::post('/signature-requests/{signature}/resend',
                 [\App\Http\Controllers\Api\SignatureRequestController::class,'resend'])
                 ->whereNumber('signature')->middleware('throttle:10,1');
