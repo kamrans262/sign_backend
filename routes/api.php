@@ -18,10 +18,10 @@ Route::prefix('v1/auth')->middleware('throttle:mobile-auth')->group(function ():
 
 // M8: customer capability access requires an unguessable, expiring request token.
 // The existing quote-view URL remains read-only, not a signing credential.
-Route::get('/api/public/signing/{token}',
+Route::get('/public/signing/{token}',
     [\App\Http\Controllers\Api\PublicSignatureController::class, 'open'])
     ->middleware('throttle:30,1')->name('signing.public.api');
-Route::get('/api/public/signing/{token}/pdf',
+Route::get('/public/signing/{token}/pdf',
     [\App\Http\Controllers\Api\PublicSignatureController::class, 'approvedPdf'])
     ->middleware('throttle:15,1')->name('signing.public.pdf');
 
