@@ -294,4 +294,60 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
             ->assertCreated()->assertDontSee('test-private-secret-never-return');
         Http::assertNothingSent();
     }
+    public function test_admin_percent_fields_convert_exactly_to_basis_points_and_compute_vat_inclusive_deposit(): void
+    {
+        [, $company, $client] = $this->tenant();
+        $admin = User::factory()->create(['is_active'=>true,'is_platform_admin'=>true]);
+        $this->actingAs($admin);
+        $this->get('/admin/quotes/create')->assertOk()
+            ->assertSee('VAT (%)')->assertSee('Deposit (%)')
+            ->assertSee('name="vat_percent"', false)
+            ->assertSee('name="deposit_percent"', false);
+
+        $payload = [
+            'company_id'=>$company->id,'client_id'=>$client->id,
+            'client_name'=>'Test Customer','quote_date'=>'2026-11-04',
+            'currency'=>'CHF','vat_percent'=>'13','deposit_percent'=>'30',
+            'terms'=>'Test payment terms',
+            'items'=>[['title'=>'Bricks','quantity'=>4,'unit_price'=>'150.00']],
+        ];
+        $this->post('/admin/quotes', $payload)->assertRedirect();
+        $quote = ServiceQuote::query()->latest('id')->firstOrFail();
+        $this->assertSame(1300, (int)$quote->vat_basis_points);
+        $this->assertSame(3000, (int)$quote->deposit_basis_points);
+        $this->assertSame(60000, (int)$quote->subtotal_minor);
+        $this->assertSame(7800, (int)$quote->vat_minor);
+        $this->assertSame(67800, (int)$quote->total_minor);
+        $this->assertSame(20340, (int)$quote->deposit_minor);
+
+        $edit = $payload;
+        $edit['expected_revision'] = $quote->revision;
+        $edit['vat_percent'] = '8.1';
+        $edit['deposit_percent'] = '12.5';
+        $this->put('/admin/quotes/'.$quote->id, $edit)->assertRedirect();
+        $quote->refresh();
+        $this->assertSame(810, (int)$quote->vat_basis_points);
+        $this->assertSame(1250, (int)$quote->deposit_basis_points);
+        $this->assertSame(4860, (int)$quote->vat_minor);
+        $this->assertSame(64860, (int)$quote->total_minor);
+        $this->assertSame(8108, (int)$quote->deposit_minor);
+        $this->get('/admin/quotes/'.$quote->id.'/edit')->assertOk()
+            ->assertSee('value="8.10"', false)
+            ->assertSee('value="12.50"', false);
+
+        $edit['expected_revision'] = $quote->revision;
+        $edit['vat_percent'] = '101';
+        $this->put('/admin/quotes/'.$quote->id, $edit)
+            ->assertSessionHasErrors('vat_percent');
+        $edit['vat_percent'] = '8.123';
+        $this->put('/admin/quotes/'.$quote->id, $edit)
+            ->assertSessionHasErrors('vat_percent');
+        $edit['vat_percent'] = '8.1';
+        $edit['vat_basis_points'] = 1;
+        $this->put('/admin/quotes/'.$quote->id, $edit)
+            ->assertSessionHasErrors('vat_percent');
+        $this->assertSame(810, (int)$quote->fresh()->vat_basis_points);
+    }
+
+
 }
