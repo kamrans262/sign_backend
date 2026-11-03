@@ -413,4 +413,137 @@ class M3CompanyManagementTest extends TestCase
         $this->assertNull(Company::findOrFail($companyId)->logo_path);
         $this->assertNull(Company::findOrFail($companyId)->terms_path);
     }
+
+    public function test_platform_admin_can_edit_member_role_grants_and_status_with_active_company_revocation(): void
+    {
+        $owner = $this->account('admin-member-owner@example.test');
+        $member = $this->account('admin-member@example.test');
+        $id = $this->createCompany($owner, 'Admin Team Company');
+        Company::findOrFail($id)->users()->attach($member->id, [
+            'role' => 'member', 'status' => 'active',
+            'permissions' => json_encode(['clients.read'], JSON_THROW_ON_ERROR),
+        ]);
+        $member->forceFill(['active_company_id' => $id])->save();
+
+        $admin = $this->account('team-platform-admin@example.test');
+        $admin->forceFill(['is_platform_admin' => true])->save();
+        $this->actingAs($admin);
+        $url = '/admin/companies/'.$id.'/members/'.$member->id;
+
+        $this->get($url.'/edit')->assertOk()
+            ->assertSee('Manage Team Member')->assertSee('Save Member Access')
+            ->assertSee('clients.read', false);
+        $this->patch($url, [
+            'role' => 'admin', 'status' => 'inactive',
+            'permissions' => ['clients.read', 'jobs.write'],
+        ])->assertRedirect('/admin/companies/'.$id.'/edit');
+
+        $this->assertDatabaseHas('company_user', [
+            'company_id' => $id, 'user_id' => $member->id,
+            'role' => 'admin', 'status' => 'inactive',
+        ]);
+        $this->assertNull($member->fresh()->active_company_id);
+        $membership = Company::findOrFail($id)->users()
+            ->where('users.id', $member->id)->firstOrFail();
+        $this->assertSame(['clients.read', 'jobs.write'],
+            json_decode($membership->pivot->permissions, true));
+
+        $this->patch($url, ['role' => 'member', 'status' => 'active',
+            'permissions' => ['quotes.read']])->assertRedirect();
+        $this->assertDatabaseHas('company_user', [
+            'company_id' => $id, 'user_id' => $member->id,
+            'role' => 'member', 'status' => 'active',
+        ]);
+    }
+
+    public function test_admin_member_edit_cannot_change_owner_or_foreign_company_membership(): void
+    {
+        $owner = $this->account('owner-owner@example.test');
+        $foreignOwner = $this->account('foreign-owner@example.test');
+        $foreignMember = $this->account('foreign-member@example.test');
+        $id = $this->createCompany($owner, 'Own Company');
+        $foreign = $this->createCompany($foreignOwner, 'Another Company');
+        Company::findOrFail($foreign)->users()->attach($foreignMember->id, [
+            'role' => 'member', 'status' => 'active',
+        ]);
+        $admin = $this->account('strict-platform-admin@example.test');
+        $admin->forceFill(['is_platform_admin' => true])->save();
+        $this->actingAs($admin);
+
+        $ownerRoute = '/admin/companies/'.$id.'/members/'.$owner->id;
+        $this->get($ownerRoute.'/edit')->assertForbidden();
+        $this->patch($ownerRoute, [
+            'role' => 'member', 'status' => 'inactive',
+        ])->assertForbidden();
+        $foreignRoute = '/admin/companies/'.$id.'/members/'.$foreignMember->id;
+        $this->get($foreignRoute.'/edit')->assertNotFound();
+        $this->patch($foreignRoute, [
+            'role' => 'admin', 'status' => 'active',
+        ])->assertNotFound();
+
+        $this->assertDatabaseHas('company_user', [
+            'company_id' => $id, 'user_id' => $owner->id,
+            'role' => 'owner', 'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('company_user', [
+            'company_id' => $foreign, 'user_id' => $foreignMember->id,
+            'role' => 'member',
+        ]);
+    }
+
+    public function test_admin_membership_edits_require_valid_grants_and_platform_admin_session(): void
+    {
+        $owner = $this->account('permission-edit-owner@example.test');
+        $member = $this->account('permission-edit-member@example.test');
+        $id = $this->createCompany($owner, 'Permission Validation Company');
+        Company::findOrFail($id)->users()->attach($member->id, [
+            'role' => 'member', 'status' => 'active',
+        ]);
+        $path = '/admin/companies/'.$id.'/members/'.$member->id;
+        $this->actingAs($member);
+        $this->get($path.'/edit')->assertForbidden();
+        $this->patch($path, [
+            'role' => 'admin', 'status' => 'active',
+        ])->assertForbidden();
+
+        $admin = $this->account('permission-validation-admin@example.test');
+        $admin->forceFill(['is_platform_admin' => true])->save();
+        $this->actingAs($admin);
+        $this->patch($path, [
+            'role' => 'member', 'status' => 'active',
+            'permissions' => ['clients.read', 'unrestricted.delete'],
+        ])->assertSessionHasErrors('permissions.1');
+        $this->assertDatabaseHas('company_user', [
+            'company_id' => $id, 'user_id' => $member->id,
+            'role' => 'member', 'status' => 'active',
+        ]);
+    }
+
+    public function test_admin_removing_member_clears_only_the_removed_company_selection(): void
+    {
+        $owner = $this->account('remove-admin-owner@example.test');
+        $member = $this->account('remove-admin-member@example.test');
+        $id = $this->createCompany($owner, 'Removal Company');
+        $secondOwner = $this->account('second-admin-owner@example.test');
+        $second = $this->createCompany($secondOwner, 'Unrelated Company');
+        Company::findOrFail($id)->users()->attach($member->id, [
+            'role' => 'member', 'status' => 'active',
+        ]);
+        Company::findOrFail($second)->users()->attach($member->id, [
+            'role' => 'member', 'status' => 'active',
+        ]);
+        $member->forceFill(['active_company_id' => $id])->save();
+        $admin = $this->account('remove-platform-admin@example.test');
+        $admin->forceFill(['is_platform_admin' => true])->save();
+        $this->actingAs($admin);
+        $this->delete('/admin/companies/'.$id.'/members/'.$member->id)
+            ->assertRedirect();
+        $this->assertNull($member->fresh()->active_company_id);
+        $this->assertDatabaseMissing('company_user', [
+            'company_id' => $id, 'user_id' => $member->id,
+        ]);
+        $this->assertDatabaseHas('company_user', [
+            'company_id' => $second, 'user_id' => $member->id,
+        ]);
+    }
 }
