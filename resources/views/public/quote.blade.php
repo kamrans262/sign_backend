@@ -76,6 +76,16 @@
     <p class="total"><span>Total</span><span>{{ $quote->currency }} {{ number_format($quote->total_minor/100,2) }}</span></p>
     <p><span>Deposit requested</span><strong>{{ $quote->currency }} {{ number_format($quote->deposit_minor/100,2) }}</strong></p>
   </div>
+  @if(!empty($quote->payment_details))
+  <h2>Payment Instructions</h2>
+  <div class="grid">
+    @foreach(['accountHolder'=>'Account Holder','iban'=>'IBAN / Account','street'=>'Street','buildingNumber'=>'Building Number','postalCode'=>'Postal Code','city'=>'City','country'=>'Country','paymentReference'=>'Reference'] as $key=>$label)
+      @if(!empty($quote->payment_details[$key]))
+      <div class="cell"><strong>{{ $label }}</strong><div>{{ $quote->payment_details[$key] }}</div></div>
+      @endif
+    @endforeach
+  </div>
+  @endif
   <h2>Terms &amp; Conditions</h2>
   <div class="terms">{{ $quote->terms }}</div>
   <div class="notice">This secure quote link expires automatically. A valid signature or acceptance flow must be provided separately; viewing this document does not constitute acceptance.</div>

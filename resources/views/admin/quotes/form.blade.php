@@ -29,6 +29,49 @@
 </tbody></table></div></section>
 @endif
 
+@if($readonly)
+<section class="panel">
+  <div class="panel-header"><div><h2>Approved Quote Details</h2><p class="panel-header-hint">This quote is read-only after approval. Its saved pricing and terms cannot be silently changed.</p></div></div>
+  <div class="fields">
+    <div class="field"><strong>Company</strong><p>{{ $quote->company?->name }}</p></div>
+    <div class="field"><strong>Customer</strong><p>{{ $quote->client_name }}</p></div>
+    <div class="field"><strong>Email</strong><p>{{ $quote->client_email ?? '—' }}</p></div>
+    <div class="field"><strong>Phone</strong><p>{{ $quote->client_phone ?? '—' }}</p></div>
+    <div class="field full"><strong>Billing Address</strong><p>{{ $quote->billing_address ?: '—' }}</p></div>
+    <div class="field"><strong>Quote Date</strong><p>{{ $quote->quote_date?->format('d M Y') }}</p></div>
+    <div class="field"><strong>Valid Until</strong><p>{{ $quote->valid_until?->format('d M Y') ?? '—' }}</p></div>
+    <div class="field"><strong>Currency</strong><p>{{ $quote->currency }}</p></div>
+    <div class="field"><strong>VAT</strong><p>{{ number_format($quote->vat_basis_points/100,2) }}%</p></div>
+    <div class="field"><strong>Deposit</strong><p>{{ number_format($quote->deposit_basis_points/100,2) }}%</p></div>
+    <div class="field"><strong>Linked Job</strong><p>{{ $quote->service_job_id ?? '—' }}</p></div>
+  </div>
+  <div class="table-wrap"><table>
+  <thead><tr><th>Work Item</th><th>Dimensions</th><th>Quantity</th><th>Unit Price</th><th>Total</th></tr></thead>
+  <tbody>
+  @foreach($quote->items as $item)
+    <tr><td><strong>{{ $item->title }}</strong><p class="muted">{{ $item->description }}</p></td>
+      <td>{{ $item->dimensions ?? '—' }}</td>
+      <td>{{ $item->quantity ?? '—' }}</td>
+      <td>{{ $item->unit_price_minor===null?'Incomplete':number_format($item->unit_price_minor/100,2) }}</td>
+      <td>{{ $item->unit_price_minor===null||$item->quantity===null?'Incomplete':number_format($item->unit_price_minor*$item->quantity/100,2) }}</td>
+    </tr>
+  @endforeach
+  </tbody></table></div>
+  <div class="fields">
+    <div class="field"><strong>Subtotal</strong><p>{{ $quote->currency }} {{ number_format(($quote->subtotal_minor ?? 0)/100,2) }}</p></div>
+    <div class="field"><strong>VAT Amount</strong><p>{{ $quote->currency }} {{ number_format(($quote->vat_minor ?? 0)/100,2) }}</p></div>
+    <div class="field"><strong>Grand Total</strong><p>{{ $quote->currency }} {{ number_format(($quote->total_minor ?? 0)/100,2) }}</p></div>
+    <div class="field"><strong>Deposit Amount</strong><p>{{ $quote->currency }} {{ number_format(($quote->deposit_minor ?? 0)/100,2) }}</p></div>
+    <div class="field full"><strong>Terms &amp; Conditions</strong><p style="white-space:pre-wrap">{{ $quote->terms ?: '—' }}</p></div>
+    @foreach(['iban'=>'IBAN / Account','accountHolder'=>'Account Holder','street'=>'Payment Street','buildingNumber'=>'Building Number','postalCode'=>'Postal Code','city'=>'City','country'=>'Country','paymentReference'=>'Reference'] as $key=>$label)
+      @if(!empty($quote->payment_details[$key]))
+        <div class="field"><strong>{{ $label }}</strong><p>{{ $quote->payment_details[$key] }}</p></div>
+      @endif
+    @endforeach
+  </div>
+</section>
+@endif
+
 @if(!$readonly)
 <form method="post" action="{{ $editing?route('admin.quotes.update',$quote):route('admin.quotes.store') }}">
 @csrf @if($editing) @method('put') @endif
@@ -56,6 +99,15 @@
 <div class="field"><label for="vat_basis_points">VAT (basis points; 800 = 8%) *</label><input class="input" id="vat_basis_points" name="vat_basis_points" type="number" min="0" max="10000" required value="{{ old('vat_basis_points',$editing?$quote->vat_basis_points:0) }}"></div>
 <div class="field"><label for="deposit_basis_points">Deposit (basis points) *</label><input class="input" id="deposit_basis_points" name="deposit_basis_points" type="number" min="0" max="10000" required value="{{ old('deposit_basis_points',$editing?$quote->deposit_basis_points:0) }}"></div>
 <div class="field full"><label for="terms">Terms &amp; Conditions</label><textarea id="terms" name="terms" class="input" rows="5" maxlength="20000">{{ old('terms',$editing?$quote->terms:'') }}</textarea></div>
+<div class="field full"><h2>Payment Instructions</h2><p class="hint">Use only verified account information. QR-bill data is never manufactured.</p></div>
+<div class="field"><label for="payment_iban">IBAN / Account</label><input class="input" id="payment_iban" name="payment_details[iban]" maxlength="255" value="{{ old('payment_details.iban', $editing ? ($quote->payment_details['iban'] ?? '') : '') }}"></div>
+<div class="field"><label for="payment_accountHolder">Account Holder</label><input class="input" id="payment_accountHolder" name="payment_details[accountHolder]" maxlength="255" value="{{ old('payment_details.accountHolder', $editing ? ($quote->payment_details['accountHolder'] ?? '') : '') }}"></div>
+<div class="field"><label for="payment_street">Payment Street</label><input class="input" id="payment_street" name="payment_details[street]" maxlength="255" value="{{ old('payment_details.street', $editing ? ($quote->payment_details['street'] ?? '') : '') }}"></div>
+<div class="field"><label for="payment_buildingNumber">Building Number</label><input class="input" id="payment_buildingNumber" name="payment_details[buildingNumber]" maxlength="255" value="{{ old('payment_details.buildingNumber', $editing ? ($quote->payment_details['buildingNumber'] ?? '') : '') }}"></div>
+<div class="field"><label for="payment_postalCode">Postal Code</label><input class="input" id="payment_postalCode" name="payment_details[postalCode]" maxlength="255" value="{{ old('payment_details.postalCode', $editing ? ($quote->payment_details['postalCode'] ?? '') : '') }}"></div>
+<div class="field"><label for="payment_city">City</label><input class="input" id="payment_city" name="payment_details[city]" maxlength="255" value="{{ old('payment_details.city', $editing ? ($quote->payment_details['city'] ?? '') : '') }}"></div>
+<div class="field"><label for="payment_country">Country</label><input class="input" id="payment_country" name="payment_details[country]" maxlength="255" value="{{ old('payment_details.country', $editing ? ($quote->payment_details['country'] ?? '') : '') }}"></div>
+<div class="field"><label for="payment_paymentReference">Payment Reference</label><input class="input" id="payment_paymentReference" name="payment_details[paymentReference]" maxlength="255" value="{{ old('payment_details.paymentReference', $editing ? ($quote->payment_details['paymentReference'] ?? '') : '') }}"></div>
 </div></section>
 
 <section class="panel">
