@@ -19,6 +19,7 @@ on:
       - 'resources/views/admin/layout.blade.php'
       - 'tests/Feature/M5ServiceJobManagementTest.php'
       - 'tests/Feature/M5Stage2SecurityAndReleaseTest.php'
+      - 'scripts/m5_release_preflight.php'
   workflow_dispatch:
 
 permissions:
@@ -59,7 +60,7 @@ jobs:
       - name: Prepare isolated environment
         run: cp .env.example .env && php artisan key:generate
       - name: Lint scoped M5 PHP and compile admin Blade
-        run: php -l app/Models/ServiceJob.php && php -l app/Models/Company.php && php -l app/Models/Client.php && php -l app/Http/Controllers/Api/ServiceJobController.php && php -l app/Http/Controllers/Api/ClientController.php && php -l app/Http/Controllers/Admin/ServiceJobController.php && php -l database/migrations/2026_11_03_400000_create_service_jobs_tables.php && php -l routes/api.php && php -l routes/web.php && php -l tests/Feature/M5Stage2SecurityAndReleaseTest.php && php artisan view:cache
+        run: php -l app/Models/ServiceJob.php && php -l app/Models/Company.php && php -l app/Models/Client.php && php -l app/Http/Controllers/Api/ServiceJobController.php && php -l app/Http/Controllers/Api/ClientController.php && php -l app/Http/Controllers/Admin/ServiceJobController.php && php -l database/migrations/2026_11_03_400000_create_service_jobs_tables.php && php -l routes/api.php && php -l routes/web.php && php -l tests/Feature/M5Stage2SecurityAndReleaseTest.php && php -l scripts/m5_release_preflight.php && php artisan view:cache
       - name: Verify M4 client and M5 job flows with SQLite
         run: php artisan test --filter='M(4ClientManagement|5ServiceJobManagement|5Stage2SecurityAndRelease)Test'
       - name: Verify M4 client and M5 job flows with MySQL 8
