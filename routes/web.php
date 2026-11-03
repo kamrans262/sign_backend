@@ -9,6 +9,18 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('admin.login'));
 
+// M8: form submissions use the Laravel web CSRF middleware; API clients
+// sign through the separate, throttled capability route.
+Route::post('/sign/{token}/submit',
+    [\App\Http\Controllers\Api\PublicSignatureController::class,'submit'])
+    ->middleware('throttle:6,1')->name('signing.public.submit.browser');
+Route::get('/sign/{token}/receipt',
+    [\App\Http\Controllers\Api\PublicSignatureController::class,'receipt'])
+    ->middleware('throttle:30,1')->name('signing.public.receipt.browser');
+Route::get('/sign/{token}/signed-pdf',
+    [\App\Http\Controllers\Api\PublicSignatureController::class,'signedPdf'])
+    ->middleware('throttle:12,1')->name('signing.public.signedPdf.browser');
+
 // M8: separate signature-request capability. The legacy approved-quote
 // viewing URL below never grants permission to sign.
 Route::get('/sign/{token}',
