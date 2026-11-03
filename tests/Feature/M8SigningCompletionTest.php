@@ -217,7 +217,7 @@ class M8SigningCompletionTest extends TestCase
             ->assertForbidden();
         Sanctum::actingAs($user);
         $this->postJson('/api/v1/signature-requests/'.$id.'/complete-in-person',$payload)
-            ->assertCreated()->assertJsonPath('documentId',$session['documentId']);
+            ->assertCreated()->assertJsonPath('data.documentId',$session['documentId']);
         $this->assertDatabaseHas('signature_requests',['id'=>$id,'status'=>'signed']);
         $this->assertDatabaseCount('signed_document_artifacts',1);
         $this->postJson('/api/v1/signature-requests/'.$id.'/complete-in-person',$payload)
