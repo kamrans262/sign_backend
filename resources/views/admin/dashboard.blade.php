@@ -1,12 +1,6 @@
 @extends('admin.layout')
-@section('title', 'Overview')
-@section('breadcrumb', 'Overview')
-@section('heading', 'Platform Overview')
-@section('description', 'Your Sign2Digital platform at a glance.')
-@section('header_actions')
-  <a href="{{ route('admin.users.create') }}" class="btn btn-outline"><x-admin.icon name="plus" /> Add User</a>
-  <a href="{{ route('admin.companies.create') }}" class="btn btn-primary"><x-admin.icon name="plus" /> Add Company</a>
-@endsection
+@section('title', 'Dashboard')
+@section('breadcrumb', 'Dashboard')
 
 @section('content')
 @php
@@ -31,19 +25,19 @@
 <section class="metrics hope-metrics" aria-label="Platform statistics">
   <a class="metric hope-metric" href="{{ route('admin.users.index') }}">
     <div class="hope-metric-top"><span class="metric-label">Total Users</span><span class="hope-stat-icon"><x-admin.icon name="users" /></span></div>
-    <div class="hope-metric-bottom"><div><strong class="metric-value">{{ number_format($metrics['users']) }}</strong><span class="metric-small">Registered accounts</span></div><span class="hope-ring" style="--value:{{ $usersShare }}" aria-hidden="true"><x-admin.icon name="users" /></span></div>
+    <div class="hope-metric-bottom"><div><strong class="metric-value">{{ number_format($metrics['users']) }}</strong><span class="metric-small">Registered accounts</span></div></div>
   </a>
   <a class="metric hope-metric" href="{{ route('admin.users.index', ['status' => 'active']) }}">
     <div class="hope-metric-top"><span class="metric-label">Active Users</span><span class="hope-stat-icon"><x-admin.icon name="user-check" /></span></div>
-    <div class="hope-metric-bottom"><div><strong class="metric-value">{{ number_format($metrics['active_users']) }}</strong><span class="metric-small">{{ $usersShare }}% of all users</span></div><span class="hope-ring" style="--value:{{ $usersShare }}" aria-hidden="true"><x-admin.icon name="user-check" /></span></div>
+    <div class="hope-metric-bottom"><div><strong class="metric-value">{{ number_format($metrics['active_users']) }}</strong><span class="metric-small">{{ $usersShare }}% of all users</span></div></div>
   </a>
   <a class="metric hope-metric" href="{{ route('admin.companies.index') }}">
     <div class="hope-metric-top"><span class="metric-label">Total Companies</span><span class="hope-stat-icon"><x-admin.icon name="building" /></span></div>
-    <div class="hope-metric-bottom"><div><strong class="metric-value">{{ number_format($metrics['companies']) }}</strong><span class="metric-small">Registered businesses</span></div><span class="hope-ring" style="--value:{{ $companiesShare }}" aria-hidden="true"><x-admin.icon name="building" /></span></div>
+    <div class="hope-metric-bottom"><div><strong class="metric-value">{{ number_format($metrics['companies']) }}</strong><span class="metric-small">Registered businesses</span></div></div>
   </a>
   <a class="metric hope-metric" href="{{ route('admin.companies.index', ['status' => 'active']) }}">
     <div class="hope-metric-top"><span class="metric-label">Active Companies</span><span class="hope-stat-icon"><x-admin.icon name="briefcase" /></span></div>
-    <div class="hope-metric-bottom"><div><strong class="metric-value">{{ number_format($metrics['active_companies']) }}</strong><span class="metric-small">{{ $companiesShare }}% of all companies</span></div><span class="hope-ring" style="--value:{{ $companiesShare }}" aria-hidden="true"><x-admin.icon name="briefcase" /></span></div>
+    <div class="hope-metric-bottom"><div><strong class="metric-value">{{ number_format($metrics['active_companies']) }}</strong><span class="metric-small">{{ $companiesShare }}% of all companies</span></div></div>
   </a>
 </section>
 
