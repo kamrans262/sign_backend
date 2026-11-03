@@ -1,0 +1,51 @@
+name: M8 Stage 2 customer browser signing acceptance
+
+on:
+  push:
+    branches: [feature/m8-digital-signatures-2026-11-04]
+    paths:
+      - '.github/workflows/m8-stage2-browser.yml'
+      - 'tests/Feature/M8BrowserAcceptanceTest.php'
+      - 'tests/browser/**'
+      - 'resources/views/public/**'
+      - 'app/Http/Controllers/Api/PublicSignatureController.php'
+      - 'routes/web.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign2digital-m8-stage2-browser
+  cancel-in-progress: true
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, mbstring, zlib, fileinfo
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Laravel dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Set up isolated test environment
+        run: cp .env.example .env && php artisan key:generate
+      - name: Verify real Laravel customer form and export synthetic HTML
+        env:
+          M8_BROWSER_EXPORT: '1'
+        run: |
+          php artisan test --filter=M8BrowserAcceptanceTest
+          test -s build/m8-stage2/customer_signing.html
+      - name: Install pinned Playwright and Chromium
+        run: |
+          npm install --prefix tests/browser --no-audit --no-fund
+          tests/browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Test portrait/mobile, tablet and desktop interactions
+        run: node tests/browser/m8_chromium_acceptance.js
