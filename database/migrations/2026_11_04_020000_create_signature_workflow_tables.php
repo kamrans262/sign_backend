@@ -54,7 +54,7 @@ return new class extends Migration {
             $table->foreignId('service_quote_id')->constrained('service_quotes')->restrictOnDelete();
             $table->char('source_pdf_sha256', 64);
             $table->unsignedInteger('source_revision');
-            $table->string('signed_pdf_path', 1024)->unique();
+            $table->string('signed_pdf_path', 512)->unique();
             $table->char('signed_pdf_sha256', 64);
             $table->json('evidence');
             $table->timestamp('created_at')->useCurrent();
