@@ -21,6 +21,16 @@ Route::prefix('v1/auth')->middleware('throttle:mobile-auth')->group(function ():
 Route::get('/public/signing/{token}',
     [\App\Http\Controllers\Api\PublicSignatureController::class, 'open'])
     ->middleware('throttle:30,1')->name('signing.public.api');
+Route::post('/public/signing/{token}/submit',
+    [\App\Http\Controllers\Api\PublicSignatureController::class,'submit'])
+    ->middleware('throttle:6,1')->name('signing.public.submit.api');
+Route::get('/public/signing/{token}/receipt',
+    [\App\Http\Controllers\Api\PublicSignatureController::class,'receipt'])
+    ->middleware('throttle:30,1')->name('signing.public.receipt.api');
+Route::get('/public/signing/{token}/signed-pdf',
+    [\App\Http\Controllers\Api\PublicSignatureController::class,'signedPdf'])
+    ->middleware('throttle:12,1')->name('signing.public.signedPdf.api');
+
 Route::get('/public/signing/{token}/pdf',
     [\App\Http\Controllers\Api\PublicSignatureController::class, 'approvedPdf'])
     ->middleware('throttle:15,1')->name('signing.public.pdf');
@@ -152,6 +162,30 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::delete('/quotes/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class,'archive'])->whereNumber('quote');
             Route::post('/quotes/prepare/{method}', [\App\Http\Controllers\Api\QuoteAiController::class,'prepare'])
                 ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
+        });
+
+        // M8: in-person signing has separate authenticated customer/business identities.
+        Route::middleware(['company.access','company.permission:quotes.write'])->group(function (): void {
+            Route::post('/quotes/{quote}/in-person-signing',
+                [\App\Http\Controllers\Api\InPersonSigningController::class,'start'])
+                ->whereNumber('quote')->middleware('throttle:10,1');
+            Route::post('/signature-requests/{signature}/complete-in-person',
+                [\App\Http\Controllers\Api\InPersonSigningController::class,'submit'])
+                ->whereNumber('signature')->middleware('throttle:6,1');
+        });
+        Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
+            Route::get('/signed-documents',
+                [\App\Http\Controllers\Api\SignedDocumentController::class,'index']);
+            Route::get('/signed-documents/{document}',
+                [\App\Http\Controllers\Api\SignedDocumentController::class,'show'])->whereNumber('document');
+            Route::get('/signed-documents/{document}/pdf',
+                [\App\Http\Controllers\Api\SignedDocumentController::class,'download'])
+                ->whereNumber('document');
+        });
+        Route::middleware(['company.access','company.permission:documents.write'])->group(function (): void {
+            Route::post('/signed-documents/{document}/resend',
+                [\App\Http\Controllers\Api\SignedDocumentController::class,'resend'])
+                ->whereNumber('document')->middleware('throttle:5,1');
         });
 
         // M8: tenant-scoped signing-request lifecycle.
