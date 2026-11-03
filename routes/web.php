@@ -34,6 +34,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
+        Route::resource('clients', \\App\\Http\\Controllers\\Admin\\ClientController::class)->except(['show']);
+        Route::post('/clients/{client}/restore', [\\App\\Http\\Controllers\\Admin\\ClientController::class, 'restore'])
+            ->whereNumber('client')->name('clients.restore');
         Route::post('/companies/{company}/members', [CompanyController::class, 'addMember'])->name('companies.members.store');
         Route::get('/companies/{company}/members/{user}/edit', [CompanyController::class, 'editMember'])->name('companies.members.edit');
         Route::patch('/companies/{company}/members/{user}', [CompanyController::class, 'updateMember'])->name('companies.members.update');
