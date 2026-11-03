@@ -254,4 +254,79 @@ class M3CompanyManagementTest extends TestCase
         $this->actingAs($admin)->get('/admin/companies')->assertOk()->assertSee('Companies');
         $this->assertDatabaseCount('company_invitations', 0);
     }
+
+    public function test_admin_can_issue_and_revoke_company_invitations_without_displaying_token(): void
+    {
+        $owner = $this->account('companyowner@example.test');
+        $companyId = $this->createCompany($owner, 'Admin Managed Company');
+        $admin = $this->account('platform-admin@example.test');
+        $admin->forceFill(['is_platform_admin' => true])->save();
+        $this->actingAs($admin);
+
+        $this->get('/admin/companies/'.$companyId.'/edit')->assertOk()
+            ->assertSee('Email Invitations')
+            ->assertSee('Company Files')
+            ->assertSee('Team Members & Roles');
+
+        $this->post('/admin/companies/'.$companyId.'/invitations', [
+            'email' => 'new-team@example.test',
+            'role' => 'member',
+        ])->assertRedirect();
+
+        $invitation = CompanyInvitation::firstOrFail();
+        $code = null;
+        Mail::assertSent(CompanyInvitationMail::class, function ($mail) use (&$code) {
+            $code = $mail->inviteCode;
+            return true;
+        });
+        $this->assertSame('new-team@example.test', $invitation->email);
+        $this->get('/admin/companies/'.$companyId.'/edit')->assertOk()
+            ->assertSee('new-team@example.test')
+            ->assertDontSee($code)
+            ->assertDontSee($invitation->token_hash);
+
+        $this->delete('/admin/companies/'.$companyId.'/invitations/'.$invitation->id)
+            ->assertRedirect();
+        $this->assertNotNull($invitation->fresh()->revoked_at);
+    }
+
+    public function test_admin_can_manage_private_company_terms_without_changing_owner(): void
+    {
+        Storage::fake('local');
+        $owner = $this->account('companyowner@example.test');
+        $companyId = $this->createCompany($owner, 'Files Managed');
+        $admin = $this->account('platform-admin@example.test');
+        $admin->forceFill(['is_platform_admin' => true])->save();
+        $this->actingAs($admin);
+
+        $this->post('/admin/companies/'.$companyId.'/files/terms', [
+            'file' => UploadedFile::fake()->create('general-terms.pdf', 22, 'application/pdf'),
+        ])->assertRedirect();
+        $company = Company::findOrFail($companyId);
+        $this->assertSame('general-terms.pdf', $company->terms_original_name);
+        $this->assertNotNull($company->terms_path);
+        $this->get('/admin/companies/'.$companyId.'/files/terms')->assertOk()
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->delete('/admin/companies/'.$companyId.'/files/terms')->assertRedirect();
+        $this->assertNull(Company::findOrFail($companyId)->terms_path);
+        $this->assertDatabaseHas('companies', [
+            'id' => $companyId, 'owner_user_id' => $owner->id,
+        ]);
+    }
+
+    public function test_non_platform_admin_cannot_open_administrator_file_or_invitation_routes(): void
+    {
+        $owner = $this->account('owner@example.test');
+        $id = $this->createCompany($owner, 'Private Company');
+        $member = $this->account('member@example.test');
+        $this->actingAs($member);
+
+        $this->post('/admin/companies/'.$id.'/invitations', [
+            'email' => 'attacker@example.test', 'role' => 'admin',
+        ])->assertForbidden();
+        $this->post('/admin/companies/'.$id.'/files/terms', [
+            'file' => UploadedFile::fake()->create('terms.pdf', 10, 'application/pdf'),
+        ])->assertForbidden();
+        $this->assertDatabaseCount('company_invitations', 0);
+    }
 }
