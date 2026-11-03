@@ -342,6 +342,11 @@ class CompanyManagementController extends Controller
 
     public function myInvitations(Request $request): JsonResponse
     {
+        // Invitation discovery must not expose company membership to an
+        // authenticated account whose email ownership was never verified.
+        if ($request->user()->email_verified_at === null) {
+            abort(403, 'Verify your email before viewing company invitations.');
+        }
         $email = strtolower($request->user()->email);
         $invites = CompanyInvitation::query()->with('company:id,name,status')
             ->where('email', $email)->whereNull('accepted_at')
@@ -366,6 +371,11 @@ class CompanyManagementController extends Controller
             $row = CompanyInvitation::query()->where('token_hash', $hash)
                 ->lockForUpdate()->first();
             $user = User::query()->whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            if ($user->email_verified_at === null) {
+                throw ValidationException::withMessages([
+                    'code' => 'Verify your email before accepting a company invitation.',
+                ]);
+            }
             if (!$row || $row->revoked_at || $row->accepted_at || $row->expires_at->isPast() ||
                 !hash_equals(strtolower($row->email), strtolower($user->email))) {
                 throw ValidationException::withMessages(['code' => 'Invalid or expired company invitation.']);
