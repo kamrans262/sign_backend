@@ -61,6 +61,41 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             ])]]);
         });
 
+
+
+        // M3: all company actions require a real Sanctum-authenticated account.
+        // Access to each company is additionally checked on the server using
+        // an active membership, not only by matching the URL or a header.
+        Route::get('/companies', [\App\Http\Controllers\Api\CompanyManagementController::class, 'index']);
+        Route::post('/companies', [\App\Http\Controllers\Api\CompanyManagementController::class, 'store']);
+        Route::get('/companies/invitations/mine', [\App\Http\Controllers\Api\CompanyManagementController::class, 'myInvitations']);
+        Route::post('/companies/invitations/accept', [\App\Http\Controllers\Api\CompanyManagementController::class, 'acceptInvitation'])
+            ->middleware('throttle:5,1');
+        Route::get('/companies/{company}', [\App\Http\Controllers\Api\CompanyManagementController::class, 'show'])
+            ->whereNumber('company');
+        Route::patch('/companies/{company}', [\App\Http\Controllers\Api\CompanyManagementController::class, 'update'])
+            ->whereNumber('company');
+        Route::post('/companies/{company}/switch', [\App\Http\Controllers\Api\CompanyManagementController::class, 'switch'])
+            ->whereNumber('company');
+        Route::get('/companies/{company}/members', [\App\Http\Controllers\Api\CompanyManagementController::class, 'members'])
+            ->whereNumber('company');
+        Route::patch('/companies/{company}/members/{user}', [\App\Http\Controllers\Api\CompanyManagementController::class, 'updateMember'])
+            ->whereNumber('company')->whereNumber('user');
+        Route::delete('/companies/{company}/members/{user}', [\App\Http\Controllers\Api\CompanyManagementController::class, 'removeMember'])
+            ->whereNumber('company')->whereNumber('user');
+        Route::get('/companies/{company}/invitations', [\App\Http\Controllers\Api\CompanyManagementController::class, 'invitations'])
+            ->whereNumber('company');
+        Route::post('/companies/{company}/invitations', [\App\Http\Controllers\Api\CompanyManagementController::class, 'invite'])
+            ->whereNumber('company')->middleware('throttle:10,1');
+        Route::delete('/companies/{company}/invitations/{invitation}', [\App\Http\Controllers\Api\CompanyManagementController::class, 'revokeInvitation'])
+            ->whereNumber('company')->whereNumber('invitation');
+        Route::post('/companies/{company}/files/{kind}', [\App\Http\Controllers\Api\CompanyManagementController::class, 'uploadFile'])
+            ->whereNumber('company')->whereIn('kind', ['logo', 'terms']);
+        Route::get('/companies/{company}/files/{kind}', [\App\Http\Controllers\Api\CompanyManagementController::class, 'downloadFile'])
+            ->whereNumber('company')->whereIn('kind', ['logo', 'terms']);
+        Route::delete('/companies/{company}/files/{kind}', [\App\Http\Controllers\Api\CompanyManagementController::class, 'deleteFile'])
+            ->whereNumber('company')->whereIn('kind', ['logo', 'terms']);
+
         Route::middleware('company.access')->get('/company-context', function (Request $request) {
             $company = $request->attributes->get('company');
             return response()->json(['data' => [

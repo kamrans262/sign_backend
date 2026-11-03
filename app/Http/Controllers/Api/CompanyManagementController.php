@@ -415,7 +415,7 @@ class CompanyManagementController extends Controller
             ? ['image/png', 'image/jpeg', 'image/svg+xml']
             : ['application/pdf'];
         $validated = $request->validate([
-            'file' => ['required', 'file', 'max:2048', Rule::mimetypes($allowed)],
+            'file' => ['required', 'file', 'max:2048', 'mimetypes:'.implode(',', $allowed)],
         ]);
         $file = $validated['file'];
         $original = $file->getClientOriginalName();
