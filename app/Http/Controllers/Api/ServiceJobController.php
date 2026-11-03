@@ -91,11 +91,16 @@ class ServiceJobController extends Controller
             throw ValidationException::withMessages(['description' => 'A job description is required.']);
         }
         if (array_key_exists('description', $data)) $data['description'] = $description;
-        if (array_key_exists('title', $data)) $data['title'] = trim((string) $data['title']);
-        if (!$existing || array_key_exists('description', $data)) {
-            if (empty($data['title']) && ($creating || !$existing?->title)) {
-                $data['title'] = mb_substr(strtok($description, "\n") ?: $description, 0, 255);
+        if (array_key_exists('title', $data)) {
+            $data['title'] = trim((string) $data['title']);
+            // Existing titles are not nullable in the database. Fail with
+            // a validation error rather than an unhandled SQL exception.
+            if (!$creating && $data['title'] === '') {
+                throw ValidationException::withMessages(['title' => 'Job title is required.']);
             }
+        }
+        if ($creating && empty($data['title'])) {
+            $data['title'] = mb_substr(strtok($description, "\n") ?: $description, 0, 255);
         }
         if (isset($data['team_member_ids'])) {
             $ids = array_map('intval', $data['team_member_ids']);
@@ -206,7 +211,7 @@ class ServiceJobController extends Controller
             if (($data['stage'] ?? null) === 'completed') {
                 $data['category'] = 'completed';
                 $data['progress_percentage'] = 100;
-                $data['completed_at'] = now();
+                $data['completed_at'] = $target->completed_at ?? now();
             } elseif (isset($data['stage']) && $target->category === 'completed') {
                 $data['category'] = 'active';
                 $data['completed_at'] = null;
