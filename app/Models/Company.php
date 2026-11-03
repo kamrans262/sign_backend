@@ -13,7 +13,7 @@ class Company extends Model
         'owner_user_id', 'name', 'address', 'country_iso_code',
         'dialing_code', 'phone_number', 'email', 'swiss_company_id',
         'vat_number', 'iban', 'qr_iban', 'document_numbering',
-        'logo_path', 'terms_path', 'status',
+        'logo_path', 'terms_path', 'logo_original_name', 'terms_original_name', 'status',
     ];
 
     protected function casts(): array

@@ -177,7 +177,7 @@
           @csrf
           <input class="input" name="file" type="file" required
             accept="{{ $kind === 'logo' ? '.png,.jpg,.jpeg,.svg' : '.pdf' }}" aria-label="Upload {{ $label }} (max 2 MB)">
-          <div class="form-actions"><button class="btn btn-primary" type="submit"><x-admin.icon name="upload" /> Upload {{ $label }}</button></div>
+          <div class="form-actions"><button class="btn btn-primary" type="submit"><x-admin.icon name="plus" /> Upload {{ $label }}</button></div>
         </form>
         @if($exists)
           <a class="btn btn-outline" href="{{ route('admin.companies.files.download', [$company, $kind]) }}">Download current file</a>
