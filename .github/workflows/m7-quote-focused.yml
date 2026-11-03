@@ -32,6 +32,18 @@ on:
       - 'tests/Feature/M5ServiceJobManagementTest.php'
       - 'tests/Feature/M5Stage2SecurityAndReleaseTest.php'
       - 'scripts/m5_release_preflight.php'
+  pull_request:
+    branches:
+      - feature/m6-ai-quote-creation-2026-11-03
+    paths:
+      - '.github/workflows/m7-quote-focused.yml'
+      - 'app/Http/Controllers/Api/ServiceQuoteController.php'
+      - 'app/Http/Controllers/Admin/ServiceQuoteController.php'
+      - 'tests/Feature/M7QuoteApprovalTest.php'
+      - 'tests/Feature/M6ServiceQuoteManagementTest.php'
+      - 'tests/Feature/M6Stage2SecurityAndReleaseTest.php'
+      - 'resources/views/admin/quotes/**'
+      - 'database/migrations/2026_11_03_500000_create_service_quotes_tables.php'
   workflow_dispatch:
 
 permissions:
