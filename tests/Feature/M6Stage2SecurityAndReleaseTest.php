@@ -240,7 +240,8 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $otherCompany->users()->attach($another->id,['role'=>'owner','status'=>'active']);
         $otherClient=Client::create(['company_id'=>$otherCompany->id,
             'full_name'=>'New Customer','source'=>'manual']);
-        $this->asTenant($another,$otherCompany);
+        Sanctum::actingAs($another);
+        $this->withHeader('X-Company-Id',(string)$otherCompany->id);
         $second=$this->draft($otherClient);
         $second['quote_number']='R-2026/005';
         $this->postJson('/api/v1/quotes',$second)->assertCreated()
