@@ -21,6 +21,11 @@ class Company extends Model
         return [];
     }
 
+    public function serviceJobs(): HasMany
+    {
+        return $this->hasMany(ServiceJob::class);
+    }
+
     public function clients(): HasMany
     {
         return $this->hasMany(Client::class);

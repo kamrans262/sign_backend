@@ -16,6 +16,11 @@ class Client extends Model
         'email', 'notes', 'source',
     ];
 
+    public function serviceJobs(): \\Illuminate\\Database\\Eloquent\\Relations\\HasMany
+    {
+        return $this->hasMany(ServiceJob::class);
+    }
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);

@@ -29,6 +29,9 @@
       <a class="side-link {{ request()->routeIs('admin.clients.*') ? 'active' : '' }}" href="{{ route('admin.clients.index') }}" @if(request()->routeIs('admin.clients.*')) aria-current="page" @endif>
         <x-admin.icon name="users" /><span>Client Management</span>
       </a>
+      <a class="side-link {{ request()->routeIs('admin.jobs.*') ? 'active' : '' }}" href="{{ route('admin.jobs.index') }}" @if(request()->routeIs('admin.jobs.*')) aria-current="page" @endif>
+        <x-admin.icon name="briefcase" /><span>Job Management</span>
+      </a>
       <a class="side-link {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.mobile-auth') ? 'active' : '' }}" href="{{ route('admin.users.index') }}" @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.mobile-auth')) aria-current="page" @endif>
         <x-admin.icon name="users" /><span>Users</span>
       </a>
@@ -78,6 +81,7 @@
         <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><x-admin.icon name="overview" /> Dashboard</a>
         <a href="{{ route('admin.companies.index') }}" class="{{ request()->routeIs('admin.companies.*') ? 'active' : '' }}"><x-admin.icon name="building" /> Company Management</a>
         <a href="{{ route('admin.clients.index') }}" class="{{ request()->routeIs('admin.clients.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Client Management</a>
+        <a href="{{ route('admin.jobs.index') }}" class="{{ request()->routeIs('admin.jobs.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Job Management</a>
         <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') || request()->routeIs('admin.mobile-auth') ? 'active' : '' }}"><x-admin.icon name="users" /> Users</a>
         <a href="{{ route('admin.audit') }}" class="{{ request()->routeIs('admin.audit') ? 'active' : '' }}"><x-admin.icon name="history" /> Audit Trail</a>
       </nav>
