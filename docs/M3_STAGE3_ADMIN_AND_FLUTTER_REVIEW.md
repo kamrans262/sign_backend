@@ -46,7 +46,13 @@ Portrait widths remain unchanged. Only M3-linked screens and navigation were adj
 
 ## Deployment / validation boundary
 
-This stage modifies only the isolated M3 feature branches for Flutter and Laravel. No `main` merge or Hostinger production migration/deployment has been performed. Backend and Flutter focused CI results must be read back before declaring the stage verified. User-device portrait/landscape and real Hostinger SMTP/private-storage/DB checks remain Stage 4 gates.
+This stage modifies only the isolated M3 feature branches for Flutter and Laravel. No `main` merge or Hostinger production migration/deployment has been performed.
+
+**Verified Stage 3 CI (2026-11-03):**
+- Laravel: [passing focused workflow](https://github.com/kamrans262/sign_backend/actions/runs/41624971801), SHA `17adb80153f4ffb0b59406b99c93c4ab56460e36`. Includes admin member/grant/owner tests, SQLite and MySQL 8, plus M2 OTP checks.
+- Flutter: [passing focused workflow](https://github.com/kamrans262/sign_app/actions/runs/41625628643), SHA `e21c0b54f77f8f0331db6a35cfa4a6588b7115b3`. Analyzer and focused company setup, API, authentication, 1200x700 landscape Home/More/Company/Team/Invitation/Business Information checks passed.
+
+User-device portrait/landscape and real Hostinger SMTP/private-storage/DB checks remain Stage 4 gates.
 
 ## Stage 4 checklist
 
