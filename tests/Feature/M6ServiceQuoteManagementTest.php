@@ -125,6 +125,7 @@ class M6ServiceQuoteManagementTest extends TestCase
             ->assertCreated()->json('data.quote.id');
         $this->asTenant($bUser,$b);
         $this->getJson('/api/v1/quotes/'.$id)->assertNotFound();
+        $this->get('/api/v1/quotes/'.$id.'/approved-pdf')->assertNotFound();
         $this->patchJson('/api/v1/quotes/'.$id,$this->draft($bClient))->assertNotFound();
         $this->deleteJson('/api/v1/quotes/'.$id)->assertNotFound();
         $this->postJson('/api/v1/quotes/'.$id.'/approve',['confirmed'=>true])->assertNotFound();
