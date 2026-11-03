@@ -4,6 +4,7 @@
 @section('heading', 'User Management')
 @section('description', 'View user accounts, manage access, and review company memberships.')
 @section('header_actions')
+  <a class="btn btn-outline" href="{{ route('admin.mobile-auth') }}"><x-admin.icon name="shield" /> Email OTP Activity</a>
   <a class="btn btn-primary" href="{{ route('admin.users.create') }}"><x-admin.icon name="plus" /> Add User</a>
 @endsection
 
