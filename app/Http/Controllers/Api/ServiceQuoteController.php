@@ -438,37 +438,52 @@ class ServiceQuoteController extends Controller
     public function shareEmailPdf(Request $request, int $quote): JsonResponse
     {
         $data = $request->validate([
-            'recipient_email'=>['required','email','max:255'],
-            'message'=>['nullable','string','max:2000'],
-            'file'=>['required','file','max:5120'],
+            'recipient_email' => ['required','email','max:255'],
+            'message' => ['nullable','string','max:2000'],
+            // Kept for old M6 Flutter clients. These bytes are NOT emailed.
+            'file' => ['nullable','file','max:5120'],
         ]);
         $item = $this->scoped($request, $quote);
-        abort_unless(in_array($item->status,['approved','sent'],true),409,
+        abort_unless(in_array($item->status, ['approved','sent'], true), 409,
             'Approve the quote before emailing a PDF.');
-        $uploaded = $request->file('file');
-        if (!$uploaded || !$uploaded->isValid()) {
-            throw ValidationException::withMessages(['file'=>'The selected PDF cannot be read.']);
+
+        // Never trust an attachment supplied *after* approval. The only PDF
+        // that can leave this endpoint is the exact one frozen at approval.
+        if (!$item->approved_pdf_path || !$item->approved_pdf_sha256 ||
+            (int)$item->approved_pdf_revision !== (int)$item->revision) {
+            return response()->json([
+                'message' => 'This quote has no verified approved PDF. Send the secure link instead.',
+            ], 409);
         }
-        $bytes = file_get_contents($uploaded->getRealPath());
-        // Do not attach arbitrary files merely renamed with a .pdf suffix.
-        // Accept only a bounded, recognizable PDF; no web-root persistence.
-        if (!is_string($bytes) || strlen($bytes)<12 ||
-            strlen($bytes)>5*1024*1024 ||
-            !str_starts_with($bytes,'%PDF-') ||
-            !str_contains(substr($bytes,-4096),'%%EOF')) {
-            throw ValidationException::withMessages(['file'=>'Upload a valid PDF smaller than 5 MB.']);
+
+        // Validate legacy multipart uploads for file hygiene, but ignore
+        // their contents. The original approved bytes remain authoritative.
+        if ($request->hasFile('file')) {
+            $this->verifiedPdfUpload($request);
         }
-        if (in_array((string) config('mail.default'),['log','array','null'],true)) {
+        $disk = Storage::disk('local');
+        if (!$disk->exists($item->approved_pdf_path)) {
+            report(new \RuntimeException('Approved quote PDF missing from private storage.'));
+            return response()->json(['message'=>'Approved PDF is unavailable.'],503);
+        }
+        $bytes = $disk->get($item->approved_pdf_path);
+        if (!is_string($bytes) ||
+            !hash_equals((string)$item->approved_pdf_sha256, hash('sha256', $bytes))) {
+            report(new \RuntimeException('Approved quote PDF digest mismatch.'));
+            return response()->json(['message'=>'Approved PDF integrity verification failed.'],503);
+        }
+        if (in_array((string) config('mail.default'), ['log','array','null'], true)) {
             return response()->json(['message'=>'Email delivery is not configured.'],503);
         }
+
         $link = URL::temporarySignedRoute('quotes.public',
-            now()->addDays(7),['quote'=>$item->id,'v'=>$item->link_version]);
+            now()->addDays(7), ['quote'=>$item->id,'v'=>$item->link_version]);
         $number = $item->custom_quote_number ?: $item->reference_number;
         $filename = 'Sign2Digital_Quote_'.preg_replace('/[^A-Za-z0-9_-]/','_', $number).'.pdf';
         try {
-            Mail::raw("Quote {$number}\n\n".($data['message']??'')."\n\n".
-                "The reviewed quote PDF is attached. Confirm the same approved ".
-                "information through this secure seven-day link:\n".$link,
+            Mail::raw("Quote {$number}\\n\\n".($data['message']??'')."\\n\\n".
+                "The exact approved quote PDF is attached. Review the same approved ".
+                "quote using this secure seven-day link:\\n".$link,
                 function ($mail) use ($data,$number,$bytes,$filename): void {
                     $mail->to($data['recipient_email'])
                         ->subject('Sign2Digital quote '.$number)
@@ -476,14 +491,21 @@ class ServiceQuoteController extends Controller
                 });
         } catch (\Throwable $error) {
             report($error);
-            return response()->json(['message'=>'Unable to send the quote PDF email.'],502);
+            return response()->json(['message'=>'Unable to send the approved PDF email.'],502);
         }
-        $item->update(['status'=>'sent','sent_at'=>now(),'updated_by'=>$request->user()->id]);
+        // Don't revive a quote archived while the mail provider was processing.
+        ServiceQuote::query()->whereKey($item->id)
+            ->whereIn('status',['approved','sent'])
+            ->update(['status'=>'sent','sent_at'=>now(),'updated_by'=>$request->user()->id]);
         AuditLogger::record('mobile.quote.sent',$request->user(),$item,
-            $this->company($request),
-            metadata:['method'=>'email','pdf_attachment'=>true],request:$request);
+            $this->company($request), metadata:[
+                'method'=>'email','pdf_attachment'=>true,
+                'approved_pdf_sha256'=>$item->approved_pdf_sha256,
+                'approved_pdf_revision'=>$item->approved_pdf_revision,
+            ],request:$request);
         return response()->json(['data'=>[
-            'delivered'=>true, 'pdf_attached'=>true,
+            'delivered'=>true,'pdf_attached'=>true,
+            'approved_pdf_sha256'=>$item->approved_pdf_sha256,
         ]]);
     }
 
