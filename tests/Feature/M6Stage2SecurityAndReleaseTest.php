@@ -313,7 +313,8 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
                 'file'=>$pdf,
             ])->assertOk()
             ->assertJsonPath('data.delivered',true)
-            ->assertJsonPath('data.pdf_attached',true);
+            ->assertJsonPath('data.pdf_attached',true)
+            ->assertJsonPath('data.approved_pdf_sha256',hash('sha256',$canonicalBytes));
         $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'sent']);
         // A different client-uploaded PDF does not replace the approved one.
         $this->assertSame($canonicalBytes,Storage::disk('local')
