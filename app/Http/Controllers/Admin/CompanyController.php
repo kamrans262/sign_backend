@@ -52,7 +52,7 @@ class CompanyController extends Controller
     public function edit(Company $company): View
     {
         return view('admin.companies.form', [
-            'company' => $company->load(['users' => fn ($q) => $q->orderBy('users.name'), 'owner']),
+            'company' => $company->load(['users' => fn ($q) => $q->orderBy('users.name'), 'owner', 'invitations']),
             'availableUsers' => User::where('is_active', true)->orderBy('name')->get(['id', 'name', 'email']),
         ]);
     }

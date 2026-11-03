@@ -36,6 +36,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
         Route::post('/companies/{company}/members', [CompanyController::class, 'addMember'])->name('companies.members.store');
         Route::delete('/companies/{company}/members/{user}', [CompanyController::class, 'removeMember'])->name('companies.members.destroy');
+        Route::post('/companies/{company}/invitations', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'invite'])->name('companies.invitations.store');
+        Route::delete('/companies/{company}/invitations/{invitation}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'revoke'])->name('companies.invitations.destroy');
+        Route::post('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'upload'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.upload');
+        Route::get('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'download'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.download');
+        Route::delete('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'remove'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.destroy');
         Route::get('/audit', AuditController::class)->name('audit');
         Route::get('/mobile-auth', \App\Http\Controllers\Admin\MobileAuthController::class)->name('mobile-auth');
     });
