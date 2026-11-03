@@ -41,6 +41,7 @@ if (!is_dir($private) || !is_readable($private)) {
 $folder = $root.'/storage/backups/sign2digital-m7-'.gmdate('Ymd-His').'-'.bin2hex(random_bytes(3));
 $oldUmask = umask(0077);
 $clientFile = null;
+$failed = false;
 try {
     if (!mkdir($folder, 0700, true)) {
         throw new \RuntimeException('Unable to create backup directory.');
@@ -116,23 +117,28 @@ try {
         'private_bytes' => filesize($tar),
         'env_sha256' => hash_file('sha256', $folder.'/env.before-m7'),
     ];
-    file_put_contents($folder.'/manifest.json',
-        json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    if (file_put_contents($folder.'/manifest.json',
+        json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false) {
+        throw new \RuntimeException('Backup manifest could not be written.');
+    }
     chmod($folder.'/manifest.json', 0600);
     echo "M7_BACKUP_OK\n";
     echo "BACKUP_DIRECTORY=".$folder."\n";
     echo "OLD_COMMIT=".$manifest['old_commit']."\n";
     echo "MYSQL_BYTES=".$manifest['mysql_bytes']."\n";
     echo "PRIVATE_BYTES=".$manifest['private_bytes']."\n";
-    echo "BACKUP_SHA256_VERIFIED\n";
+    echo "BACKUP_SHA256_RECORDED\n";
     echo "INFO: Keep this directory private. This script did not deploy anything.\n";
 } catch (\Throwable $error) {
     fwrite(STDERR, "M7_BACKUP_FAILED: No deployment performed. ".
         "Review available disk space, MySQL privileges, and backup utilities.\n");
-    exit(1);
+    $failed = true;
 } finally {
     if ($clientFile !== null && is_file($clientFile)) {
         unlink($clientFile);
     }
     umask($oldUmask);
+}
+if ($failed) {
+    exit(1);
 }
