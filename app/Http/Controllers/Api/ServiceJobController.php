@@ -184,6 +184,8 @@ class ServiceJobController extends Controller
                 'reference_number' => 'PENDING-'.bin2hex(random_bytes(8)),
                 'category' => 'active',
                 'stage' => 'planning',
+                // New jobs always begin at 0, regardless of caller fields.
+                'progress_percentage' => 0,
             ]));
             $job->update(['reference_number' => sprintf('JOB-%08d', $job->id)]);
             $job->assignees()->sync($team);

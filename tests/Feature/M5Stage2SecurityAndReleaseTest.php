@@ -149,7 +149,7 @@ class M5Stage2SecurityAndReleaseTest extends TestCase
         $id = (int) $this->postJson('/api/v1/jobs', $this->payload($client))
             ->assertCreated()->json('data.job.id');
         $this->patchJson('/api/v1/jobs/'.$id, ['stage' => 'completed'])
-            ->assertOk()->assertJsonPath('data.job.progress_percentage', 100.0);
+            ->assertOk()->assertJsonPath('data.job.progress_percentage', 100);
         $job = ServiceJob::findOrFail($id);
         $completedAt = $job->completed_at?->format('Y-m-d H:i:s');
         $this->assertNotNull($completedAt);
