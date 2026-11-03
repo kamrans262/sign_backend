@@ -92,4 +92,28 @@ class M7QuoteApprovalTest extends TestCase
             'id'=>$quote->id,'status'=>'draft','revision'=>1,
         ]);
     }
+    public function test_admin_archive_restore_preserves_approved_state_and_revokes_old_link_version(): void
+    {
+        $quote=$this->createAdminDraft();
+        $this->post('/admin/quotes/'.$quote->id.'/approve',[
+            'expected_revision'=>1,
+        ])->assertRedirect();
+        $this->assertDatabaseHas('service_quotes',[
+            'id'=>$quote->id,'status'=>'approved','revision'=>2,'link_version'=>1,
+        ]);
+
+        $this->delete('/admin/quotes/'.$quote->id)->assertRedirect();
+        $this->assertDatabaseHas('service_quotes',[
+            'id'=>$quote->id,'status'=>'archived','status_before_archive'=>'approved',
+            'link_version'=>2,
+        ]);
+        $this->post('/admin/quotes/'.$quote->id.'/restore')->assertRedirect();
+        $this->assertDatabaseHas('service_quotes',[
+            'id'=>$quote->id,'status'=>'approved','link_version'=>2,
+        ]);
+        $this->post('/admin/quotes/'.$quote->id.'/approve',[
+            'expected_revision'=>2,
+        ])->assertStatus(409);
+    }
+
 }
