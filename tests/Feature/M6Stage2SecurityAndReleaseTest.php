@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -264,9 +265,30 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
     public function test_pdf_attachment_email_requires_real_pdf_and_does_not_claim_fake_delivery(): void
     {
         [,,$client]=$this->tenant();
-        $quoteId=$this->approvedQuote($client);
+        Storage::fake('local');
+        $quoteId=$this->postJson('/api/v1/quotes',$this->draft($client))
+            ->assertCreated()->json('data.quote.id');
         Mail::fake();
         config(['mail.default'=>'smtp']);
+        // An invalid approval document may never authorize attachment email.
+        $invalidApproval=UploadedFile::fake()->create('invalid.pdf',1,'application/pdf');
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/approve',[
+                'confirmed'=>'1','file'=>$invalidApproval,
+            ])->assertUnprocessable();
+        $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'draft']);
+
+        $canonicalBytes="%PDF-1.4\n1 0 obj\n<</Type/Catalog>>\nendobj\n%%EOF\n";
+        $approved=UploadedFile::fake()->createWithContent('approved.pdf',$canonicalBytes);
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/approve',[
+                'confirmed'=>'1','file'=>$approved,
+            ])->assertOk()->assertJsonPath('data.quote.approved_pdf_available',true);
+        $stored=ServiceQuote::findOrFail($quoteId);
+        $this->assertSame(hash('sha256',$canonicalBytes),$stored->approved_pdf_sha256);
+        $this->assertSame((int)$stored->revision,(int)$stored->approved_pdf_revision);
+        $this->assertSame($canonicalBytes,Storage::disk('local')
+            ->get($stored->approved_pdf_path));
 
         $invalid=UploadedFile::fake()->create('fake.pdf',1,'application/pdf');
         $this->withHeader('Accept','application/json')->post(
@@ -288,6 +310,16 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
             ->assertJsonPath('data.delivered',true)
             ->assertJsonPath('data.pdf_attached',true);
         $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'sent']);
+        // A different client-uploaded PDF does not replace the approved one.
+        $this->assertSame($canonicalBytes,Storage::disk('local')
+            ->get($stored->approved_pdf_path));
+        // If private bytes are changed, fail closed without sending.
+        Storage::disk('local')->put($stored->approved_pdf_path,
+            "%PDF-1.4\nMODIFIED\n%%EOF\n");
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
+                'recipient_email'=>'customer@example.test',
+            ])->assertStatus(503);
     }
 
     public function test_ai_unsupported_upload_rejected_without_external_network_and_key_stays_server_only():void
