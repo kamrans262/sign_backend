@@ -58,11 +58,12 @@
       display: block; font-size: 12px; color: var(--placeholder);
       line-height: 1.5; margin-bottom: 5px; white-space: pre-line; overflow-wrap: anywhere;
     }
-    .dates { min-width: 0; }
-    .date-line { display: flex; gap: 7px; align-items: flex-start; font-size: 12px; }
+    /* Keep the date group aligned to the right edge of the quote card. */
+    .dates { min-width: 0; width: min(100%, 240px); justify-self: end; }
+    .date-line { display: grid; grid-template-columns: 76px minmax(0,1fr); gap: 7px; align-items: start; font-size: 12px; }
     .date-line + .date-line { margin-top: 9px; }
-    .date-line strong { flex: 0 0 76px; font-weight: 600; white-space: nowrap; }
-    .date-line span { flex: 1; min-width: 0; color: var(--placeholder); line-height: 1.5; }
+    .date-line strong { font-weight: 600; white-space: nowrap; }
+    .date-line span { min-width: 0; color: var(--placeholder); line-height: 1.5; text-align: right; }
     .item-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .item-table col:nth-child(1) { width: 42.857%; }
     .item-table col:nth-child(2) { width: 9.524%; }
@@ -80,13 +81,16 @@
     .item-table td:first-child { color: var(--ink); font-size: 10px; }
     .item-table td + td, .item-table th + th { border-left: 1px solid var(--table-lines); }
     .item-table tbody tr + tr td { border-top: 1px solid var(--table-lines); }
-    .summary { width: 75%; margin: 10px 20px 0 auto; }
+    /* Table column 3 (Unit Price) + column 4 (Total): 2 / 4.2 of table width.
+       Amounts end at the same 20px inset as the Total cells above. */
+    .summary { width: 47.619%; margin: 10px 0 0 auto; }
     .summary-row {
-      display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;
-      padding: 8px 12px; font-size: 12px; line-height: 1.5;
+      display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+      column-gap: 8px; align-items: start;
+      padding: 8px 20px 8px 4px; font-size: 12px; line-height: 1.5;
     }
-    .summary-row .summary-label { flex: 1 1 50%; color: var(--placeholder); }
-    .summary-row .summary-amount { flex: 1 1 50%; color: var(--ink); text-align: right; }
+    .summary-row .summary-label { min-width: 0; color: var(--placeholder); text-align: right; }
+    .summary-row .summary-amount { min-width: 0; color: var(--ink); text-align: right; white-space: nowrap; }
     .summary-row.grand-total { background: var(--primary); }
     .summary-row.grand-total .summary-label, .summary-row.grand-total .summary-amount { color: #fff; }
     .signature-fields { display: flex; gap: 20px; padding: 80px 20px 25px; }
@@ -105,8 +109,15 @@
     .terms-section p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--placeholder); white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 500; }
     /* Same responsive thresholds as Flutter's document sections: bill-to
        stacks when its inner card is below 340px; table narrows below 360px. */
+    @media (max-width: 600px) {
+      /* Readable percentages and totals on narrow customer devices. */
+      .summary { width: 75%; margin-right: 0; }
+      .summary-row { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+      .summary-row .summary-label { text-align: left; }
+    }
     @media (max-width: 421px) {
       .billing-section { grid-template-columns: minmax(0,1fr); gap: 15px; }
+      .dates { width: min(100%, 240px); }
     }
     @media (max-width: 401px) {
       .item-table th, .item-table td { font-size: 10px; }
