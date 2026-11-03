@@ -14,6 +14,7 @@ class ServiceQuote extends Model
         'quote_date','valid_until','currency','vat_basis_points','deposit_basis_points',
         'terms','payment_details','source_method','status','status_before_archive','revision','link_version','subtotal_minor',
         'vat_minor','total_minor','deposit_minor','approved_at','sent_at','archived_at',
+        'approved_pdf_path','approved_pdf_sha256','approved_pdf_revision',
     ];
 
     protected function casts(): array
