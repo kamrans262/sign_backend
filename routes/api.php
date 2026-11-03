@@ -130,6 +130,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/quotes', [\App\Http\Controllers\Api\ServiceQuoteController::class,'index']);
             Route::get('/quotes/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class,'show'])->whereNumber('quote');
             Route::get('/quotes/{quote}/revisions', [\App\Http\Controllers\Api\ServiceQuoteController::class,'revisions'])->whereNumber('quote');
+            Route::get('/quotes/{quote}/approved-pdf', [\App\Http\Controllers\Api\ServiceQuoteController::class,'approvedPdf'])->whereNumber('quote');
         });
         Route::middleware(['company.access','company.permission:quotes.write'])->group(function (): void {
             Route::post('/quotes', [\App\Http\Controllers\Api\ServiceQuoteController::class,'store']);
