@@ -1,0 +1,101 @@
+name: M7 Quote Review Approval focused backend verification
+
+on:
+  push:
+    branches:
+      - feature/m7-quote-review-approval-2026-11-03
+    paths:
+      - '.github/workflows/m7-quote-focused.yml'
+      - 'app/Http/Controllers/Api/ServiceQuoteController.php'
+      - 'app/Http/Controllers/Api/QuoteAiController.php'
+      - 'app/Http/Controllers/Admin/ServiceQuoteController.php'
+      - 'app/Models/ServiceQuote*.php'
+      - 'database/migrations/2026_11_03_500000_create_service_quotes_tables.php'
+      - 'database/migrations/2026_11_04_010000_add_approved_pdf_integrity_to_service_quotes.php'
+      - 'resources/views/admin/quotes/**'
+      - 'tests/Feature/M6ServiceQuoteManagementTest.php'
+      - 'tests/Feature/M6Stage2SecurityAndReleaseTest.php'
+      - 'tests/Feature/M7QuoteApprovalTest.php'
+      - 'resources/views/public/quote.blade.php'
+      - 'config/services.php'
+      - 'scripts/m6_release_preflight.php'
+      - 'scripts/m7_release_preflight.php'
+      - 'app/Http/Controllers/Api/ServiceJobController.php'
+      - 'app/Http/Controllers/Api/ClientController.php'
+      - 'app/Http/Controllers/Admin/ServiceJobController.php'
+      - 'app/Models/ServiceJob.php'
+      - 'app/Models/Company.php'
+      - 'app/Models/Client.php'
+      - 'database/migrations/2026_11_03_400000_create_service_jobs_tables.php'
+      - 'routes/api.php'
+      - 'routes/web.php'
+      - 'resources/views/admin/jobs/**'
+      - 'resources/views/admin/layout.blade.php'
+      - 'tests/Feature/M5ServiceJobManagementTest.php'
+      - 'tests/Feature/M5Stage2SecurityAndReleaseTest.php'
+      - 'scripts/m5_release_preflight.php'
+  pull_request:
+    branches:
+      - feature/m6-ai-quote-creation-2026-11-03
+    paths:
+      - '.github/workflows/m7-quote-focused.yml'
+      - 'app/Http/Controllers/Api/ServiceQuoteController.php'
+      - 'app/Http/Controllers/Admin/ServiceQuoteController.php'
+      - 'tests/Feature/M7QuoteApprovalTest.php'
+      - 'tests/Feature/M6ServiceQuoteManagementTest.php'
+      - 'tests/Feature/M6Stage2SecurityAndReleaseTest.php'
+      - 'resources/views/admin/quotes/**'
+      - 'database/migrations/2026_11_03_500000_create_service_quotes_tables.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign2digital-m7-backend
+  cancel-in-progress: true
+
+jobs:
+  m7-focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-only
+          MYSQL_DATABASE: sign2digital_m7_ci
+          MYSQL_USER: sign_ci
+          MYSQL_PASSWORD: sign-ci-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s
+          --health-timeout=4s
+          --health-retries=25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, pdo_mysql, mbstring, openssl, fileinfo
+          coverage: none
+      - name: Resolve locked PHP packages
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare isolated environment
+        run: cp .env.example .env && php artisan key:generate
+      - name: Lint M5-M7 PHP and compile admin Blade
+        run: php -l app/Models/ServiceJob.php && php -l app/Models/Company.php && php -l app/Models/Client.php && php -l app/Http/Controllers/Api/ServiceJobController.php && php -l app/Http/Controllers/Api/ClientController.php && php -l app/Http/Controllers/Admin/ServiceJobController.php && php -l database/migrations/2026_11_03_400000_create_service_jobs_tables.php && php -l routes/api.php && php -l routes/web.php && php -l tests/Feature/M5Stage2SecurityAndReleaseTest.php && php -l scripts/m5_release_preflight.php && php -l app/Http/Controllers/Api/ServiceQuoteController.php && php -l app/Http/Controllers/Api/QuoteAiController.php && php -l app/Http/Controllers/Admin/ServiceQuoteController.php && php -l app/Models/ServiceQuote.php && php -l app/Models/ServiceQuoteItem.php && php -l app/Models/ServiceQuoteRevision.php && php -l database/migrations/2026_11_03_500000_create_service_quotes_tables.php && php -l database/migrations/2026_11_04_010000_add_approved_pdf_integrity_to_service_quotes.php && php -l tests/Feature/M6ServiceQuoteManagementTest.php && php -l tests/Feature/M6Stage2SecurityAndReleaseTest.php && php -l tests/Feature/M7QuoteApprovalTest.php && php -l scripts/m6_release_preflight.php && php -l scripts/m7_release_preflight.php && php artisan view:cache
+      - name: Verify M4-M7 focused quote regression with SQLite
+        run: php artisan test --filter='M(4ClientManagement|5ServiceJobManagement|5Stage2SecurityAndRelease|6ServiceQuoteManagement|6Stage2SecurityAndRelease|7QuoteApproval)Test'
+      - name: Verify M4-M7 focused quote regression with MySQL 8
+        env:
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_m7_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
+        run: php artisan test --filter='M(4ClientManagement|5ServiceJobManagement|6ServiceQuoteManagement|6Stage2SecurityAndRelease|7QuoteApproval)Test'

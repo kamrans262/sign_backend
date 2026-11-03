@@ -11,6 +11,7 @@ use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -222,47 +223,125 @@ class ServiceQuoteController extends Controller
 
     public function approve(Request $request,int $quote): RedirectResponse
     {
-        $target=ServiceQuote::with('items')->findOrFail($quote);
-        abort_unless($target->status==='draft',409);
-        if ($target->total_minor === null || !$target->client_name || !$target->terms ||
-            $target->items->contains(fn($i)=>$i->quantity===null ||
-                $i->unit_price_minor===null || ($i->dimensions!==null && trim($i->dimensions)===''))) {
-            return back()->withErrors(['quote'=>'Complete client, prices and terms before approval.']);
+        $input=$request->validate([
+            'expected_revision'=>['nullable','integer','min:1'],
+            'file'=>['nullable','file','max:5120'],
+        ]);
+        // The admin can freeze the exact reviewed PDF at approval; when no
+        // file is supplied, the approved quote remains secure-link-only.
+        $bytes=null;
+        if ($request->hasFile('file')) {
+            $upload=$request->file('file');
+            $bytes=$upload && $upload->isValid()
+                ? file_get_contents($upload->getRealPath()) : false;
+            if (!is_string($bytes) || strlen($bytes)<12 ||
+                strlen($bytes)>5*1024*1024 ||
+                !str_starts_with($bytes,'%PDF-') ||
+                !str_contains(substr($bytes,-4096),'%%EOF')) {
+                throw ValidationException::withMessages([
+                    'file'=>'Choose a valid reviewed PDF smaller than 5 MB.',
+                ]);
+            }
         }
-        DB::transaction(function () use ($target,$request):void {
+        // Keep legacy administrator requests working, but protect the reviewed
+        // revision when the current edit form submits its hidden revision token.
+        return DB::transaction(function () use ($request,$quote,$input,$bytes): RedirectResponse {
+            $target=ServiceQuote::query()->lockForUpdate()->with('items')
+                ->findOrFail($quote);
+            if (isset($input['expected_revision']) &&
+                (int)$input['expected_revision'] !== (int)$target->revision) {
+                abort(409,'This quote changed in another session. Reload before approving.');
+            }
+            abort_unless($target->status==='draft',409,'Only drafts can be approved.');
+            if ($target->total_minor===null || !trim((string)$target->client_name) ||
+                !trim((string)$target->terms) || $target->items->isEmpty() ||
+                $target->items->contains(fn($i)=>$i->quantity===null ||
+                    $i->unit_price_minor===null || !trim((string)$i->title) ||
+                    ($i->dimensions!==null && trim($i->dimensions)==='') ||
+                    !empty($i->unresolved_fields))) {
+                return back()->withErrors(['quote'=>'Complete client, prices and terms before approval.']);
+            }
             $target->update(['status'=>'approved','approved_at'=>now(),
                 'revision'=>$target->revision+1,'updated_by'=>$request->user()->id]);
+            if ($bytes !== null) {
+                $sha=hash('sha256',$bytes);
+                $path='quotes/approved/'.$target->company_id.'/'.$target->id.'/'.
+                    $target->revision.'/'.$sha.'.pdf';
+                if (!Storage::disk('local')->put($path,$bytes)) {
+                    throw ValidationException::withMessages([
+                        'file'=>'The approved PDF could not be stored privately.',
+                    ]);
+                }
+                $target->update([
+                    'approved_pdf_path'=>$path,
+                    'approved_pdf_sha256'=>$sha,
+                    'approved_pdf_revision'=>$target->revision,
+                ]);
+            }
             $target->revisions()->create([
                 'revision'=>$target->revision,'snapshot'=>$target->fresh()->load('items')->toArray(),
                 'actor_user_id'=>$request->user()->id,'created_at'=>now(),
             ]);
             AuditLogger::record('admin.quote.approved',$request->user(),$target,
                 Company::findOrFail($target->company_id),request:$request);
+            return back()->with('success','Quote approved.');
         });
-        return back()->with('success','Quote approved.');
+    }
+
+    public function approvedPdf(int $quote)
+    {
+        // Platform-admin routes are protected by the existing admin middleware.
+        $target=ServiceQuote::query()->findOrFail($quote);
+        abort_unless(in_array($target->status,['approved','sent'],true),409);
+        abort_unless($target->approved_pdf_path &&
+            $target->approved_pdf_sha256 &&
+            (int)$target->approved_pdf_revision===(int)$target->revision,404);
+        $disk=Storage::disk('local');
+        abort_unless($disk->exists($target->approved_pdf_path),503);
+        $bytes=$disk->get($target->approved_pdf_path);
+        abort_unless(is_string($bytes) &&
+            hash_equals((string)$target->approved_pdf_sha256,hash('sha256',$bytes)),503);
+        return response($bytes,200,[
+            'Content-Type'=>'application/pdf',
+            'Content-Disposition'=>'attachment; filename="Sign2Digital_Approved_Quote.pdf"',
+            'Cache-Control'=>'private, no-store, max-age=0',
+            'X-Content-Type-Options'=>'nosniff',
+        ]);
     }
 
     public function archive(Request $request,int $quote): RedirectResponse
     {
-        $target=ServiceQuote::findOrFail($quote);
-        abort_if($target->status==='archived',409);
-        $target->update(['status_before_archive'=>$target->status,
-            'status'=>'archived','archived_at'=>now(),
-            'link_version'=>$target->link_version + 1]);
-        AuditLogger::record('admin.quote.archived',$request->user(),$target,
-            Company::findOrFail($target->company_id),request:$request);
-        return redirect()->route('admin.quotes.index')->with('success','Quote archived.');
+        return DB::transaction(function () use ($request,$quote): RedirectResponse {
+            $target=ServiceQuote::query()->lockForUpdate()->findOrFail($quote);
+            abort_if($target->status==='archived',409);
+            $target->update([
+                'status_before_archive'=>$target->status,
+                'status'=>'archived',
+                'archived_at'=>now(),
+                'link_version'=>$target->link_version + 1,
+            ]);
+            AuditLogger::record('admin.quote.archived',$request->user(),$target,
+                Company::findOrFail($target->company_id),request:$request);
+            return redirect()->route('admin.quotes.index')->with('success','Quote archived.');
+        });
     }
 
     public function restore(Request $request,int $quote): RedirectResponse
     {
-        $target=ServiceQuote::findOrFail($quote);
-        abort_unless($target->status==='archived',409);
-        $previous=$target->status_before_archive;
-        $target->update(['status'=>in_array($previous,['draft','approved','sent'])?$previous:'draft',
-            'archived_at'=>null,'status_before_archive'=>null]);
-        AuditLogger::record('admin.quote.restored',$request->user(),$target,
-            Company::findOrFail($target->company_id),request:$request);
-        return redirect()->route('admin.quotes.edit',$target)->with('success','Quote restored.');
+        return DB::transaction(function () use ($request,$quote): RedirectResponse {
+            $target=ServiceQuote::query()->lockForUpdate()->findOrFail($quote);
+            abort_unless($target->status==='archived',409);
+            $previous=$target->status_before_archive;
+            $target->update([
+                'status'=>in_array($previous,['draft','approved','sent'],true)
+                    ? $previous : 'draft',
+                'archived_at'=>null,
+                'status_before_archive'=>null,
+            ]);
+            AuditLogger::record('admin.quote.restored',$request->user(),$target,
+                Company::findOrFail($target->company_id),request:$request);
+            return redirect()->route('admin.quotes.edit',$target)->with('success','Quote restored.');
+        });
     }
+
 }

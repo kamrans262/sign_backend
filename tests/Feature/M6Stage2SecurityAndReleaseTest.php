@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -70,7 +71,10 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
 
         $this->assertIsString($signed);
         $this->get($signed)->assertOk()->assertSee('Stage2 Company')
-            ->assertSee('Repair work');
+            ->assertSee('Repair work')
+            ->assertSee('Deposit due (30%)')
+            ->assertSee('Remaining after deposit')
+            ->assertSee('CHF 121.07');
         $this->getJson($signed)->assertOk()->assertJsonPath('data.quote.status','approved');
         $this->get('/quote-view/'.$id)->assertForbidden();
 
@@ -134,6 +138,14 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $id=$this->approvedQuote($client);
         Mail::fake();
         config(['mail.default'=>'log']);
+        $this->postJson('/api/v1/quotes/'.$id.'/share',[
+            'method'=>'email','recipient_email'=>'customer@example.test',
+        ])->assertStatus(503);
+        $this->assertDatabaseHas('service_quotes',['id'=>$id,'status'=>'approved']);
+        Mail::assertNothingSent();
+        // The null transport silently discards outgoing email, so it must
+        // not report a successful customer delivery or transition to Sent.
+        config(['mail.default'=>'null']);
         $this->postJson('/api/v1/quotes/'.$id.'/share',[
             'method'=>'email','recipient_email'=>'customer@example.test',
         ])->assertStatus(503);
@@ -253,9 +265,35 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
     public function test_pdf_attachment_email_requires_real_pdf_and_does_not_claim_fake_delivery(): void
     {
         [,,$client]=$this->tenant();
-        $quoteId=$this->approvedQuote($client);
+        Storage::fake('local');
+        $quoteId=$this->postJson('/api/v1/quotes',$this->draft($client))
+            ->assertCreated()->json('data.quote.id');
         Mail::fake();
         config(['mail.default'=>'smtp']);
+        // An invalid approval document may never authorize attachment email.
+        $invalidApproval=UploadedFile::fake()->create('invalid.pdf',1,'application/pdf');
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/approve',[
+                'confirmed'=>'1','file'=>$invalidApproval,
+            ])->assertUnprocessable();
+        $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'draft']);
+
+        $canonicalBytes="%PDF-1.4\n1 0 obj\n<</Type/Catalog>>\nendobj\n%%EOF\n";
+        $approved=UploadedFile::fake()->createWithContent('approved.pdf',$canonicalBytes);
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/approve',[
+                'confirmed'=>'1','file'=>$approved,
+            ])->assertOk()->assertJsonPath('data.quote.approved_pdf_available',true);
+        $stored=ServiceQuote::findOrFail($quoteId);
+        $this->assertSame(hash('sha256',$canonicalBytes),$stored->approved_pdf_sha256);
+        $this->assertSame((int)$stored->revision,(int)$stored->approved_pdf_revision);
+        $this->assertSame($canonicalBytes,Storage::disk('local')
+            ->get($stored->approved_pdf_path));
+        $this->get('/api/v1/quotes/'.$quoteId.'/approved-pdf')
+            ->assertOk()
+            ->assertHeader('Content-Type','application/pdf')
+            ->assertHeader('Cache-Control','max-age=0, no-store, private')
+            ->assertContent($canonicalBytes);
 
         $invalid=UploadedFile::fake()->create('fake.pdf',1,'application/pdf');
         $this->withHeader('Accept','application/json')->post(
@@ -267,7 +305,7 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'approved']);
 
         $pdf=UploadedFile::fake()->createWithContent('quote.pdf',
-            "%PDF-1.4\n1 0 obj\n<</Type/Catalog>>\nendobj\n%%EOF\n");
+            "%PDF-1.4\nDIFFERENT CLIENT-SUPPLIED PDF\n%%EOF\n");
         $this->withHeader('Accept','application/json')->post(
             '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
                 'recipient_email'=>'customer@example.test',
@@ -275,8 +313,45 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
                 'file'=>$pdf,
             ])->assertOk()
             ->assertJsonPath('data.delivered',true)
-            ->assertJsonPath('data.pdf_attached',true);
+            ->assertJsonPath('data.pdf_attached',true)
+            ->assertJsonPath('data.approved_pdf_sha256',hash('sha256',$canonicalBytes));
         $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'sent']);
+        // A different client-uploaded PDF does not replace the approved one.
+        $this->assertSame($canonicalBytes,Storage::disk('local')
+            ->get($stored->approved_pdf_path));
+        // If private bytes are changed, fail closed without sending.
+        Storage::disk('local')->put($stored->approved_pdf_path,
+            "%PDF-1.4\nMODIFIED\n%%EOF\n");
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
+                'recipient_email'=>'customer@example.test',
+            ])->assertStatus(503);
+        $this->get('/api/v1/quotes/'.$quoteId.'/approved-pdf')
+            ->assertStatus(503);
+    }
+
+    public function test_legacy_approved_quote_cannot_email_an_unbound_pdf_but_secure_link_still_works(): void
+    {
+        [,,$client]=$this->tenant();
+        Storage::fake('local');
+        $quoteId=$this->approvedQuote($client); // Old M6 / admin approval.
+        Mail::fake();
+        config(['mail.default'=>'smtp']);
+        $untrusted=UploadedFile::fake()->createWithContent('untrusted.pdf',
+            "%PDF-1.4\nUNVERIFIED\n%%EOF\n");
+        $this->withHeader('Accept','application/json')->post(
+            '/api/v1/quotes/'.$quoteId.'/share-email-pdf',[
+                'recipient_email'=>'customer@example.test','file'=>$untrusted,
+            ])->assertStatus(409)
+            ->assertJsonPath('message',
+                'This quote has no verified approved PDF. Send the secure link instead.');
+        $this->assertDatabaseHas('service_quotes',['id'=>$quoteId,'status'=>'approved']);
+        $this->getJson('/api/v1/quotes/'.$quoteId.'/approved-pdf')
+            ->assertStatus(409);
+        Mail::assertNothingSent();
+        $this->postJson('/api/v1/quotes/'.$quoteId.'/share',[
+            'method'=>'secure_link',
+        ])->assertOk()->assertJsonPath('data.delivered',false);
     }
 
     public function test_ai_unsupported_upload_rejected_without_external_network_and_key_stays_server_only():void
