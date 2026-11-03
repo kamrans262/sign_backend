@@ -546,4 +546,49 @@ class M3CompanyManagementTest extends TestCase
             'company_id' => $second, 'user_id' => $member->id,
         ]);
     }
+
+    public function test_dashboard_has_one_icon_per_stat_and_no_redundant_overview_header(): void
+    {
+        $admin = $this->account('admin-ui-overview@example.test');
+        $admin->forceFill(['is_platform_admin' => true])->save();
+        $response = $this->actingAs($admin)->get('/admin')->assertOk()
+            ->assertSee('Total Users')
+            ->assertSee('Active Users')
+            ->assertSee('Total Companies')
+            ->assertSee('Active Companies')
+            ->assertSee('Recent Companies')
+            ->assertSee('Recent Activity')
+            ->assertDontSee('Platform Console')
+            ->assertDontSee('Secure Console')
+            ->assertDontSee('Platform Overview')
+            ->assertDontSee('Your Sign2Digital platform at a glance.')
+            ->assertDontSee('Home <span class="eyebrow-separator">', false)
+            ->assertDontSee('hope-ring');
+        $html = $response->getContent();
+        $this->assertSame(4, substr_count($html, 'class="hope-stat-icon"'));
+        $this->assertSame(4, substr_count($html, 'class="metric hope-metric"'));
+    }
+
+    public function test_users_is_the_only_sidebar_account_module_and_retains_otp_history(): void
+    {
+        $admin = $this->account('admin-ui-users@example.test');
+        $admin->forceFill(['is_platform_admin' => true])->save();
+        $users = $this->actingAs($admin)->get('/admin/users')->assertOk()
+            ->assertSee('User Management')
+            ->assertSee('Email OTP Activity')
+            ->assertSee('Company Management')
+            ->assertDontSee('Platform Console')
+            ->assertDontSee('Secure Console');
+        $content = $users->getContent();
+        $this->assertSame(1, substr_count($content, '<span>Users</span>'));
+        $this->assertSame(1, substr_count($content, '> Users</a>'));
+        $this->assertStringNotContainsString('>Mobile Authentication</span>', $content);
+        $this->assertStringNotContainsString('> Mobile Authentication</a>', $content);
+
+        $history = $this->get('/admin/mobile-auth')->assertOk()
+            ->assertSee('Email OTP Activity')
+            ->assertSee('Mobile OTP Requests')
+            ->assertSee('Back to Users');
+        $this->assertSame(1, substr_count($history->getContent(), '<span>Users</span>'));
+    }
 }
