@@ -26,6 +26,21 @@
       </tbody>
     </table>
   </div>
+  @if($record->status === 'signed' && $record->artifact)
+    <div style="display:flex;flex-wrap:wrap;gap:10px;padding:20px">
+      <a class="btn btn-primary" href="{{ route('admin.signatures.signedPdf',$record->id) }}">Download Signed PDF</a>
+      <form method="post" action="{{ route('admin.signatures.resendSigned',$record->id) }}">
+        @csrf
+        <button class="btn btn-outline" type="submit">Resend Signed PDF</button>
+      </form>
+    </div>
+  @endif
+  @if(in_array($record->status,['ready','sent','viewed']) && $record->mode==='remote' && $record->expires_at->isFuture())
+    <form method="post" action="{{ route('admin.signatures.resend',$record->id) }}" style="padding:20px">
+      @csrf
+      <button class="btn btn-outline" type="submit">Resend Signature Request</button>
+    </form>
+  @endif
   @if(in_array($record->status,['ready','sent','viewed']) && $record->expires_at->isFuture())
     <form method="post" action="{{ route('admin.signatures.revoke',$record->id) }}" style="padding:20px">
       @csrf
