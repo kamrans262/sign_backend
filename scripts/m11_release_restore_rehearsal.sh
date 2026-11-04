@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# M10: restore an M10 release backup only into an existing EMPTY, separate
+# M11: restore an M10 production snapshot only into an existing EMPTY, separate
 # MySQL database with "restore" or "rehearsal" in its name.
 # Never creates, drops, empties or changes a production schema.
 # Set M11_RESTORE_HOST, M11_RESTORE_DB, M11_RESTORE_USER,
@@ -7,7 +7,7 @@
 set -Eeuo pipefail
 umask 077
 if [[ $# -ne 2 || "$1" != "--backup-dir" ]]; then
-  echo "M11_RESTORE_BLOCKED: Need --backup-dir <M10 snapshot>." >&2
+  echo "M11_RESTORE_BLOCKED: Need --backup-dir <verified pre-M11 snapshot>." >&2
   exit 2
 fi
 backup="$2"
@@ -59,7 +59,7 @@ fi
   gzip -t mysql.sql.gz
 )
 grep -qx 'release=M11' "$backup/m11-release-manifest.txt" || {
-  echo "M11_RESTORE_BLOCKED: Snapshot is not an M9 release backup." >&2;exit 2;
+  echo "M11_RESTORE_BLOCKED: Snapshot is not an M11 pre-release backup." >&2;exit 2;
 }
 mysql --defaults-extra-file="$cnf" --database="$target" --batch \
   --skip-column-names --execute='SELECT 1' >/dev/null
@@ -81,10 +81,10 @@ fi
 # Record the SHA of the VERIFIED snapshot. Deployment must check this
 # marker against the exact same backup and never treat a CRC alone as restore.
 manifest_hash="$(sha256sum "$backup/SHA256SUMS.txt" | cut -d ' ' -f 1)"
-printf 'release=M10\nrestored=M10\nsnapshot_manifest_sha256=%s\nrestored_tables=%s\nverified_utc=%s\n' \
+printf 'release=M11\nrestored=M10\nsnapshot_manifest_sha256=%s\nrestored_tables=%s\nverified_utc=%s\n' \
   "$manifest_hash" "$after" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   > "$backup/m11-restore-rehearsal.txt"
 chmod 600 "$backup/m11-restore-rehearsal.txt"
 echo "M11_RESTORE_REHEARSAL_PASS"
-echo "M11_RESTORED_M9_TABLES $after"
+echo "M11_RESTORED_M10_TABLES $after"
 echo "INFO: The isolated database is retained for inspection. Production was not changed."
