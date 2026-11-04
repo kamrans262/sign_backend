@@ -121,7 +121,7 @@ class M14ExpenseTrackingTest extends TestCase
             ->assertRedirect();
         $this->assertDatabaseHas('job_expenses',['id'=>$id,'status'=>'reimbursed']);
         $this->assertDatabaseCount('job_expense_receipts',1);
-        $this->assertDatabaseCount('job_expense_events',4);
+        $this->assertDatabaseCount('job_expense_events',5);
     }
 
     public function test_private_receipt_tampering_is_detected(): void
