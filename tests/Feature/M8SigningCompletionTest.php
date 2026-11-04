@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use setasign\Fpdi\Fpdi;
 use Tests\TestCase;
@@ -223,6 +224,63 @@ class M8SigningCompletionTest extends TestCase
         $this->postJson('/api/v1/signature-requests/'.$id.'/complete-in-person',$payload)
             ->assertStatus(409);
         $this->getJson('/api/public/signing/'.str_repeat('A',43))->assertNotFound();
+    }
+
+    public function test_customer_and_company_owner_both_receive_the_exact_immutable_pdf(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client]=$this->tenant();
+        [$quote,$source]=$this->approvedQuote($client);
+        $issued=$this->postJson('/api/v1/quotes/'.$quote->id.'/signature-requests',[
+            'signer_name'=>'Signing Customer',
+            'signer_email'=>'customer@example.test','delivery'=>'link',
+        ])->assertCreated();
+        $record=Signing::firstOrFail();
+        $token=basename(parse_url($issued->json('data.secure_link'),PHP_URL_PATH));
+        $this->postJson('/api/public/signing/'.$token.'/submit',
+            $this->remote($record,$token))->assertCreated()
+            ->assertJsonPath('emailDelivered',false);
+        $artifact=SignedDocumentArtifact::firstOrFail();
+        $sent=[];
+        config(['mail.default'=>'smtp']);
+        Mail::shouldReceive('raw')->twice()->andReturnUsing(
+            function (string $body, callable $callback) use (&$sent): void {
+                $message=new class {
+                    public string $recipient='';
+                    public string $digest='';
+                    public string $file='';
+                    public function to(string $address): self {
+                        $this->recipient=$address;return $this;
+                    }
+                    public function subject(string $subject): self {
+                        return $this;
+                    }
+                    public function attachData(string $bytes,string $name,array $metadata): self {
+                        $this->digest=hash('sha256',$bytes);
+                        $this->file=$name;
+                        return $this;
+                    }
+                };
+                $callback($message);
+                $sent[$message->recipient]=[
+                    'digest'=>$message->digest,
+                    'filename'=>$message->file,
+                ];
+            }
+        );
+        $confirmed=app(\App\Services\SignatureCompletionService::class)
+            ->emailFinalPdf($artifact);
+        $this->assertTrue($confirmed);
+        $this->assertCount(2,$sent);
+        $this->assertArrayHasKey('customer@example.test',$sent);
+        $this->assertArrayHasKey($owner->email,$sent);
+        foreach($sent as $delivery){
+            $this->assertSame($artifact->signed_pdf_sha256,$delivery['digest']);
+            $this->assertSame('Sign2Digital_Signed_Quote.pdf',$delivery['filename']);
+        }
+        $this->assertDatabaseCount('signed_document_artifacts',1);
+        $this->assertDatabaseHas('signature_requests',
+            ['id'=>$record->id,'status'=>'signed']);
     }
 
     public function test_signed_document_download_rejects_other_company_and_corruption(): void
