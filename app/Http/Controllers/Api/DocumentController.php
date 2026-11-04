@@ -25,7 +25,7 @@ final class DocumentController extends Controller
         $filters=$request->validate([
             'q'=>['nullable','string','max:255'],
             'category'=>['nullable',Rule::in(['quotes','contacts','reports','addends','receipts','invoices','other'])],
-            'kind'=>['nullable',Rule::in(['quote','signed','managed'])],
+            'kind'=>['nullable',Rule::in(['quote','signed','managed','addendum'])],
             'status'=>['nullable','string','max:24'],
             'client_id'=>['nullable','integer','min:1'],
             'job_id'=>['nullable','integer','min:1'],
