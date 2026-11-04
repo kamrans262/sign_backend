@@ -67,8 +67,20 @@ final class ExpenseController extends Controller
         ]));
     }
 
+    /** Keep Admin tag edits on the same validated service path as mobile. */
+    private function tags(Request $request): void
+    {
+        if(!$request->exists('tags_text'))return;
+        $pieces=explode(',',(string)$request->input('tags_text'));
+        $tags=array_slice(array_values(array_unique(array_filter(
+            array_map('trim',$pieces),fn($v)=>$v!==''
+        ))),0,12);
+        $request->merge(['tags'=>$tags]);
+    }
+
     public function store(Request $request)
     {
+        $this->tags($request);
         $data=$request->validate([
             'company_id'=>['required','integer','exists:companies,id'],
         ]);
@@ -79,6 +91,7 @@ final class ExpenseController extends Controller
 
     public function update(Request $request,int $expense)
     {
+        $this->tags($request);
         $row=$this->expense($expense);
         $this->service->save($request,$this->company($row->company_id),$expense);
         return redirect()->route('admin.expenses.edit',$expense)
