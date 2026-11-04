@@ -147,7 +147,7 @@ class M14ExpenseTrackingTest extends TestCase
                 'date'=>'2026-02-30','amount'=>39.75,'supplier'=>'Receipt Shop',
                 'expenseType'=>'Fuel','description'=>'Invoice 123',
                 'tags'=>['vehicle'],'jobReference'=>'JOB-123',
-            ],JSON_THROW_ON_ERROR)]],
+            ],JSON_THROW_ON_ERROR)]]],
         ],200)]);
 
         $this->post('/api/v1/expenses/ai/receipt',[
