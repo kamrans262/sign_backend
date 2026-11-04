@@ -205,6 +205,12 @@ final class WorkAcceptanceCustomerService
             return DB::transaction(function()use($http,$link,$data,$png,$uploads,&$created):array {
                 $locked=DB::table('work_acceptance_requests')
                     ->where('id',$link->id)->lockForUpdate()->firstOrFail();
+                // Different invitation links must also serialize on the report.
+                // Otherwise both could create separate signed artifacts and M9 files.
+                DB::table('work_acceptances')
+                    ->where('company_id',$locked->company_id)
+                    ->where('id',$locked->work_acceptance_id)
+                    ->lockForUpdate()->firstOrFail();
                 $row=$this->active($locked);
                 abort_unless(!DB::table('work_acceptance_artifacts')
                     ->where('work_acceptance_id',$row->id)->exists(),409,
