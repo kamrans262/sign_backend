@@ -338,4 +338,109 @@ final class M10AddendaManagementTest extends TestCase
         $this->assertDatabaseCount('addendum_signing_requests',0);
     }
 
+
+    public function test_customer_link_expiration_blocks_preview_and_signature(): void
+    {
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+        Storage::fake('local');
+        [$user,$company,$client]=$this->tenant();
+        [$artifact]=$this->signedOriginal($company,$client);
+        $id=$this->postJson('/api/v1/addenda',$this->body($artifact->id))
+            ->assertCreated()->json('data.addendum.id');
+        $this->postJson('/api/v1/addenda/'.$id.'/approve',[
+            'confirmed'=>true,'expected_revision'=>1,
+        ])->assertOk();
+        $result=$this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
+            'signer_name'=>'Original Customer','signer_email'=>'customer@example.test',
+            'delivery'=>'link','expires_in_days'=>1,
+        ])->assertCreated();
+        $token=basename(parse_url($result->json('data.secure_link'),PHP_URL_PATH));
+        $this->getJson('/api/public/addenda/'.$token)->assertOk();
+        \Illuminate\Support\Carbon::setTestNow(now()->addDays(2));
+        try {
+            $this->getJson('/api/public/addenda/'.$token)->assertStatus(410);
+            $this->get('/api/public/addenda/'.$token.'/pdf')->assertStatus(410);
+            $this->postJson('/api/public/addenda/'.$token.'/submit',[
+                'addendumId'=>$id,
+            ])->assertStatus(410);
+            $this->assertDatabaseMissing('addenda',['id'=>$id,'status'=>'signed']);
+        } finally {
+            \Illuminate\Support\Carbon::setTestNow();
+        }
+    }
+
+    public function test_failed_mail_submission_revokes_link_and_allows_retry(): void
+    {
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+        Storage::fake('local');
+        [$user,$company,$client]=$this->tenant();
+        [$artifact]=$this->signedOriginal($company,$client);
+        $id=$this->postJson('/api/v1/addenda',$this->body($artifact->id))
+            ->assertCreated()->json('data.addendum.id');
+        $this->postJson('/api/v1/addenda/'.$id.'/approve',[
+            'confirmed'=>true,'expected_revision'=>1,
+        ])->assertOk();
+        config(['mail.default'=>'smtp']);
+        \Illuminate\Support\Facades\Mail::shouldReceive('raw')
+            ->once()->andThrow(new \RuntimeException('SMTP unavailable'));
+        $this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
+            'signer_name'=>'Original Customer',
+            'signer_email'=>'customer@example.test','delivery'=>'email',
+        ])->assertStatus(502);
+        $this->assertDatabaseHas('addendum_signing_requests',[
+            'addendum_id'=>$id,'status'=>'revoked',
+        ]);
+        $this->assertDatabaseHas('addendum_events',[
+            'addendum_id'=>$id,'event_type'=>'signature_delivery_failed',
+        ]);
+        $this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
+            'signer_name'=>'Original Customer',
+            'signer_email'=>'customer@example.test','delivery'=>'link',
+        ])->assertCreated()->assertJsonPath('data.delivered',false)
+            ->assertJsonPath('data.transport_accepted',false);
+    }
+
+    public function test_approved_pdf_tampering_fails_closed_in_all_channels(): void
+    {
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+        Storage::fake('local');
+        [$user,$company,$client]=$this->tenant();
+        [$artifact]=$this->signedOriginal($company,$client);
+        $id=$this->postJson('/api/v1/addenda',$this->body($artifact->id))
+            ->assertCreated()->json('data.addendum.id');
+        $this->postJson('/api/v1/addenda/'.$id.'/approve',[
+            'confirmed'=>true,'expected_revision'=>1,
+        ])->assertOk();
+        $item=Addendum::findOrFail($id);
+        Storage::disk('local')->put($item->approved_pdf_path,'%PDF-1.4 altered %%EOF');
+        $this->get('/api/v1/addenda/'.$id.'/pdf')->assertStatus(503);
+        $this->get('/api/v1/documents/addendum-'.$id.'/pdf')->assertStatus(503);
+        $this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
+            'signer_name'=>'Original Customer',
+            'signer_email'=>'customer@example.test','delivery'=>'link',
+        ])->assertStatus(503);
+        $this->assertDatabaseCount('addendum_signing_requests',0);
+    }
+
+    public function test_addendum_attachments_and_versions_are_tenant_owned(): void
+    {
+        Storage::fake('local');
+        [$user,$company,$client]=$this->tenant();
+        [$artifact]=$this->signedOriginal($company,$client);
+        $id=$this->postJson('/api/v1/addenda',$this->body($artifact->id))
+            ->assertCreated()->json('data.addendum.id');
+        $this->getJson('/api/v1/documents/addendum-'.$id.'/versions')
+            ->assertOk()->assertJsonCount(1,'data.versions');
+        $this->getJson('/api/v1/documents/addendum-'.$id.'/history')
+            ->assertOk()->assertJsonFragment(['type'=>'created']);
+        [$otherUser,$other]=$this->tenant('Second Company');
+        $this->getJson('/api/v1/documents/addendum-'.$id.'/versions')->assertNotFound();
+        $this->getJson('/api/v1/documents/addendum-'.$id.'/history')->assertNotFound();
+        $this->getJson('/api/v1/addenda/'.$id.'/signature-requests')->assertNotFound();
+        $this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
+            'signer_name'=>'Original Customer',
+            'signer_email'=>'customer@example.test','delivery'=>'link',
+        ])->assertNotFound();
+    }
+
 }
