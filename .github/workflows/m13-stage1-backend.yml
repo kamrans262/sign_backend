@@ -23,7 +23,7 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - name: Verify source, views, routes and schema
         run: |
-          for file in app/Services/WorkAcceptanceService.php app/Services/WorkAcceptanceCustomerService.php app/Http/Controllers/Api/WorkAcceptanceController.php app/Http/Controllers/Api/PublicWorkAcceptanceController.php app/Http/Controllers/Admin/WorkAcceptanceController.php database/migrations/2026_11_04_070000_create_work_acceptance_tables.php tests/Feature/M13WorkAcceptanceTest.php; do php -l "$file" || exit 1; done
+          for file in app/Services/WorkAcceptanceService.php app/Services/WorkAcceptanceCustomerService.php app/Http/Controllers/Api/WorkAcceptanceController.php app/Http/Controllers/Api/PublicWorkAcceptanceController.php app/Http/Controllers/Admin/WorkAcceptanceController.php database/migrations/2026_11_04_070000_create_work_acceptance_tables.php tests/Feature/M13WorkAcceptanceTest.php scripts/m13_release_preflight.php; do php -l "$file" || exit 1; done
           php artisan view:cache
           php artisan route:list --path=api/v1/work-acceptances
           php artisan route:list --path=accept-work
