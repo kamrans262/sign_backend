@@ -44,7 +44,7 @@ The M9 script uses only the additive M9 migration. It requires a valid backup, M
 - [ ] Admin list company/type/category/status/search filters operate correctly.
 - [ ] Real company document uploads, previews and SHA-256 verified downloads work.
 - [ ] Uploading version 2 leaves version 1 and its bytes intact.
-- [ ] Attachment uploads do not alter the original source PDF digest.
+- [ ] Attachment uploads do not alter the original source PDF digest; Flutter and admin downloads preserve image/PDF contents and verify SHA-256.
 - [ ] A member with documents.read cannot create files or versions.
 - [ ] Unsigned quotes have no verified signed PDF and cannot be signed by document upload.
 - [ ] Existing M7 approved/M8 signed PDFs remain unchanged and downloadable.
