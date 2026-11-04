@@ -169,8 +169,13 @@ final class JobNoteDocumentController extends Controller
         if (trim($values['title']) === '' || trim($values['content']) === '') {
             throw ValidationException::withMessages(['content' => 'Document title and content are required.']);
         }
-        DB::table('job_note_documents')->where('id', $draft)->where('status', 'draft')
+        // Atomic conditional update: a concurrent approval must never turn an
+        // immutable approved document back into an editable draft.
+        $changed = DB::table('job_note_documents')->where('id', $draft)
+            ->where('company_id', $company->id)->where('service_job_id', $target->id)
+            ->where('job_note_id', $source->id)->where('status', 'draft')
             ->update(['title' => trim($values['title']), 'content' => trim($values['content']), 'updated_at' => now()]);
+        abort_unless($changed === 1, 409, 'This draft is no longer editable.');
         AuditLogger::record('mobile.job_note_document.edited', $request->user(), null, $company,
             ['draft_id' => $draft, 'job_id' => $job], $request);
         return $this->respond(['document' => $this->summary($this->draft($company->id, $job, $note, $draft))]);
