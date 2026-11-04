@@ -112,7 +112,7 @@ final class SiteReportController extends Controller
 
     private function editRow(int $id): object
     {
-        return \Illuminate\Support\Facades\DB::table('site_reports')->findOrFail($id);
+        return \Illuminate\Support\Facades\DB::table('site_reports')->where('id',$id)->firstOrFail();
     }
 
     public function approve(Request $request,int $report): RedirectResponse
