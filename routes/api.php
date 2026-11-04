@@ -221,6 +221,26 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
         });
 
+        // M15: authenticated, tenant-bound time, labour, timers and cost summaries.
+        Route::middleware(['company.access','company.permission:jobs.read'])->group(function (): void {
+            Route::get('/labour/entries', [\App\Http\Controllers\Api\LabourController::class,'index']);
+            Route::get('/labour/entries/{entry}', [\App\Http\Controllers\Api\LabourController::class,'show'])->whereNumber('entry');
+            Route::get('/labour/entries/{entry}/evidence/{evidence}', [\App\Http\Controllers\Api\LabourController::class,'evidenceFile'])->whereNumber('entry')->whereNumber('evidence')->middleware('throttle:30,1');
+            Route::get('/labour/timer/current', [\App\Http\Controllers\Api\LabourTimerController::class,'current']);
+            Route::get('/jobs/{job}/labour-workers', [\App\Http\Controllers\Api\LabourController::class,'workforce'])->whereNumber('job');
+            Route::get('/jobs/{job}/labour-summary', [\App\Http\Controllers\Api\LabourController::class,'summary'])->whereNumber('job');
+            Route::get('/jobs/{job}/cost-summary', [\App\Http\Controllers\Api\LabourController::class,'summary'])->whereNumber('job');
+        });
+        Route::middleware(['company.access','company.permission:jobs.write'])->group(function (): void {
+            Route::post('/labour/entries', [\App\Http\Controllers\Api\LabourController::class,'store'])->middleware('throttle:30,1');
+            Route::patch('/labour/entries/{entry}', [\App\Http\Controllers\Api\LabourController::class,'update'])->whereNumber('entry');
+            Route::post('/labour/entries/{entry}/approve', [\App\Http\Controllers\Api\LabourController::class,'approve'])->whereNumber('entry')->middleware('throttle:10,1');
+            Route::post('/labour/entries/{entry}/void', [\App\Http\Controllers\Api\LabourController::class,'void'])->whereNumber('entry')->middleware('throttle:10,1');
+            Route::post('/labour/entries/{entry}/evidence', [\App\Http\Controllers\Api\LabourController::class,'upload'])->whereNumber('entry')->middleware('throttle:20,1');
+            Route::delete('/labour/entries/{entry}/evidence/{evidence}', [\App\Http\Controllers\Api\LabourController::class,'removeEvidence'])->whereNumber('entry')->whereNumber('evidence');
+            Route::post('/labour/timer/{action}', [\App\Http\Controllers\Api\LabourTimerController::class,'action'])->whereIn('action',['start','pause','resume','stop'])->middleware('throttle:30,1');
+            Route::post('/labour/ai/voice', [\App\Http\Controllers\Api\LabourAiController::class,'voice'])->middleware('throttle:6,1');
+        });
         // M14: company-isolated purchases, private receipts and job budget aggregates.
         Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
             Route::get('/expenses', [\App\Http\Controllers\Api\ExpenseController::class,'index']);
