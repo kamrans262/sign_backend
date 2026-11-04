@@ -2,11 +2,19 @@
 
 **STATUS: Automated acceptance substantially passed; live production deployment remains ON HOLD because on-server backup/restore, existing-customer PDF compatibility, live SMTP receipt, and physical devices have not been verified.**
 
+## Live Hostinger evidence supplied by operator (2026-11-04)
+
+- M7 production detached HEAD **934eae5**; working tree clean. The server's `M7_PREFLIGHT_PASS` confirms production mode, debug disabled, HTTPS, MySQL connection, private PDF storage, M7 migration and M7 authorization routes.
+- Read-only historical PDF scan: **1** approved/sent quote checked; **1** missing original frozen approved PDF; **0** corruption/hash mismatches, **0** compressed/encrypted candidates, **0** verified classic-xref candidates. This existing legacy quote **cannot be signed through M8** unless a newly approved, properly frozen document is created; do not silently alter the historical quote or claim compatibility of untested bytes.
+- Private backup completed by operator at `/home/u777477188/sign2digital-release-backups/m8_20261104T001601Z`. Output: `M8_BACKUP_CREATED` and `M8_BACKUP_CHECKSUMS_PASS`. This establishes creation and SHA-256 consistency, **not a successful isolated MySQL restore**.
+- The backup script makes no migrations or deployment changes. Hostinger's M8 preflight, real SMTP test, real iOS/Android device test, and actual code release remain outstanding.
+- **Release decision remains HOLD** until restore and independent live acceptance evidence exists.
+
 ## Repository and safe ancestry
 
 - Backend: kamrans262/sign_backend, feature/m8-digital-signatures-2026-11-04
 - Flutter: kamrans262/sign_app, feature/m8-digital-signatures-2026-11-04
-- Last user-confirmed production M7 backend: 934eae5dcff53b2d185671cac7d5cfd479fd699f (clean and M7 migrated). Not independently reread from Hostinger today.
+- Operator-confirmed 2026-11-04 production M7 backend: 934eae5dcff53b2d185671cac7d5cfd479fd699f (clean detached HEAD, M7_PREFLIGHT_PASS).
 - GitHub comparison confirmed this M7 production SHA is an ancestor of the backend M8 branch. No production, main or development branch changed in Stage 2.
 
 ## Automated verification
@@ -18,10 +26,10 @@
 | Flutter feature regression and analyzer after PDF version change | PASS | 41744158505 |
 | Real Flutter builder's synthetic approved PDF imported with PHP 8.4 FPDI 2.6.9; evidence appended, original digest unchanged | PASS | 41744158720 |
 | Android debug APK + iOS Simulator no-codesign compilation | PASS | 41742906137 |
-| Historic live customer PDF compatibility | UNKNOWN — Hostinger direct access missing |
+| Historic live customer PDF compatibility | LIVE SCAN: one legacy quote has no frozen PDF; no existing compatible PDF sample to import |
 | Real SMTP inbox attachment verification, both parties | UNKNOWN — mocked mail tests only |
 | Physical Android and iOS signing in portrait/landscape | NOT PERFORMED |
-| MySQL+private PDF+.env backup and isolated database restore | NOT PERFORMED |
+| MySQL+private PDF+.env backup and isolated database restore | BACKUP AND SHA-256 PASS; isolated restore still NOT PERFORMED |
 | Production M8 migration and live deployment | NOT PERFORMED |
 
 CI pass is not equivalent to a live production or physical-device acceptance.
