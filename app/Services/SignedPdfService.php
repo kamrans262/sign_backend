@@ -49,7 +49,7 @@ final class SignedPdfService
      */
     public function build(string $approvedBytes, string $quoteNumber, string $sourceHash,
         string $documentId, string $requestId, \DateTimeInterface $signedAt,
-        array $signers, string $consentReference): string
+        array $signers, string $consentReference, string $documentType = 'Quote'): string
     {
         if (strlen($approvedBytes) > 5 * 1024 * 1024 ||
             !str_starts_with($approvedBytes,'%PDF-') || count($signers) < 1 ||
@@ -63,7 +63,7 @@ final class SignedPdfService
 
         $pdf = new Fpdi();
         $pdf->SetAutoPageBreak(false);
-        $pdf->SetTitle(self::label('Sign2Digital Signed Quote '.$quoteNumber));
+        $pdf->SetTitle(self::label('Sign2Digital Signed '.$documentType.' '.$quoteNumber));
         $pdf->SetAuthor('Sign2Digital');
 
         // Parser errors propagate. Never generate a new quote layout from
@@ -90,7 +90,7 @@ final class SignedPdfService
         $pdf->SetLineWidth(0.5);
         $pdf->Line(20,34,188,34);
         $pdf->SetY(39);
-        $this->text($pdf,'Document','Quote '.self::label($quoteNumber));
+        $this->text($pdf,'Document',self::label($documentType.' '.$quoteNumber));
         $this->text($pdf,'Sign2Digital document ID',$documentId);
         $this->text($pdf,'Signature request ID',$requestId);
         $this->text($pdf,'Approved document SHA-256',$sourceHash);
