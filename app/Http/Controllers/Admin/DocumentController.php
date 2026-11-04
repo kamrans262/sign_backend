@@ -56,9 +56,11 @@ final class DocumentController extends Controller
             'versions'=>$this->documents->versions($companyId,$document),
             'attachments'=>$this->documents->attachments($companyId,$document),
             'history'=>$this->documents->history($companyId,$document),
-            'm12Locked'=>str_starts_with($document,'managed-') &&
+            'm12Locked'=>str_starts_with($document,'managed-') && (
                 DB::table('site_reports')->where('company_id',$companyId)
-                    ->where('managed_document_id',(int)substr($document,8))->exists(),
+                    ->where('managed_document_id',(int)substr($document,8))->exists() ||
+                DB::table('work_acceptances')->where('company_id',$companyId)
+                    ->where('managed_document_id',(int)substr($document,8))->exists()),
         ]);
     }
 

@@ -38,7 +38,7 @@
     <button class="btn btn-primary" type="submit">Add Version</button>
   </form>
   @elseif($m12Locked)
-  <p style="padding:20px">This approved report is immutable. To make corrections, create a new report.</p>
+  <p style="padding:20px">This approved or signed document is immutable. To make corrections, create a new record.</p>
   @endif
 </section>
 <section class="panel">
