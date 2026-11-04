@@ -198,6 +198,7 @@ final class ExpenseService
                 409,'This expense has changed; reload before editing.');
             abort_unless((int)$current->service_job_id===$job->id,
                 409,'An expense cannot move to another job.');
+            if(!array_key_exists('tags',$data))unset($values['tags']);
             $values['lock_version']=(int)$current->lock_version+1;
             DB::table('job_expenses')->where('id',$id)->update($values);
             $row=$this->find($company->id,$id);
