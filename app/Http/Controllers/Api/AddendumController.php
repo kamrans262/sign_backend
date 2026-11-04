@@ -31,7 +31,7 @@ final class AddendumController extends Controller
     private static function inputs(Request $request, bool $create = true): array
     {
         return $request->validate([
-            'source_signed_artifact_id'=>[$create?'required':'prohibited','integer','min:1'],
+            'source_signed_artifact_id'=>$create ? ['required','integer','min:1'] : ['prohibited'],
             'number'=>['required','string','max:80'],
             'title'=>['required','string','max:255'],
             'change_description'=>['required','string','max:10000'],
@@ -40,8 +40,8 @@ final class AddendumController extends Controller
             'quantity'=>['nullable','integer','between:1,100000'],
             'unit_price_minor'=>['nullable','integer','between:1,100000000000'],
             'vat_basis_points'=>['required','integer','between:0,10000'],
-            if ($create) 'source_document_id'=>['prohibited'],
-            if (!$create) 'expected_revision'=>['required','integer','min:1'],
+            'source_document_id'=>['prohibited'],
+            'expected_revision'=>$create ? ['prohibited'] : ['required','integer','min:1'],
         ]);
     }
 
@@ -151,7 +151,7 @@ final class AddendumController extends Controller
             abort_unless((int)$item->revision===(int)$fields['expected_revision'],409,
                 'Addendum changed elsewhere. Reload first.');
             abort_if(Addendum::query()->where('company_id',$company->id)
-                ->where('number',$values['number'])->whereKeyNot($item->id)->exists(),
+                ->where('number',$values['number'])->where('id','!=',$item->id)->exists(),
                 409,'This addendum number is already used.');
             $item->update(array_merge($values,[
                 'revision'=>$item->revision+1,'updated_by'=>$request->user()->id,
