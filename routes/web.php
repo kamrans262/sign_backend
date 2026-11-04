@@ -93,6 +93,19 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/job-media/{kind}/{id}', [\App\Http\Controllers\Admin\JobMediaController::class, 'update'])->whereNumber('id')->name('job-media.update');
         Route::post('/job-media/{kind}/{id}/archive', [\App\Http\Controllers\Admin\JobMediaController::class, 'archive'])->whereNumber('id')->name('job-media.archive');
         Route::get('/job-media/{kind}/{id}/download', [\App\Http\Controllers\Admin\JobMediaController::class, 'download'])->whereNumber('id')->name('job-media.download');
+        // M15: dedicated, platform-admin-only Time & Labour Management.
+        Route::get('/time-labour', [\App\Http\Controllers\Admin\LabourController::class,'index'])->name('labour.index');
+        Route::get('/time-labour/export', [\App\Http\Controllers\Admin\LabourController::class,'export'])->name('labour.export');
+        Route::get('/time-labour/create', [\App\Http\Controllers\Admin\LabourController::class,'create'])->name('labour.create');
+        Route::post('/time-labour', [\App\Http\Controllers\Admin\LabourController::class,'store'])->name('labour.store');
+        Route::get('/time-labour/{entry}/edit', [\App\Http\Controllers\Admin\LabourController::class,'edit'])->whereNumber('entry')->name('labour.edit');
+        Route::patch('/time-labour/{entry}', [\App\Http\Controllers\Admin\LabourController::class,'update'])->whereNumber('entry')->name('labour.update');
+        Route::post('/time-labour/{entry}/approve', [\App\Http\Controllers\Admin\LabourController::class,'approve'])->whereNumber('entry')->name('labour.approve');
+        Route::post('/time-labour/{entry}/void', [\App\Http\Controllers\Admin\LabourController::class,'void'])->whereNumber('entry')->name('labour.void');
+        Route::post('/time-labour/{entry}/evidence', [\App\Http\Controllers\Admin\LabourController::class,'upload'])->whereNumber('entry')->name('labour.upload');
+        Route::get('/time-labour/{entry}/evidence/{evidence}', [\App\Http\Controllers\Admin\LabourController::class,'evidenceFile'])->whereNumber('entry')->whereNumber('evidence')->name('labour.evidence.file');
+        Route::delete('/time-labour/{entry}/evidence/{evidence}', [\App\Http\Controllers\Admin\LabourController::class,'removeEvidence'])->whereNumber('entry')->whereNumber('evidence')->name('labour.evidence.remove');
+        Route::post('/time-labour/timer/{company}/{worker}/stop', [\App\Http\Controllers\Admin\LabourController::class,'stopTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.stop');
         // M14: dedicated Expenses Management behind platform administrator authentication.
         Route::get('/expenses', [\App\Http\Controllers\Admin\ExpenseController::class,'index'])->name('expenses.index');
         Route::get('/expenses/create', [\App\Http\Controllers\Admin\ExpenseController::class,'create'])->name('expenses.create');
