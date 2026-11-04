@@ -35,6 +35,23 @@ Route::get('/public/signing/{token}/pdf',
     [\App\Http\Controllers\Api\PublicSignatureController::class, 'approvedPdf'])
     ->middleware('throttle:15,1')->name('signing.public.pdf');
 
+// M10: separate, expiring addendum capability. No quote signing token is accepted.
+Route::get('/public/addenda/{token}',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'open'])
+    ->middleware('throttle:30,1')->name('addenda.public.api');
+Route::get('/public/addenda/{token}/pdf',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'approvedPdf'])
+    ->middleware('throttle:15,1')->name('addenda.public.pdf.api');
+Route::post('/public/addenda/{token}/submit',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'submit'])
+    ->middleware('throttle:6,1')->name('addenda.public.submit.api');
+Route::get('/public/addenda/{token}/receipt',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'receipt'])
+    ->middleware('throttle:30,1')->name('addenda.public.receipt.api');
+Route::get('/public/addenda/{token}/signed-pdf',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'signedPdf'])
+    ->middleware('throttle:12,1')->name('addenda.public.signedPdf.api');
+
 Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
     Route::post('/v1/auth/logout', [\App\Http\Controllers\Api\MobileAuthController::class, 'logout']);
     // Existing route retained for older clients.
@@ -162,6 +179,31 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::delete('/quotes/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class,'archive'])->whereNumber('quote');
             Route::post('/quotes/prepare/{method}', [\App\Http\Controllers\Api\QuoteAiController::class,'prepare'])
                 ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
+        });
+
+        // M10: signed-source addenda are separate from M7/M8 original artifacts.
+        Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
+            Route::get('/addenda', [\App\Http\Controllers\Api\AddendumController::class,'index']);
+            Route::get('/addenda/{addendum}', [\App\Http\Controllers\Api\AddendumController::class,'show'])->whereNumber('addendum');
+            Route::get('/addenda/{addendum}/history', [\App\Http\Controllers\Api\AddendumController::class,'history'])->whereNumber('addendum');
+            Route::get('/addenda/{addendum}/pdf', [\App\Http\Controllers\Api\AddendumController::class,'pdf'])
+                ->whereNumber('addendum')->middleware('throttle:30,1');
+            Route::get('/addenda/{addendum}/signature-requests',
+                [\App\Http\Controllers\Api\AddendumController::class,'requests'])->whereNumber('addendum');
+        });
+        Route::middleware(['company.access','company.permission:documents.write'])->group(function (): void {
+            Route::post('/addenda', [\App\Http\Controllers\Api\AddendumController::class,'store'])
+                ->middleware('throttle:15,1');
+            Route::patch('/addenda/{addendum}', [\App\Http\Controllers\Api\AddendumController::class,'update'])
+                ->whereNumber('addendum');
+            Route::post('/addenda/{addendum}/approve', [\App\Http\Controllers\Api\AddendumController::class,'approve'])
+                ->whereNumber('addendum')->middleware('throttle:10,1');
+            Route::post('/addenda/{addendum}/signature-requests',
+                [\App\Http\Controllers\Api\AddendumController::class,'requestSignature'])
+                ->whereNumber('addendum')->middleware('throttle:10,1');
+            Route::post('/addenda/{addendum}/signature-requests/{signature}/revoke',
+                [\App\Http\Controllers\Api\AddendumController::class,'revoke'])
+                ->whereNumber('addendum')->whereNumber('signature')->middleware('throttle:10,1');
         });
 
         // M9: unified document catalog; M7 and M8 originals are read-only sources.
