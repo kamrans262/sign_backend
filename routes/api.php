@@ -213,6 +213,29 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
         });
 
+        // M13: separate customer acceptance lifecycle; quote signing remains unchanged.
+        Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
+            Route::get('/work-acceptances', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'index']);
+            Route::get('/work-acceptances/{acceptance}', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'show'])->whereNumber('acceptance');
+            Route::get('/work-acceptances/{acceptance}/signature', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'signature'])->whereNumber('acceptance')->middleware('throttle:30,1');
+            Route::get('/work-acceptances/{acceptance}/pdf/{kind}', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'pdf'])->whereNumber('acceptance')->whereIn('kind',['approved','signed'])->middleware('throttle:30,1');
+            Route::get('/work-acceptances/{acceptance}/requests', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'requests'])->whereNumber('acceptance');
+        });
+        Route::middleware(['company.access','company.permission:documents.write',
+            'company.permission:jobs.read'])->group(function (): void {
+            Route::post('/work-acceptances', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'store'])->middleware('throttle:20,1');
+            Route::patch('/work-acceptances/{acceptance}', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'update'])->whereNumber('acceptance');
+            Route::post('/work-acceptances/{acceptance}/approve', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'approve'])->whereNumber('acceptance')->middleware('throttle:10,1');
+            Route::post('/work-acceptances/{acceptance}/send', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'send'])->whereNumber('acceptance')->middleware('throttle:6,1');
+            Route::post('/work-acceptances/{acceptance}/requests/{signature}/revoke', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'revoke'])->whereNumber('acceptance')->whereNumber('signature');
+        });
+        // M13 public capability; throttle and token hash checks in the controller.
+        Route::get('/public/work-acceptance/{token}', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'open'])->middleware('throttle:30,1');
+        Route::get('/public/work-acceptance/{token}/approved-pdf', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'approvedPdf'])->middleware('throttle:15,1');
+        Route::post('/public/work-acceptance/{token}/submit', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'submit'])->middleware('throttle:6,1');
+        Route::get('/public/work-acceptance/{token}/receipt', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'receipt'])->middleware('throttle:30,1');
+        Route::get('/public/work-acceptance/{token}/signed-pdf', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'signedPdf'])->middleware('throttle:12,1');
+
         // M12: opt-in report dictation, no private audio persisted or published.
         Route::middleware(['company.access','company.permission:jobs.read',
             'company.permission:documents.write'])->post('/reports/voice/transcribe',

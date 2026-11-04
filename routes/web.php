@@ -64,6 +64,18 @@ Route::get('/addendum-sign/{token}/signed-pdf',
     [\App\Http\Controllers\Api\PublicAddendumController::class,'signedPdf'])
     ->middleware('throttle:12,1')->name('addenda.public.signedPdf');
 
+// M13 customer work acceptance, independent of quote signing links.
+Route::get('/accept-work/{token}', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'open'])
+    ->middleware('throttle:30,1')->name('acceptance.public.open');
+Route::get('/accept-work/{token}/approved-pdf', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'approvedPdf'])
+    ->middleware('throttle:15,1')->name('acceptance.public.approvedPdf');
+Route::post('/accept-work/{token}/submit', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'submit'])
+    ->middleware('throttle:6,1')->name('acceptance.public.submit');
+Route::get('/accept-work/{token}/receipt', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'receipt'])
+    ->middleware('throttle:30,1')->name('acceptance.public.receipt');
+Route::get('/accept-work/{token}/signed-pdf', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'signedPdf'])
+    ->middleware('throttle:12,1')->name('acceptance.public.signedPdf');
+
 Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/login', [AuthController::class, 'show'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
