@@ -1,0 +1,32 @@
+name: M13 Stage 1 Work Acceptance and Customer Signing
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m13-stage1-backend
+  cancel-in-progress: true
+jobs:
+  acceptance-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Verify source, views, routes and schema
+        run: |
+          for file in app/Services/WorkAcceptanceService.php app/Services/WorkAcceptanceCustomerService.php app/Http/Controllers/Api/WorkAcceptanceController.php app/Http/Controllers/Api/PublicWorkAcceptanceController.php app/Http/Controllers/Admin/WorkAcceptanceController.php database/migrations/2026_11_04_070000_create_work_acceptance_tables.php tests/Feature/M13WorkAcceptanceTest.php; do php -l "$file" || exit 1; done
+          php artisan view:cache
+          php artisan route:list --path=api/v1/work-acceptances
+          php artisan route:list --path=accept-work
+          php artisan route:list --path=admin/work-acceptances
+      - name: M13 plus M12 and M8 security regression
+        run: php artisan test --filter='M(13WorkAcceptance|12ReportsManagement|8SigningCompletion|9DocumentManagement)Test'
