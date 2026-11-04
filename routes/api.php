@@ -161,6 +161,23 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/jobs/{job}/restore', [\App\Http\Controllers\Api\ServiceJobController::class, 'restore'])->whereNumber('job');
         });
 
+        // M11: private, tenant-scoped job photographs and notes.
+        Route::middleware(['company.access', 'company.permission:jobs.read'])->group(function (): void {
+            Route::get('/jobs/{job}/photos', [\App\Http\Controllers\Api\JobMediaController::class, 'photos'])->whereNumber('job');
+            Route::get('/jobs/{job}/photos/{photo}/file', [\App\Http\Controllers\Api\JobMediaController::class, 'photoFile'])->whereNumber('job')->whereNumber('photo');
+            Route::get('/jobs/{job}/notes', [\App\Http\Controllers\Api\JobMediaController::class, 'notes'])->whereNumber('job');
+            Route::get('/jobs/{job}/notes/{note}', [\App\Http\Controllers\Api\JobMediaController::class, 'showNote'])->whereNumber('job')->whereNumber('note');
+            Route::get('/jobs/{job}/notes/{note}/audio', [\App\Http\Controllers\Api\JobMediaController::class, 'noteAudio'])->whereNumber('job')->whereNumber('note');
+        });
+        Route::middleware(['company.access', 'company.permission:jobs.write'])->group(function (): void {
+            Route::post('/jobs/{job}/photos', [\App\Http\Controllers\Api\JobMediaController::class, 'uploadPhoto'])->whereNumber('job')->middleware('throttle:20,1');
+            Route::patch('/jobs/{job}/photos/{photo}', [\App\Http\Controllers\Api\JobMediaController::class, 'updatePhoto'])->whereNumber('job')->whereNumber('photo');
+            Route::delete('/jobs/{job}/photos/{photo}', [\App\Http\Controllers\Api\JobMediaController::class, 'deletePhoto'])->whereNumber('job')->whereNumber('photo');
+            Route::post('/jobs/{job}/notes', [\App\Http\Controllers\Api\JobMediaController::class, 'createNote'])->whereNumber('job')->middleware('throttle:20,1');
+            Route::patch('/jobs/{job}/notes/{note}', [\App\Http\Controllers\Api\JobMediaController::class, 'updateNote'])->whereNumber('job')->whereNumber('note');
+            Route::delete('/jobs/{job}/notes/{note}', [\App\Http\Controllers\Api\JobMediaController::class, 'deleteNote'])->whereNumber('job')->whereNumber('note');
+        });
+
         // M6: tenant-scoped quotes; AI is always proxied by Laravel, never by client keys.
         Route::middleware(['company.access','company.permission:quotes.read'])->group(function (): void {
             Route::get('/quotes', [\App\Http\Controllers\Api\ServiceQuoteController::class,'index']);
