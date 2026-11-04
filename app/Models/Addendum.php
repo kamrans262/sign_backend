@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class Addendum extends Model
 {
+    protected $table = 'addenda';
     protected $guarded = [];
 
     protected $hidden = ['approved_pdf_path', 'signed_pdf_path'];
