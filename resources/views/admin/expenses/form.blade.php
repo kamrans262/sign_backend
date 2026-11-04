@@ -25,6 +25,7 @@
 <label>Date <input class="input" type="date" name="expense_date" required value="{{ old('expense_date',$record['expense_date']??date('Y-m-d')) }}" @readonly(!$draft)></label>
 <label>Amount (CHF) <input class="input" type="text" inputmode="decimal" name="amount" required value="{{ old('amount',$editing?number_format($record['amount_minor']/100,2,'.',''):'') }}" @readonly(!$draft) placeholder="98.00"></label>
 <label>Description <textarea class="input" name="description" maxlength="12000" rows="4" @readonly(!$draft)>{{ old('description',$record['description']??'') }}</textarea></label>
+<label>Tags (comma separated) <input class="input" name="tags_text" maxlength="900" value="{{ old('tags_text',implode(', ',$record['tags']??[])) }}" @readonly(!$draft)></label>
 @if($draft)<div><button class="btn btn-primary" type="submit">{{ $editing?'Update Expense':'Create Expense' }}</button></div>@endif
 </form></section>
 @if($editing)
