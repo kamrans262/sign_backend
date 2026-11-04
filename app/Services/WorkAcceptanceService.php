@@ -400,14 +400,27 @@ final class WorkAcceptanceService
             throw $error;
         }
         DB::transaction(function()use($signingId,$row,$request):void {
+            // The customer may open, sign, or have the link revoked while SMTP
+            // is completing. Email success must never rewind that final state.
+            $link=DB::table('work_acceptance_requests')->where('id',$signingId)
+                ->lockForUpdate()->firstOrFail();
+            $latest=DB::table('work_acceptances')
+                ->where('company_id',$row->company_id)->where('id',$row->id)
+                ->lockForUpdate()->firstOrFail();
+            if($link->status==='revoked')return;
+            abort_unless(in_array($link->status,
+                ['ready','sent','viewed','signed'],true),409);
+            $linkChanges=['sent_at'=>now(),'updated_at'=>now()];
+            if($link->status==='ready')$linkChanges['status']='sent';
             DB::table('work_acceptance_requests')->where('id',$signingId)
-                ->where('status','ready')->update([
-                    'status'=>'sent','sent_at'=>now(),'updated_at'=>now(),
-                ]);
-            DB::table('work_acceptances')->where('id',$row->id)->update([
-                'status'=>'sent','sent_at'=>now(),'updated_at'=>now(),
-            ]);
-            $this->event($row,'sent',$request->user()?->id,$signingId);
+                ->update($linkChanges);
+            $reportChanges=['sent_at'=>now(),'updated_at'=>now()];
+            if($latest->status==='approved' && $link->status==='ready') {
+                $reportChanges['status']='sent';
+            }
+            DB::table('work_acceptances')->where('id',$row->id)
+                ->update($reportChanges);
+            $this->event($latest,'sent',$request->user()?->id,$signingId);
         });
         AuditLogger::record('mobile.acceptance.sent',$request->user(),null,
             $company,['acceptance_id'=>$id,'request_id'=>$signingId],$request);
