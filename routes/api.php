@@ -52,6 +52,14 @@ Route::get('/public/addenda/{token}/signed-pdf',
     [\App\Http\Controllers\Api\PublicAddendumController::class,'signedPdf'])
     ->middleware('throttle:12,1')->name('addenda.public.signedPdf.api');
 
+// M13 public capability; throttle and token hash checks in the controller.
+Route::get('/public/work-acceptance/{token}', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'open'])->middleware('throttle:30,1');
+Route::get('/public/work-acceptance/{token}/approved-pdf', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'approvedPdf'])->middleware('throttle:15,1');
+Route::post('/public/work-acceptance/{token}/submit', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'submit'])->middleware('throttle:6,1');
+Route::get('/public/work-acceptance/{token}/receipt', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'receipt'])->middleware('throttle:30,1');
+Route::get('/public/work-acceptance/{token}/signed-pdf', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'signedPdf'])->middleware('throttle:12,1');
+
+
 Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
     Route::post('/v1/auth/logout', [\App\Http\Controllers\Api\MobileAuthController::class, 'logout']);
     // Existing route retained for older clients.
@@ -229,13 +237,6 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/work-acceptances/{acceptance}/send', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'send'])->whereNumber('acceptance')->middleware('throttle:6,1');
             Route::post('/work-acceptances/{acceptance}/requests/{signature}/revoke', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'revoke'])->whereNumber('acceptance')->whereNumber('signature');
         });
-        // M13 public capability; throttle and token hash checks in the controller.
-        Route::get('/public/work-acceptance/{token}', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'open'])->middleware('throttle:30,1');
-        Route::get('/public/work-acceptance/{token}/approved-pdf', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'approvedPdf'])->middleware('throttle:15,1');
-        Route::post('/public/work-acceptance/{token}/submit', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'submit'])->middleware('throttle:6,1');
-        Route::get('/public/work-acceptance/{token}/receipt', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'receipt'])->middleware('throttle:30,1');
-        Route::get('/public/work-acceptance/{token}/signed-pdf', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'signedPdf'])->middleware('throttle:12,1');
-
         // M12: opt-in report dictation, no private audio persisted or published.
         Route::middleware(['company.access','company.permission:jobs.read',
             'company.permission:documents.write'])->post('/reports/voice/transcribe',

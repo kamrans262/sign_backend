@@ -353,6 +353,9 @@ final class DocumentCatalogService
                     abort_if(DB::table('site_reports')->where('company_id',$companyId)
                         ->where('managed_document_id',$managed->id)->exists(),409,
                         'Approved site reports and meeting minutes cannot receive new PDF versions.');
+                    abort_if(DB::table('work_acceptances')->where('company_id',$companyId)
+                        ->where('managed_document_id',$managed->id)->exists(),409,
+                        'Signed work acceptance PDFs are immutable and cannot be versioned.');
                     $id=(int)$managed->id;
                     $version=(int)$managed->current_version+1;
                     DB::table('managed_documents')->where('id',$id)->update([

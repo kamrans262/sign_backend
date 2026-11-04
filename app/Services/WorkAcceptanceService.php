@@ -309,6 +309,8 @@ final class WorkAcceptanceService
                     (int)$locked->revision===(int)$request->input('revision'),409,
                     'Report already approved or revised.');
                 $bytes=$this->basePdf($locked);
+                abort_unless(strlen($bytes)<=5*1024*1024,422,
+                    'Reduce selected photos to keep the frozen source PDF under 5 MB.');
                 $sha=hash('sha256',$bytes);
                 $path='work-acceptance/approved/'.$company->id.'/'.$id.'/'.$sha.'.pdf';
                 $disk=Storage::disk('local');
