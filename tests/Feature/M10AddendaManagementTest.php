@@ -253,6 +253,10 @@ final class M10AddendaManagementTest extends TestCase
     }
     public function test_public_customer_signs_separate_addendum_once_without_modifying_original(): void
     {
+        // All security validations remain active; only the shared, per-IP
+        // throttle state is bypassed for deterministic in-process PDF tests.
+        // Production routes continue to use their actual 6/min rate limit.
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Storage::fake('local');
         [$owner,$company,$client]=$this->tenant();
         [$artifact,$original]=$this->signedOriginal($company,$client);
