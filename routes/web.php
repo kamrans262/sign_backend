@@ -93,6 +93,18 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/job-media/{kind}/{id}', [\App\Http\Controllers\Admin\JobMediaController::class, 'update'])->whereNumber('id')->name('job-media.update');
         Route::post('/job-media/{kind}/{id}/archive', [\App\Http\Controllers\Admin\JobMediaController::class, 'archive'])->whereNumber('id')->name('job-media.archive');
         Route::get('/job-media/{kind}/{id}/download', [\App\Http\Controllers\Admin\JobMediaController::class, 'download'])->whereNumber('id')->name('job-media.download');
+        // M14: dedicated Expenses Management behind platform administrator authentication.
+        Route::get('/expenses', [\App\Http\Controllers\Admin\ExpenseController::class,'index'])->name('expenses.index');
+        Route::get('/expenses/create', [\App\Http\Controllers\Admin\ExpenseController::class,'create'])->name('expenses.create');
+        Route::post('/expenses', [\App\Http\Controllers\Admin\ExpenseController::class,'store'])->name('expenses.store');
+        Route::get('/expenses/{expense}/edit', [\App\Http\Controllers\Admin\ExpenseController::class,'edit'])->whereNumber('expense')->name('expenses.edit');
+        Route::patch('/expenses/{expense}', [\App\Http\Controllers\Admin\ExpenseController::class,'update'])->whereNumber('expense')->name('expenses.update');
+        Route::post('/expenses/{expense}/approve', [\App\Http\Controllers\Admin\ExpenseController::class,'approve'])->whereNumber('expense')->name('expenses.approve');
+        Route::post('/expenses/{expense}/request-reimbursement', [\App\Http\Controllers\Admin\ExpenseController::class,'requestReimbursement'])->whereNumber('expense')->name('expenses.requestReimbursement');
+        Route::post('/expenses/{expense}/reimburse', [\App\Http\Controllers\Admin\ExpenseController::class,'reimburse'])->whereNumber('expense')->name('expenses.reimburse');
+        Route::post('/expenses/{expense}/receipts', [\App\Http\Controllers\Admin\ExpenseController::class,'upload'])->whereNumber('expense')->name('expenses.upload');
+        Route::get('/expenses/{expense}/receipts/{receipt}', [\App\Http\Controllers\Admin\ExpenseController::class,'receipt'])->whereNumber('expense')->whereNumber('receipt')->name('expenses.receipt');
+        Route::delete('/expenses/{expense}/receipts/{receipt}', [\App\Http\Controllers\Admin\ExpenseController::class,'removeReceipt'])->whereNumber('expense')->whereNumber('receipt')->name('expenses.removeReceipt');
         // M13 Work Acceptance Management; all routes inherit platform admin auth.
         Route::get('/work-acceptances', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'index'])->name('acceptances.index');
         Route::get('/work-acceptances/create', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'create'])->name('acceptances.create');
