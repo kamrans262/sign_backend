@@ -139,6 +139,11 @@ final class JobMediaController extends Controller
         $meta = is_string($bytes) ? @getimagesizefromstring($bytes) : false;
         abort_unless(is_array($meta) && in_array($meta['mime'] ?? null,['image/jpeg','image/png'],true),422,'Invalid image.');
         $mime = $meta['mime'];
+        if (DB::table('job_photos')->where('company_id',$job->company_id)
+            ->where('service_job_id',$job->id)->whereNull('archived_at')
+            ->where('sha256',hash('sha256',$bytes))->exists()) {
+            return back()->withErrors(['file'=>'This photo already exists for this job.']);
+        }
         $path = 'job-media/'.$job->company_id.'/'.$job->id.'/photos/'.Str::uuid().($mime==='image/png'?'.png':'.jpg');
         abort_unless(Storage::disk('local')->put($path,$bytes),503);
         try {

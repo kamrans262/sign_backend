@@ -65,6 +65,10 @@ class M11JobMediaTest extends TestCase
         Storage::fake('local');
         [$user,$company,$job] = $this->tenant('One');
         $photo = $this->upload($job);
+        $this->post('/api/v1/jobs/'.$job.'/photos',[
+            'file'=>$this->photo(),'category'=>'after','caption'=>'Duplicate',
+        ],['Accept'=>'application/json'])->assertUnprocessable();
+        $this->assertDatabaseCount('job_photos',1);
         $this->getJson('/api/v1/jobs/'.$job.'/photos')->assertOk()
             ->assertJsonCount(1,'data.photos')
             ->assertJsonPath('data.photos.0.category','before');

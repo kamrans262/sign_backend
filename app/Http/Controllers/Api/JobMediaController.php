@@ -99,6 +99,12 @@ final class JobMediaController extends Controller
         $image = @getimagesizefromstring($bytes);
         $mime = $image['mime'] ?? null;
         if (!in_array($mime, ['image/jpeg', 'image/png'], true)) abort(422, 'Invalid image encoding.');
+        // Reject duplicate content even across app restarts or repeated uploads.
+        if (DB::table('job_photos')->where('company_id',$target->company_id)
+            ->where('service_job_id',$target->id)->where('sha256',hash('sha256',$bytes))
+            ->whereNull('archived_at')->exists()) {
+            throw ValidationException::withMessages(['file'=>'This photo already exists for this job.']);
+        }
         $suffix = $mime === 'image/png' ? 'png' : 'jpg';
         $path = 'job-media/'.$target->company_id.'/'.$target->id.'/photos/'.Str::uuid().'.'.$suffix;
         if (!Storage::disk('local')->put($path, $bytes)) abort(503, 'Private storage unavailable.');
