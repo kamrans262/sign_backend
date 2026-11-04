@@ -77,6 +77,7 @@ final class SiteReportController extends Controller
         $company=$this->company($request);
         $record=$this->reports->find($company->id,$report);
         $bytes=$this->reports->verifiedPdf($company->id,$report);
+        $this->reports->logDownload($request,$company,$report);
         return response($bytes,200,[
             'Content-Type'=>'application/pdf',
             'Content-Disposition'=>'attachment; filename="'.$record->number.'.pdf"',

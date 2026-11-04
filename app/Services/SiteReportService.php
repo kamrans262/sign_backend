@@ -155,7 +155,7 @@ final class SiteReportService
             'content.action_items.*.description'=>['required','string','max:2500'],
             'content.action_items.*.assignee'=>['nullable','string','max:255'],
             'content.action_items.*.due_date'=>['nullable','date_format:Y-m-d'],
-            'photo_ids'=>['nullable','array','max:50'],
+            'photo_ids'=>['nullable','array','max:8'],
             'photo_ids.*'=>['integer','min:1','distinct'],
         ]);
         $kind=$data['kind']??$previous?->kind;
@@ -227,11 +227,15 @@ final class SiteReportService
         $previous=$id===null?null:$this->report($company->id,$id);
         abort_if($previous && $previous->status!=='draft',409,'Approved reports cannot be modified.');
         $data=$this->input($request,$previous);
+        if ($previous !== null) {
+            $request->validate(['revision'=>['required','integer','min:1']]);
+        }
+        $expectedRevision=$previous===null?null:(int)$request->input('revision');
         $jobId=(int)($data['job_id']??$previous?->service_job_id);
         $job=$this->validateLinks($company->id,$jobId,$data,$previous);
         unset($data['job_id']);
         $actor=$request->user()?->id;
-        $saved=DB::transaction(function () use($company,$job,$actor,$data,$previous,$id):object {
+        $saved=DB::transaction(function () use($company,$job,$actor,$data,$previous,$id,$expectedRevision):object {
             if($previous===null) {
                 $newId=DB::table('site_reports')->insertGetId(array_merge($data,[
                     'company_id'=>$company->id,'service_job_id'=>$job->id,'client_id'=>$job->client_id,
@@ -247,7 +251,9 @@ final class SiteReportService
             }
             $locked=DB::table('site_reports')->where('company_id',$company->id)
                 ->where('id',$id)->lockForUpdate()->firstOrFail();
-            abort_unless($locked->status==='draft',409,'This report has already been approved.');
+            abort_unless($locked->status==='draft' &&
+                (int)$locked->revision===$expectedRevision,409,
+                'Report was changed by someone else. Reload the latest draft before saving.');
             $next=(int)$locked->revision+1;
             DB::table('site_reports')->where('id',$id)->update(array_merge($data,[
                 'revision'=>$next,'updated_at'=>now(),
@@ -265,7 +271,10 @@ final class SiteReportService
     {
         $report=$this->report($company->id,$id);
         abort_unless($report->status==='draft',409,'Only drafts may be prepared.');
-        $request->validate(['confirm'=>['required','accepted']]);
+        $request->validate(['confirm'=>['required','accepted'],
+            'revision'=>['required','integer','min:1']]);
+        abort_unless((int)$report->revision===(int)$request->input('revision'),409,
+            'Report changed since AI preparation started. Reload and try again.');
         $key=trim((string)config('services.openai.key'));
         abort_if($key==='',503,'Report AI is not configured.');
         $context=['kind'=>$report->kind,'title'=>$report->title,
@@ -299,6 +308,10 @@ final class SiteReportService
                 ||!is_string($value)||mb_strlen($value)>6000) abort(502,'Invalid AI section.');
             $sections[$key]=trim($value);
         }
+        $fresh=$this->report($company->id,$id);
+        abort_unless($fresh->status==='draft' &&
+            (int)$fresh->revision===(int)$report->revision,409,
+            'Report changed while AI was preparing. Reload before accepting suggestions.');
         $this->event($company->id,$id,$request->user()?->id,'ai_prepared');
         AuditLogger::record('mobile.report.ai_prepared',$request->user(),null,$company,
             ['report_id'=>$id],$request);
@@ -365,6 +378,7 @@ final class SiteReportService
             }
         }
         $photos=json_decode((string)($record->photo_ids??'[]'),true)?:[];
+        abort_if(count($photos)>8,422,'A report can include up to eight photos.');
         if ($photos) {
             $pdf->Ln(4);
             $pdf->SetFont('Arial','B',11);
@@ -380,12 +394,8 @@ final class SiteReportService
                 abort_unless(is_string($bytes) &&
                     hash_equals($photo->sha256,hash('sha256',$bytes)),409,
                     'Report photo integrity check failed.');
-                // Long reports remain bounded; all photo IDs stay in the
-                // structured record, and up to eight verified images appear.
-                if ($index>=8) {
-                    $pdf->MultiCell(0,6,$this->toPdfText('Additional photo #'.$photoId.' (stored in job media)'));
-                    continue;
-                }
+                // M12 limits the report to eight photos so every selected
+                // image is verified and embedded in the approved artifact.
                 $dimensions=@getimagesizefromstring($bytes);
                 abort_unless(is_array($dimensions) &&
                     ($dimensions['mime']??null)===$photo->mime_type &&
@@ -476,6 +486,19 @@ final class SiteReportService
         abort_unless(is_string($bytes) && hash_equals($version->sha256,hash('sha256',$bytes)),
             409,'Report PDF integrity failed.');
         return $bytes;
+    }
+
+    public function logDownload(Request $request,Company $company,int $id): void
+    {
+        $item=$this->report($company->id,$id);
+        abort_unless($item->managed_document_id!==null,409);
+        $this->event($company->id,$id,$request->user()?->id,'downloaded');
+        DB::table('document_events')->insert([
+            'company_id'=>$company->id,'target_kind'=>'managed',
+            'target_id'=>$item->managed_document_id,
+            'actor_user_id'=>$request->user()?->id,'event_type'=>'downloaded',
+            'created_at'=>now(),
+        ]);
     }
 
     public function send(Request $request,Company $company,int $id): array

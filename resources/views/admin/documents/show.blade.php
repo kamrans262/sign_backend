@@ -29,7 +29,7 @@
     <td>{{ $version['created_at'] ?? '—' }}</td>
   </tr>@empty<tr><td colspan="3" class="empty">No recorded versions.</td></tr>@endforelse
   </tbody></table></div>
-  @if($document['kind']==='managed')
+  @if($document['kind']==='managed' && !$m12Locked)
   <form method="post" action="{{ route('admin.documents.versions.store',$document['id']) }}" enctype="multipart/form-data" style="padding:20px">
     @csrf
     <label>Upload new PDF version (does not overwrite earlier versions)
@@ -37,6 +37,8 @@
     </label>
     <button class="btn btn-primary" type="submit">Add Version</button>
   </form>
+  @elseif($m12Locked)
+  <p style="padding:20px">This approved report is immutable. To make corrections, create a new report.</p>
   @endif
 </section>
 <section class="panel">

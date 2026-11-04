@@ -349,6 +349,10 @@ final class DocumentCatalogService
                     $managed=DB::table('managed_documents')->where('company_id',$companyId)
                         ->where('id',$item['entity_id'])->lockForUpdate()->first();
                     abort_unless($managed,404);
+                    // M12 generated PDFs are approved artifacts, not replaceable uploads.
+                    abort_if(DB::table('site_reports')->where('company_id',$companyId)
+                        ->where('managed_document_id',$managed->id)->exists(),409,
+                        'Approved site reports and meeting minutes cannot receive new PDF versions.');
                     $id=(int)$managed->id;
                     $version=(int)$managed->current_version+1;
                     DB::table('managed_documents')->where('id',$id)->update([
