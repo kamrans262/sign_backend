@@ -178,12 +178,19 @@ class ServiceJobController extends Controller
                     'currency' => $quote->currency,
                 ])->values()
             : [];
+        // M11: verified media counts/identifiers, never raw private note bodies
+        // or storage paths. Detail content stays in permission-checked endpoints.
+        $photos = DB::table('job_photos')->where('company_id',$target->company_id)
+            ->where('service_job_id',$target->id)->whereNull('archived_at')
+            ->orderByDesc('id')->limit(100)->get(['id','category']);
+        $notes = DB::table('job_notes')->where('company_id',$target->company_id)
+            ->where('service_job_id',$target->id)->whereNull('archived_at')
+            ->orderByDesc('id')->limit(100)->get(['id','note_type']);
         return response()->json(['data' => [
             'job' => $this->payload($target),
-            // Related modules will populate these only after their own real persistence.
             'sections' => [
                 'quotes' => $quotes, 'signed_quotes' => [], 'addenda' => [], 'documents' => [],
-                'photos' => [], 'notes' => [], 'purchases' => [], 'time' => [],
+                'photos' => $photos, 'notes' => $notes, 'purchases' => [], 'time' => [],
                 'deposits' => [], 'site_reports' => [], 'acceptance' => [], 'invoices' => [],
             ],
             'financials' => [
