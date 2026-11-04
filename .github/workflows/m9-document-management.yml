@@ -13,6 +13,9 @@ on:
       - 'resources/views/admin/layout.blade.php'
       - 'routes/**'
       - 'tests/Feature/M9DocumentManagementTest.php'
+      - 'tests/Feature/M9DocumentReleaseSecurityTest.php'
+      - 'scripts/m9_release_preflight.php'
+      - 'scripts/m9_release_backup.sh'
   workflow_dispatch:
 
 permissions:
@@ -51,12 +54,13 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - name: Lint M9 code and existing routes
         run: |
-          for file in app/Services/DocumentCatalogService.php app/Http/Controllers/Api/DocumentController.php app/Http/Controllers/Admin/DocumentController.php database/migrations/2026_11_04_030000_create_document_management_tables.php tests/Feature/M9DocumentManagementTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          for file in app/Services/DocumentCatalogService.php app/Http/Controllers/Api/DocumentController.php app/Http/Controllers/Admin/DocumentController.php database/migrations/2026_11_04_030000_create_document_management_tables.php tests/Feature/M9DocumentManagementTest.php tests/Feature/M9DocumentReleaseSecurityTest.php scripts/m9_release_preflight.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          bash -n scripts/m9_release_backup.sh
           php artisan view:cache
           php artisan route:list --path=api/v1/documents
           php artisan route:list --path=admin/documents
       - name: M9 SQLite isolated test database
-        run: php artisan test --filter='M9DocumentManagementTest'
+        run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion|8BrowserAcceptance|9DocumentManagement|9DocumentReleaseSecurity)Test'
       - name: M9 MySQL 8 isolated test database
         env:
           DB_CONNECTION: mysql
