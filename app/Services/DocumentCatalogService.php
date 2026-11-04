@@ -17,7 +17,7 @@ final class DocumentCatalogService
     {
         $quotes = DB::table('service_quotes as q')
             ->leftJoin('service_jobs as j', 'j.id', '=', 'q.service_job_id')
-            ->selectRaw("'quote' as kind, q.id as entity_id, q.company_id, q.client_id, q.service_job_id as job_id, 'quotes' as category, COALESCE(q.custom_quote_number,q.reference_number) as number, COALESCE(j.title,'') as project, q.client_name as customer, NULL as managed_title, q.status, q.revision as version, q.approved_pdf_sha256 as sha256, q.created_at as occurred_at, q.updated_at");
+            ->selectRaw("'quote' as kind, q.id as entity_id, q.company_id, q.client_id, q.service_job_id as job_id, 'quotes' as category, COALESCE(q.custom_quote_number,q.reference_number) as number, COALESCE(j.title,'') as project, q.client_name as customer, NULL as managed_title, q.status, q.revision as version, CASE WHEN q.approved_pdf_revision = q.revision AND q.approved_pdf_path IS NOT NULL AND q.status IN ('approved','sent','archived') THEN q.approved_pdf_sha256 ELSE NULL END as sha256, q.created_at as occurred_at, q.updated_at");
         $signed = DB::table('signed_document_artifacts as a')
             ->join('signature_requests as s', 's.id', '=', 'a.signature_request_id')
             ->join('service_quotes as q', 'q.id', '=', 'a.service_quote_id')
@@ -222,6 +222,8 @@ final class DocumentCatalogService
         }
         if ($item['kind'] === 'quote') {
             $quote=ServiceQuote::query()->where('company_id',$companyId)->findOrFail($id);
+            abort_unless(in_array($quote->status,['approved','sent','archived'],true),409,
+                'This quote has not been approved.');
             abort_unless($quote->approved_pdf_path && $quote->approved_pdf_sha256 &&
                 (int)$quote->approved_pdf_revision === (int)$quote->revision,409,
                 'No verified approved PDF exists for this quote.');
