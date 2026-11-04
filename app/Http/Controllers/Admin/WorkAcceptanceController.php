@@ -88,6 +88,8 @@ final class WorkAcceptanceController extends Controller
     public function update(Request $request,int $acceptance)
     {
         $row=$this->row($acceptance);
+        // An empty checkbox group must clear a draft's selected photos.
+        $request->merge(['photo_ids'=>array_values((array)$request->input('photo_ids',[]))]);
         $this->reports->save($request,$this->company($row->company_id),$acceptance);
         return back()->with('success','Acceptance draft updated.');
     }
