@@ -7,6 +7,8 @@ use App\Models\Company;
 use App\Services\SiteReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 final class SiteReportController extends Controller
@@ -43,8 +45,45 @@ final class SiteReportController extends Controller
         $companyId=$this->company($request)->id;
         return $this->respond([
             'report'=>$this->reports->payload($this->reports->find($companyId,$report)),
+            'photos'=>$this->photoMetadata($companyId,$report),
             'events'=>$this->reports->history($companyId,$report),
             'revisions'=>$this->reports->revisions($companyId,$report),
+        ]);
+    }
+
+    private function photoMetadata(int $companyId,int $report): array
+    {
+        $source=$this->reports->find($companyId,$report);
+        $ids=json_decode((string)($source->photo_ids??'[]'),true)?:[];
+        if(!$ids)return [];
+        return DB::table('job_photos')->where('company_id',$companyId)
+            ->where('service_job_id',$source->service_job_id)
+            ->whereIn('id',$ids)->get(['id','mime_type','sha256'])
+            ->map(fn($row)=>[
+                'id'=>(int)$row->id,'mime_type'=>$row->mime_type,
+                'sha256'=>$row->sha256,
+            ])->all();
+    }
+
+    public function photo(Request $request,int $report,int $photo)
+    {
+        $companyId=$this->company($request)->id;
+        $source=$this->reports->find($companyId,$report);
+        $ids=json_decode((string)($source->photo_ids??'[]'),true)?:[];
+        abort_unless(in_array($photo,array_map('intval',$ids),true),404);
+        $row=DB::table('job_photos')->where('company_id',$companyId)
+            ->where('service_job_id',$source->service_job_id)
+            ->where('id',$photo)->firstOrFail();
+        abort_unless(in_array($row->mime_type,['image/jpeg','image/png'],true),409);
+        $disk=Storage::disk('local');
+        abort_unless($disk->exists($row->private_path),404);
+        $bytes=$disk->get($row->private_path);
+        abort_unless(is_string($bytes) &&
+            hash_equals($row->sha256,hash('sha256',$bytes)),409,
+            'Referenced report photo failed integrity checks.');
+        return response($bytes,200,[
+            'Content-Type'=>$row->mime_type,'Cache-Control'=>'private, no-store',
+            'X-Content-Type-Options'=>'nosniff',
         ]);
     }
 

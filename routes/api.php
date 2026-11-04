@@ -223,6 +223,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
             Route::get('/reports', [\App\Http\Controllers\Api\SiteReportController::class,'index']);
             Route::get('/reports/{report}', [\App\Http\Controllers\Api\SiteReportController::class,'show'])->whereNumber('report');
+            Route::get('/reports/{report}/photos/{photo}', [\App\Http\Controllers\Api\SiteReportController::class,'photo'])
+                ->whereNumber('report')->whereNumber('photo')->middleware('throttle:50,1');
             Route::get('/reports/{report}/pdf', [\App\Http\Controllers\Api\SiteReportController::class,'pdf'])
                 ->whereNumber('report')->middleware('throttle:30,1');
         });
