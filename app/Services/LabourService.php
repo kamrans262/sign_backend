@@ -30,6 +30,12 @@ final class LabourService
         return $member?->pivot?->role;
     }
 
+    public function isManager(Company $company,?User $actor): bool
+    {
+        return in_array($this->role($company,$actor),
+            ['owner','admin','platform_admin'],true);
+    }
+
     public function reviewer(Company $company,?User $actor): void
     {
         abort_unless(in_array($this->role($company,$actor),
@@ -387,6 +393,8 @@ final class LabourService
             'file'=>['required','file','mimes:jpg,jpeg,png,pdf','max:10240'],
         ]);
         $entry=$this->find($company->id,$id);
+        if((int)$entry->worker_user_id!==$request->user()?->id)
+            $this->reviewer($company,$request->user());
         abort_unless($entry->status==='pending',409);
         $bytes=file_get_contents($data['file']->getRealPath());
         abort_unless(is_string($bytes)&&strlen($bytes)>=8&&
@@ -431,6 +439,8 @@ final class LabourService
         DB::transaction(function()use($request,$company,$id,$evidence):void {
             $row=DB::table('job_labour_entries')->where('company_id',$company->id)
                 ->where('id',$id)->lockForUpdate()->firstOrFail();
+            if((int)$row->worker_user_id!==$request->user()?->id)
+                $this->reviewer($company,$request->user());
             abort_unless($row->status==='pending',409);
             $proof=DB::table('job_labour_evidence')->where('company_id',$company->id)
                 ->where('job_labour_entry_id',$id)->where('id',$evidence)
