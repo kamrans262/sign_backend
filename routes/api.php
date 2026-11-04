@@ -213,6 +213,27 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
         });
 
+        // M12: site reports and meeting minutes; approved PDFs are immutable M9 documents.
+        Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
+            Route::get('/reports', [\App\Http\Controllers\Api\SiteReportController::class,'index']);
+            Route::get('/reports/{report}', [\App\Http\Controllers\Api\SiteReportController::class,'show'])->whereNumber('report');
+            Route::get('/reports/{report}/pdf', [\App\Http\Controllers\Api\SiteReportController::class,'pdf'])
+                ->whereNumber('report')->middleware('throttle:30,1');
+        });
+        Route::middleware(['company.access','company.permission:documents.write','company.permission:jobs.read'])->group(function (): void {
+            Route::post('/reports', [\App\Http\Controllers\Api\SiteReportController::class,'create'])
+                ->middleware('throttle:20,1');
+            Route::patch('/reports/{report}', [\App\Http\Controllers\Api\SiteReportController::class,'update'])->whereNumber('report');
+            Route::post('/reports/{report}/prepare-ai', [\App\Http\Controllers\Api\SiteReportController::class,'prepare'])
+                ->whereNumber('report')->middleware('throttle:6,1');
+            Route::post('/reports/{report}/approve', [\App\Http\Controllers\Api\SiteReportController::class,'approve'])
+                ->whereNumber('report')->middleware('throttle:10,1');
+            Route::post('/reports/{report}/send', [\App\Http\Controllers\Api\SiteReportController::class,'send'])
+                ->whereNumber('report')->middleware('throttle:6,1');
+            Route::delete('/reports/{report}', [\App\Http\Controllers\Api\SiteReportController::class,'archive'])
+                ->whereNumber('report');
+        });
+
         // M10: signed-source addenda are separate from M7/M8 original artifacts.
         Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
             Route::get('/addenda', [\App\Http\Controllers\Api\AddendumController::class,'index']);
