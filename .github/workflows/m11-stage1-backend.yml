@@ -1,0 +1,31 @@
+name: M11 Job Photos and Notes focused backend verification
+on:
+  push:
+    branches: [feature/m11-job-photos-notes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m11-backend
+  cancel-in-progress: true
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: PHP lint and Laravel route/view verification
+        run: |
+          for file in app/Http/Controllers/Api/JobMediaController.php app/Http/Controllers/Api/JobNoteDocumentController.php app/Http/Controllers/Admin/JobMediaController.php database/migrations/2026_11_04_050000_create_job_media_tables.php tests/Feature/M11JobMediaTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          php artisan route:list --path=api/v1/jobs
+          php artisan route:list --path=admin/job-media
+          php artisan view:cache
+      - name: M11 isolated SQLite tests
+        run: php artisan test --filter=M11JobMediaTest

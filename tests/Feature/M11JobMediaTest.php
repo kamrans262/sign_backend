@@ -120,7 +120,7 @@ class M11JobMediaTest extends TestCase
         Storage::fake('local');
         [$user,$company,$job] = $this->tenant('Conversion');
         $note = $this->note($job);
-        Http::fake(['api.openai.com/*'=>Http::response([
+        Http::fake(['*api.openai.com/*'=>Http::response([
             'choices'=>[['message'=>['content'=>json_encode([
                 'title'=>'Site visit report','content'=>'Glass was observed broken. Professional review required.',
             ])]]],
