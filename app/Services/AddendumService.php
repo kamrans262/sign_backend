@@ -197,16 +197,16 @@ final class AddendumService
     {
         abort_unless($item->status==='signed' && $item->signed_pdf_path
             && $item->signed_pdf_sha256,409,'Addendum has not been signed.');
-        return $this->verified($item->signed_pdf_path,$item->signed_pdf_sha256);
+        return $this->verified($item->signed_pdf_path,$item->signed_pdf_sha256,12*1024*1024);
     }
 
-    private function verified(string $path, string $sha): string
+    private function verified(string $path, string $sha, int $maxBytes=5*1024*1024): string
     {
         $disk=Storage::disk('local');
         abort_unless($disk->exists($path),503,'The private PDF is unavailable.');
         $bytes=$disk->get($path);
         abort_unless(is_string($bytes) && strlen($bytes) >= 12 &&
-            strlen($bytes) <= 5*1024*1024 && str_starts_with($bytes,'%PDF-') &&
+            strlen($bytes) <= $maxBytes && str_starts_with($bytes,'%PDF-') &&
             str_contains(substr($bytes,-4096),'%%EOF') &&
             hash_equals($sha,hash('sha256',$bytes)),503,
             'Private addendum PDF integrity validation failed.');
