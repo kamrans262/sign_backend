@@ -47,6 +47,23 @@ Route::get('/admin/assets/{file}', function (string $file) {
     ]);
 })->whereIn('file', ['admin.css', 'logo.png'])->name('admin.asset');
 
+// M10: customer signing page with separate addendum-only capability token.
+Route::get('/addendum-sign/{token}',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'open'])
+    ->middleware('throttle:30,1')->name('addenda.public.browser');
+Route::get('/addendum-sign/{token}/pdf',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'approvedPdf'])
+    ->middleware('throttle:15,1')->name('addenda.public.pdf');
+Route::post('/addendum-sign/{token}',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'submit'])
+    ->middleware('throttle:6,1')->name('addenda.public.submit');
+Route::get('/addendum-sign/{token}/receipt',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'receipt'])
+    ->middleware('throttle:30,1')->name('addenda.public.receipt');
+Route::get('/addendum-sign/{token}/signed-pdf',
+    [\App\Http\Controllers\Api\PublicAddendumController::class,'signedPdf'])
+    ->middleware('throttle:12,1')->name('addenda.public.signedPdf');
+
 Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/login', [AuthController::class, 'show'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
