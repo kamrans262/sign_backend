@@ -67,6 +67,14 @@ final class LabourController extends Controller
             'result'=>$result,'filters'=>$filters,
             'running'=>$this->timers->active(
                 empty($filters['company_id'])?null:(int)$filters['company_id']),
+            'recoveries'=>DB::table('job_labour_events as e')
+                ->leftJoin('users as w','w.id','=','e.worker_user_id')
+                ->where('e.event_type','timer_recovered')
+                ->when(!empty($filters['company_id']),fn($q)=>$q
+                    ->where('e.company_id',(int)$filters['company_id']))
+                ->orderByDesc('e.id')->limit(30)
+                ->get(['e.company_id','e.worker_user_id','e.actor_user_id',
+                    'e.metadata','e.created_at','w.name as worker_name']),
         ]));
     }
 
@@ -176,6 +184,13 @@ final class LabourController extends Controller
         $this->timers->perform($request,$this->company($company),'stop');
         return redirect()->route('admin.labour.index')
             ->with('success','Worker timer stopped; pending timesheet created.');
+    }
+
+    public function recoverTimer(Request $request,int $company,int $worker)
+    {
+        $this->timers->recover($request,$this->company($company),$worker);
+        return redirect()->route('admin.labour.index')
+            ->with('success','Timer recovered. No hours were billed; manually reconcile worker time.');
     }
 
     public function export(Request $request)
