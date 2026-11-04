@@ -35,6 +35,9 @@
       <a class="side-link {{ request()->routeIs('admin.quotes.*') ? 'active' : '' }}" href="{{ route('admin.quotes.index') }}" @if(request()->routeIs('admin.quotes.*')) aria-current="page" @endif>
         <x-admin.icon name="briefcase" /><span>Quote Management</span>
       </a>
+      <a class="side-link {{ request()->routeIs('admin.documents.*') ? 'active' : '' }}" href="{{ route('admin.documents.index') }}" @if(request()->routeIs('admin.documents.*')) aria-current="page" @endif>
+        <x-admin.icon name="briefcase" /><span>Document Management</span>
+      </a>
       <a class="side-link {{ request()->routeIs('admin.signatures.*') ? 'active' : '' }}" href="{{ route('admin.signatures.index') }}" @if(request()->routeIs('admin.signatures.*')) aria-current="page" @endif>
         <x-admin.icon name="history" /><span>Digital Signatures</span>
       </a>
@@ -89,6 +92,7 @@
         <a href="{{ route('admin.clients.index') }}" class="{{ request()->routeIs('admin.clients.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Client Management</a>
         <a href="{{ route('admin.jobs.index') }}" class="{{ request()->routeIs('admin.jobs.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Job Management</a>
         <a href="{{ route('admin.quotes.index') }}" class="{{ request()->routeIs('admin.quotes.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Quote Management</a>
+        <a href="{{ route('admin.documents.index') }}" class="{{ request()->routeIs('admin.documents.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Document Management</a>
         <a href="{{ route('admin.signatures.index') }}" class="{{ request()->routeIs('admin.signatures.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Digital Signatures</a>
         <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') || request()->routeIs('admin.mobile-auth') ? 'active' : '' }}"><x-admin.icon name="users" /> Users</a>
         <a href="{{ route('admin.audit') }}" class="{{ request()->routeIs('admin.audit') ? 'active' : '' }}"><x-admin.icon name="history" /> Audit Trail</a>
