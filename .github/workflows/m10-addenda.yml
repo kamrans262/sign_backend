@@ -1,4 +1,4 @@
-name: M10 Addenda Stage 1 backend verification
+name: M10 Addenda Stage 2 backend and release verification
 
 on:
   push:
@@ -21,6 +21,8 @@ on:
       - 'resources/views/admin/layout.blade.php'
       - 'routes/**'
       - 'tests/Feature/M10AddendaManagementTest.php'
+      - 'scripts/m10_release_*.php'
+      - 'scripts/m10_release_*.sh'
   workflow_dispatch:
 
 permissions:
@@ -31,7 +33,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  m10-stage1:
+  m10-stage2:
     runs-on: ubuntu-latest
     timeout-minutes: 18
     services:
@@ -64,6 +66,8 @@ jobs:
           php artisan view:cache
           php artisan route:list --path=api/v1/addenda
           php artisan route:list --path=addendum-sign
+          php -l scripts/m10_release_preflight.php
+          bash -n scripts/m10_release_deploy.sh
       - name: M10 and existing M7-M9 regression checks (SQLite)
         run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion|9DocumentManagement|9DocumentReleaseSecurity|10AddendaManagement)Test'
       - name: M10 isolated MySQL 8 migrations and tests
@@ -78,3 +82,19 @@ jobs:
         run: |
           php artisan migrate --force
           php artisan test --filter='M10AddendaManagementTest'
+      - name: Production-mode preflight simulation against isolated MySQL 8
+        env:
+          APP_ENV: production
+          APP_DEBUG: 'false'
+          APP_URL: https://sign2digital-ci.invalid
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_m10_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
+        run: |
+          mkdir -p storage/app/private
+          php scripts/m9_release_preflight.php --require-migrated
+          php scripts/m10_release_preflight.php --require-migrated
