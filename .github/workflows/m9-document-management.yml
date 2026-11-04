@@ -63,6 +63,22 @@ jobs:
           php artisan route:list --path=admin/documents
       - name: M9 SQLite isolated test database
         run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion|8BrowserAcceptance|9DocumentManagement|9DocumentReleaseSecurity)Test'
+      - name: Simulate M9 production preflight on disposable MySQL 8
+        env:
+          APP_ENV: production
+          APP_DEBUG: 'false'
+          APP_URL: https://example.test
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_m9_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
+        run: |
+          mkdir -p storage/app/private
+          php artisan migrate --force
+          php scripts/m9_release_preflight.php --require-migrated
       - name: M9 MySQL 8 isolated test database
         env:
           DB_CONNECTION: mysql
