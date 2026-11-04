@@ -92,6 +92,30 @@ final class DocumentCatalogService
         return $this->format($row);
     }
 
+    /**
+     * Link original approved quotes to the signed artifacts actually created
+     * from those quotes. Never infer a signature from a matching customer name.
+     */
+    public function related(int $companyId, string $key): array
+    {
+        $document=$this->resolve($companyId,$key);
+        if ($document['kind']==='quote') {
+            $ids=DB::table('signed_document_artifacts')
+                ->where('company_id',$companyId)
+                ->where('service_quote_id',$document['entity_id'])
+                ->orderByDesc('id')->limit(30)->pluck('id');
+            return $ids->map(fn ($id) => $this->resolve($companyId,'signed-'.$id))->all();
+        }
+        if ($document['kind']==='signed') {
+            $quoteId=DB::table('signed_document_artifacts')
+                ->where('company_id',$companyId)
+                ->where('id',$document['entity_id'])
+                ->value('service_quote_id');
+            return $quoteId ? [$this->resolve($companyId,'quote-'.$quoteId)] : [];
+        }
+        return [];
+    }
+
     public function versions(int $companyId, string $key): array
     {
         $item = $this->resolve($companyId, $key);
