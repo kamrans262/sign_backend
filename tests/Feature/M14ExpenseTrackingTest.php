@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -136,4 +137,84 @@ class M14ExpenseTrackingTest extends TestCase
         Storage::disk('local')->put($r->private_path,'tampered bytes');
         $this->get('/api/v1/expenses/'.$id.'/receipts/'.$r->id)->assertStatus(409);
     }
+    public function test_ai_receipt_never_saves_and_rejects_impossible_dates(): void
+    {
+        Storage::fake('local');
+        [$user,$company,$client,$job]=$this->tenant('AI Receipt Tenant');
+        config()->set('services.openai.key','m14-test-only-key');
+        Http::fake(['api.openai.com/*'=>Http::response([
+            'choices'=>[['message'=>['content'=>json_encode([
+                'date'=>'2026-02-30','amount'=>39.75,'supplier'=>'Receipt Shop',
+                'expenseType'=>'Fuel','description'=>'Invoice 123',
+                'tags'=>['vehicle'],'jobReference'=>'JOB-123',
+            ],JSON_THROW_ON_ERROR)]],
+        ],200)]);
+
+        $this->post('/api/v1/expenses/ai/receipt',[
+            'file'=>UploadedFile::fake()->image('purchase.png',320,180),
+        ],['Accept'=>'application/json'])
+            ->assertOk()->assertJsonPath('data.suggestion.date',null)
+            ->assertJsonPath('data.suggestion.amount',39.75)
+            ->assertJsonPath('data.suggestion.supplier','Receipt Shop')
+            ->assertJsonPath('data.suggestion.expenseType','Fuel')
+            ->assertJsonPath('data.suggestion.saved',false)
+            ->assertJsonPath('data.suggestion.approved',false);
+        Http::assertSent(fn($r)=>str_contains($r->url(),
+            'api.openai.com/v1/chat/completions')&&
+            $r->hasHeader('Authorization','Bearer m14-test-only-key'));
+        $this->assertDatabaseCount('job_expenses',0);
+        $this->assertDatabaseCount('job_expense_receipts',0);
+    }
+
+    public function test_receipt_removal_tenant_guard_and_audit_retention(): void
+    {
+        Storage::fake('local');
+        [$user,$company,$client,$job]=$this->tenant('Retention Tenant');
+        $expense=$this->create($job);
+        $receipt=(int)$this->post('/api/v1/expenses/'.$expense.'/receipts',[
+            'file'=>UploadedFile::fake()->image('proof.png',240,100),
+        ],['Accept'=>'application/json'])->assertCreated()->json('data.id');
+        $item=DB::table('job_expense_receipts')->find($receipt);
+        $this->assertNotNull($item);
+        $this->assertTrue(Storage::disk('local')->exists($item->private_path));
+        [$other,$otherCompany]=$this->tenant('Foreign Company');
+        $this->get('/api/v1/expenses/'.$expense.'/receipts/'.$receipt)
+            ->assertNotFound();
+        $this->deleteJson('/api/v1/expenses/'.$expense.'/receipts/'.$receipt)
+            ->assertNotFound();
+
+        Sanctum::actingAs($user);
+        $this->withHeader('X-Company-Id',(string)$company->id);
+        $this->deleteJson('/api/v1/expenses/'.$expense.'/receipts/'.$receipt)
+            ->assertOk()->assertJsonCount(0,'data.receipts');
+        $this->get('/api/v1/expenses/'.$expense.'/receipts/'.$receipt)
+            ->assertNotFound();
+        $this->assertDatabaseHas('job_expense_receipts',[
+            'id'=>$receipt,'company_id'=>$company->id,
+            'sha256'=>$item->sha256,
+        ]);
+        $this->assertTrue(Storage::disk('local')->exists($item->private_path));
+        $this->assertDatabaseHas('job_expense_events',[
+            'job_expense_id'=>$expense,'event_type'=>'receipt_removed',
+        ]);
+    }
+
+    public function test_partial_update_preserves_tags_and_non_admin_cannot_approve(): void
+    {
+        Storage::fake('local');
+        [$user,$company,$client,$job]=$this->tenant('Tags Tenant');
+        $id=$this->create($job);
+        $this->patchJson('/api/v1/expenses/'.$id,[
+            'job_id'=>$job,'category'=>'material',
+            'expense_date'=>'2026-11-05','amount'=>'13.50',
+            'lock_version'=>1,
+        ])->assertOk()->assertJsonPath('data.expense.tags',['hardware']);
+        $this->get('/admin/expenses/'.$id.'/edit')->assertForbidden();
+        $this->post('/admin/expenses/'.$id.'/approve',['confirm'=>'1'])
+            ->assertForbidden();
+        $this->assertDatabaseHas('job_expenses',[
+            'id'=>$id,'status'=>'to_review','lock_version'=>2,
+        ]);
+    }
+
 }
