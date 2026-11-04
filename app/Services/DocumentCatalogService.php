@@ -17,12 +17,12 @@ final class DocumentCatalogService
     {
         $quotes = DB::table('service_quotes as q')
             ->leftJoin('service_jobs as j', 'j.id', '=', 'q.service_job_id')
-            ->selectRaw("'quote' as kind, q.id as entity_id, q.company_id, q.client_id, q.service_job_id as job_id, 'quotes' as category, COALESCE(q.custom_quote_number,q.reference_number) as number, COALESCE(j.title,'') as project, q.client_name as customer, q.status, q.revision as version, q.approved_pdf_sha256 as sha256, q.created_at as occurred_at, q.updated_at");
+            ->selectRaw("'quote' as kind, q.id as entity_id, q.company_id, q.client_id, q.service_job_id as job_id, 'quotes' as category, COALESCE(q.custom_quote_number,q.reference_number) as number, COALESCE(j.title,'') as project, q.client_name as customer, NULL as managed_title, q.status, q.revision as version, q.approved_pdf_sha256 as sha256, q.created_at as occurred_at, q.updated_at");
         $signed = DB::table('signed_document_artifacts as a')
             ->join('signature_requests as s', 's.id', '=', 'a.signature_request_id')
             ->join('service_quotes as q', 'q.id', '=', 'a.service_quote_id')
             ->leftJoin('service_jobs as j', 'j.id', '=', 'q.service_job_id')
-            ->selectRaw("'signed' as kind, a.id as entity_id, a.company_id, q.client_id, q.service_job_id as job_id, 'quotes' as category, COALESCE(q.custom_quote_number,q.reference_number) as number, COALESCE(j.title,'') as project, s.signer_name as customer, 'signed' as status, a.source_revision as version, a.signed_pdf_sha256 as sha256, a.created_at as occurred_at, a.created_at as updated_at");
+            ->selectRaw("'signed' as kind, a.id as entity_id, a.company_id, q.client_id, q.service_job_id as job_id, 'quotes' as category, COALESCE(q.custom_quote_number,q.reference_number) as number, COALESCE(j.title,'') as project, s.signer_name as customer, NULL as managed_title, 'signed' as status, a.source_revision as version, a.signed_pdf_sha256 as sha256, a.created_at as occurred_at, a.created_at as updated_at");
         $managed = DB::table('managed_documents as m')
             ->join('managed_document_versions as v', function ($join): void {
                 $join->on('v.managed_document_id', '=', 'm.id')
@@ -30,7 +30,7 @@ final class DocumentCatalogService
             })
             ->leftJoin('service_jobs as j', 'j.id', '=', 'm.service_job_id')
             ->leftJoin('clients as c', 'c.id', '=', 'm.client_id')
-            ->selectRaw("'managed' as kind, m.id as entity_id, m.company_id, m.client_id, m.service_job_id as job_id, m.category, m.number, COALESCE(j.title,'') as project, COALESCE(c.full_name,'') as customer, m.status, m.current_version as version, v.sha256, m.created_at as occurred_at, m.updated_at");
+            ->selectRaw("'managed' as kind, m.id as entity_id, m.company_id, m.client_id, m.service_job_id as job_id, m.category, m.number, COALESCE(j.title,'') as project, COALESCE(c.full_name,'') as customer, m.title as managed_title, m.status, m.current_version as version, v.sha256, m.created_at as occurred_at, m.updated_at");
         return DB::query()->fromSub($quotes->unionAll($signed)->unionAll($managed), 'documents');
     }
 
@@ -45,7 +45,7 @@ final class DocumentCatalogService
             'job_id' => $row->job_id === null ? null : (int) $row->job_id,
             'category' => (string) $row->category, 'number' => (string) $row->number,
             'title' => $kind === 'signed' ? 'Signed Quote '.$row->number :
-                ($kind === 'quote' ? 'Quote '.$row->number : (string) $row->number),
+                ($kind === 'quote' ? 'Quote '.$row->number : (string) $row->managed_title),
             'project' => (string) $row->project, 'customer' => (string) $row->customer,
             'status' => (string) $row->status, 'version' => (int) $row->version,
             'sha256' => $row->sha256, 'has_pdf' => $row->sha256 !== null &&
@@ -54,9 +54,10 @@ final class DocumentCatalogService
         ];
     }
 
-    public function listing(int $companyId, array $filters): array
+    public function listing(?int $companyId, array $filters): array
     {
-        $query = $this->unifiedQuery()->where('company_id', $companyId);
+        $query = $this->unifiedQuery();
+        if ($companyId !== null) $query->where('company_id', $companyId);
         foreach (['category','status','kind'] as $field) {
             if (!empty($filters[$field])) $query->where($field, $filters[$field]);
         }
