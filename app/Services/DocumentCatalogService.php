@@ -31,7 +31,11 @@ final class DocumentCatalogService
             ->leftJoin('service_jobs as j', 'j.id', '=', 'm.service_job_id')
             ->leftJoin('clients as c', 'c.id', '=', 'm.client_id')
             ->selectRaw("'managed' as kind, m.id as entity_id, m.company_id, m.client_id, m.service_job_id as job_id, m.category, m.number, COALESCE(j.title,'') as project, COALESCE(c.full_name,'') as customer, m.title as managed_title, m.status, m.current_version as version, v.sha256, m.created_at as occurred_at, m.updated_at");
-        return DB::query()->fromSub($quotes->unionAll($signed)->unionAll($managed), 'documents');
+        $addenda = DB::table('addenda as d')
+            ->join('service_quotes as q','q.id','=','d.service_quote_id')
+            ->leftJoin('service_jobs as j','j.id','=','d.service_job_id')
+            ->selectRaw("'addendum' as kind, d.id as entity_id, d.company_id, d.client_id, d.service_job_id as job_id, 'addends' as category, d.number, COALESCE(j.title,'') as project, q.client_name as customer, d.title as managed_title, d.status, d.revision as version, CASE WHEN d.status = 'signed' THEN d.signed_pdf_sha256 WHEN d.status IN ('approved','sent') THEN d.approved_pdf_sha256 ELSE NULL END as sha256, d.created_at as occurred_at, d.updated_at");
+        return DB::query()->fromSub($quotes->unionAll($signed)->unionAll($managed)->unionAll($addenda), 'documents');
     }
 
     private function format(object $row): array
@@ -45,7 +49,8 @@ final class DocumentCatalogService
             'job_id' => $row->job_id === null ? null : (int) $row->job_id,
             'category' => (string) $row->category, 'number' => (string) $row->number,
             'title' => $kind === 'signed' ? 'Signed Quote '.$row->number :
-                ($kind === 'quote' ? 'Quote '.$row->number : (string) $row->managed_title),
+                ($kind === 'quote' ? 'Quote '.$row->number :
+                ($kind === 'addendum' ? 'Addendum '.$row->number : (string) $row->managed_title)),
             'project' => (string) $row->project, 'customer' => (string) $row->customer,
             'status' => (string) $row->status, 'version' => (int) $row->version,
             'sha256' => $row->sha256, 'has_pdf' => $row->sha256 !== null &&
@@ -83,7 +88,7 @@ final class DocumentCatalogService
 
     public function resolve(int $companyId, string $key): array
     {
-        abort_unless(preg_match('/^(quote|signed|managed)-([1-9][0-9]*)$/D', $key, $match), 404);
+        abort_unless(preg_match('/^(quote|signed|managed|addendum)-([1-9][0-9]*)$/D', $key, $match), 404);
         $row = $this->unifiedQuery()
             ->where('company_id', $companyId)
             ->where('kind', $match[1])
@@ -104,14 +109,28 @@ final class DocumentCatalogService
                 ->where('company_id',$companyId)
                 ->where('service_quote_id',$document['entity_id'])
                 ->orderByDesc('id')->limit(30)->pluck('id');
-            return $ids->map(fn ($id) => $this->resolve($companyId,'signed-'.$id))->all();
+            $signed=$ids->map(fn ($id) => $this->resolve($companyId,'signed-'.$id))->all();
+            $addendumIds=DB::table('addenda')->where('company_id',$companyId)
+                ->where('service_quote_id',$document['entity_id'])
+                ->orderByDesc('id')->limit(30)->pluck('id');
+            return array_merge($signed,$addendumIds->map(fn($id)=>
+                $this->resolve($companyId,'addendum-'.$id))->all());
         }
         if ($document['kind']==='signed') {
             $quoteId=DB::table('signed_document_artifacts')
                 ->where('company_id',$companyId)
                 ->where('id',$document['entity_id'])
                 ->value('service_quote_id');
-            return $quoteId ? [$this->resolve($companyId,'quote-'.$quoteId)] : [];
+            $result=$quoteId ? [$this->resolve($companyId,'quote-'.$quoteId)] : [];
+            $addendumIds=DB::table('addenda')->where('company_id',$companyId)
+                ->where('source_signed_artifact_id',$document['entity_id'])->pluck('id');
+            return array_merge($result,$addendumIds->map(fn($id)=>
+                $this->resolve($companyId,'addendum-'.$id))->all());
+        }
+        if ($document['kind']==='addendum') {
+            $source=DB::table('addenda')->where('company_id',$companyId)
+                ->where('id',$document['entity_id'])->value('source_signed_artifact_id');
+            return $source ? [$this->resolve($companyId,'signed-'.$source)] : [];
         }
         return [];
     }
@@ -125,10 +144,23 @@ final class DocumentCatalogService
                 ->orderByDesc('version')->get(['id','version','original_name','mime_type','byte_size','sha256','created_at'])
                 ->map(fn ($v) => (array) $v)->all();
         }
+        if ($item['kind'] === 'addendum') {
+            $addendum=\App\Models\Addendum::query()->where('company_id',$companyId)->findOrFail($id);
+            $service=app(\App\Services\AddendumService::class);
+            return $addendum->status==='signed'
+                ? $service->signedBytes($addendum)
+                : $service->approvedBytes($addendum);
+        }
         if ($item['kind'] === 'quote') {
             return DB::table('service_quote_revisions')->where('service_quote_id', $item['entity_id'])
                 ->orderByDesc('revision')->get(['id','revision as version','created_at'])
                 ->map(fn ($v) => (array) $v)->all();
+        }
+        if ($item['kind'] === 'addendum') {
+            return DB::table('addendum_revisions')
+                ->where('company_id',$companyId)->where('addendum_id',$item['entity_id'])
+                ->orderByDesc('revision')->get(['id','revision as version','created_at'])
+                ->map(fn($v)=>(array)$v)->all();
         }
         $artifact = DB::table('signed_document_artifacts')->where('company_id',$companyId)
             ->where('id',$item['entity_id'])->first(['source_revision','source_pdf_sha256','created_at']);
@@ -162,6 +194,16 @@ final class DocumentCatalogService
             ->map(fn ($row) => ['id'=>'document-event-'.$row->id,
                 'type'=>$row->event_type,'occurred_at'=>$row->created_at,
                 'actor_name'=>$row->actor_name])->all();
+        if ($kind === 'addendum') {
+            foreach (DB::table('addendum_events as ae')
+                ->leftJoin('users as u','u.id','=','ae.actor_user_id')
+                ->where('ae.company_id',$companyId)->where('ae.addendum_id',$id)
+                ->orderBy('ae.id')->get(['ae.id','ae.event_type','ae.created_at','u.name as actor_name']) as $event) {
+                $history[]=['id'=>'addendum-event-'.$event->id,
+                    'type'=>$event->event_type,'occurred_at'=>$event->created_at,
+                    'actor_name'=>$event->actor_name];
+            }
+        }
         if ($kind === 'quote') {
             $q = ServiceQuote::query()->where('company_id',$companyId)->findOrFail($id);
             $history[] = ['id'=>'quote-created-'.$id,'type'=>'created','occurred_at'=>$q->created_at,'actor_name'=>null];
