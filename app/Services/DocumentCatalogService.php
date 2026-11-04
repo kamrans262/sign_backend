@@ -30,7 +30,7 @@ final class DocumentCatalogService
             })
             ->leftJoin('service_jobs as j', 'j.id', '=', 'm.service_job_id')
             ->leftJoin('clients as c', 'c.id', '=', 'm.client_id')
-            ->selectRaw("'managed' as kind, m.id as entity_id, m.company_id, m.client_id, m.service_job_id as job_id, m.category, m.number, COALESCE(j.title,'') as project, COALESCE(c.name,'') as customer, m.status, m.current_version as version, v.sha256, m.created_at as occurred_at, m.updated_at");
+            ->selectRaw("'managed' as kind, m.id as entity_id, m.company_id, m.client_id, m.service_job_id as job_id, m.category, m.number, COALESCE(j.title,'') as project, COALESCE(c.full_name,'') as customer, m.status, m.current_version as version, v.sha256, m.created_at as occurred_at, m.updated_at");
         return DB::query()->fromSub($quotes->unionAll($signed)->unionAll($managed), 'documents');
     }
 
