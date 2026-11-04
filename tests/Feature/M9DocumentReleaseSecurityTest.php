@@ -128,4 +128,26 @@ final class M9DocumentReleaseSecurityTest extends TestCase
         $this->assertDatabaseCount('managed_documents',0);
         $this->assertDatabaseCount('managed_document_versions',0);
     }
+    public function test_stale_quote_approval_hash_is_not_advertised_or_downloadable(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client]=$this->fixture();
+        Sanctum::actingAs($owner);
+        $this->withHeader('X-Company-Id',(string)$company->id);
+        $id=DB::table('service_quotes')->insertGetId([
+            'company_id'=>$company->id,'client_id'=>$client->id,
+            'reference_number'=>'Q-Stage2-STALEREV','client_name'=>'Client M9',
+            'quote_date'=>'2026-11-04','currency'=>'CHF','status'=>'approved',
+            'revision'=>3,'approved_pdf_revision'=>2,
+            'approved_pdf_path'=>'m7-approved/invalid-revision.pdf',
+            'approved_pdf_sha256'=>hash('sha256',self::PDF),
+            'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        Storage::disk('local')->put('m7-approved/invalid-revision.pdf',self::PDF);
+        $this->getJson('/api/v1/documents/quote-'.$id)
+            ->assertOk()->assertJsonPath('data.document.has_pdf',false);
+        $this->get('/api/v1/documents/quote-'.$id.'/pdf')->assertStatus(409);
+        $this->assertDatabaseMissing('document_events',['event_type'=>'downloaded']);
+    }
+
 }
