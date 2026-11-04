@@ -17,7 +17,7 @@
       </select>
       <select class="input" name="kind" aria-label="Filter type">
         <option value="">All Sources</option>
-        @foreach(['quote'=>'Quotes','signed'=>'Signed Quotes','managed'=>'Uploaded Files'] as $code=>$label)
+        @foreach(['quote'=>'Quotes','signed'=>'Signed Quotes','managed'=>'Uploaded Files','addendum'=>'Addenda'] as $code=>$label)
           <option value="{{ $code }}" @selected(($filters['kind']??'')===$code)>{{ $label }}</option>
         @endforeach
       </select>
