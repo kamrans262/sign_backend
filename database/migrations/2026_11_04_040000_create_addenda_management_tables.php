@@ -49,7 +49,7 @@ return new class extends Migration {
         });
         Schema::create('addendum_revisions', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('addendum_id')->constrained()->restrictOnDelete();
+            $table->foreignId('addendum_id')->constrained('addenda')->restrictOnDelete();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->unsignedInteger('revision');
             $table->json('snapshot');
@@ -59,7 +59,7 @@ return new class extends Migration {
         });
         Schema::create('addendum_signing_requests', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('addendum_id')->constrained()->restrictOnDelete();
+            $table->foreignId('addendum_id')->constrained('addenda')->restrictOnDelete();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->uuid('request_uuid')->unique();
@@ -83,7 +83,7 @@ return new class extends Migration {
         });
         Schema::create('addendum_events', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('addendum_id')->constrained()->restrictOnDelete();
+            $table->foreignId('addendum_id')->constrained('addenda')->restrictOnDelete();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('actor_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('event_type',45);
