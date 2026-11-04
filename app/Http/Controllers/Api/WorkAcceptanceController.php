@@ -109,6 +109,25 @@ final class WorkAcceptanceController extends Controller
         ]);
     }
 
+    public function customerPhotos(Request $request,int $acceptance): JsonResponse
+    {
+        return $this->response(['photos'=>$this->service->customerPhotos(
+            $this->company($request)->id,$acceptance)]);
+    }
+
+    public function customerPhoto(Request $request,int $acceptance,int $photo)
+    {
+        $company=$this->company($request);
+        $data=$this->service->customerPhoto($company->id,$acceptance,$photo);
+        return response($data['bytes'],200,[
+            'Content-Type'=>$data['mime_type'],
+            'Cache-Control'=>'private, no-store, max-age=0',
+            'X-Content-Type-Options'=>'nosniff',
+            'Content-Disposition'=>'inline; filename="customer-evidence-'.$photo.
+                ($data['mime_type']==='image/png'?'.png':'.jpg').'"',
+        ]);
+    }
+
     public function signature(Request $request,int $acceptance)
     {
         $company=$this->company($request);

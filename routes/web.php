@@ -102,6 +102,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/work-acceptances/{acceptance}/approve', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'approve'])->whereNumber('acceptance')->name('acceptances.approve');
         Route::post('/work-acceptances/{acceptance}/send', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'send'])->whereNumber('acceptance')->middleware('throttle:6,1')->name('acceptances.send');
         Route::post('/work-acceptances/{acceptance}/requests/{signature}/revoke', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'revoke'])->whereNumber('acceptance')->whereNumber('signature')->name('acceptances.revoke');
+        Route::get('/work-acceptances/{acceptance}/customer-photos/{photo}', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'customerPhoto'])->whereNumber('acceptance')->whereNumber('photo')->name('acceptances.customerPhoto');
         Route::get('/work-acceptances/{acceptance}/pdf/{kind}', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'pdf'])->whereNumber('acceptance')->whereIn('kind',['approved','signed'])->name('acceptances.pdf');
         // M12: Reports Management uses existing platform-admin guard.
         Route::get('/reports', [\App\Http\Controllers\Admin\SiteReportController::class,'index'])->name('reports.index');

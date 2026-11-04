@@ -73,6 +73,7 @@ final class WorkAcceptanceController extends Controller
             'requests'=>$this->reports->requests($row->company_id,$acceptance),
             'revisions'=>$this->reports->revisions($row->company_id,$acceptance),
             'photos'=>$photos,
+            'customerPhotos'=>$this->reports->customerPhotos($row->company_id,$acceptance),
         ]));
     }
 
@@ -114,6 +115,21 @@ final class WorkAcceptanceController extends Controller
         $this->reports->revoke($request,$this->company($row->company_id),
             $acceptance,$signature);
         return back()->with('success','Customer signing request revoked.');
+    }
+
+    public function customerPhoto(Request $request,int $acceptance,int $photo)
+    {
+        $row=$this->row($acceptance);
+        $data=$this->reports->customerPhoto($row->company_id,$acceptance,$photo);
+        $this->reports->event($row,'customer_photo_downloaded',
+            $request->user()?->id,null,['photo_id'=>$photo]);
+        return response($data['bytes'],200,[
+            'Content-Type'=>$data['mime_type'],
+            'Cache-Control'=>'private, no-store, max-age=0',
+            'Content-Disposition'=>'attachment; filename="customer-evidence-'.$photo.
+                ($data['mime_type']==='image/png'?'.png':'.jpg').'"',
+            'X-Content-Type-Options'=>'nosniff',
+        ]);
     }
 
     public function pdf(Request $request,int $acceptance,string $kind)

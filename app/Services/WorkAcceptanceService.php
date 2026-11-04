@@ -415,6 +415,49 @@ final class WorkAcceptanceService
             'request_id'=>$signingId,'recipient'=>$email];
     }
 
+    /** Metadata only; never return raw private paths or unverified public URLs. */
+    public function customerPhotos(int $companyId,int $acceptance): array
+    {
+        $row=$this->find($companyId,$acceptance);
+        if(!in_array($row->status,['accepted','accepted_with_reservations'],true)) {
+            return [];
+        }
+        return DB::table('work_acceptance_customer_photos')
+            ->where('company_id',$companyId)
+            ->where('work_acceptance_id',$acceptance)
+            ->orderBy('id')->get(['id','mime_type','byte_size','sha256','created_at'])
+            ->map(fn($photo)=>[
+                'id'=>(int)$photo->id,'mime_type'=>$photo->mime_type,
+                'byte_size'=>(int)$photo->byte_size,'sha256'=>$photo->sha256,
+                'created_at'=>$photo->created_at,
+            ])->all();
+    }
+
+    /** Immutable company-scoped customer evidence with SHA256 + image validation. */
+    public function customerPhoto(int $companyId,int $acceptance,int $photoId): array
+    {
+        $row=$this->find($companyId,$acceptance);
+        abort_unless(in_array($row->status,
+            ['accepted','accepted_with_reservations'],true),404);
+        $photo=DB::table('work_acceptance_customer_photos')
+            ->where('company_id',$companyId)
+            ->where('work_acceptance_id',$acceptance)
+            ->where('id',$photoId)->firstOrFail();
+        $disk=Storage::disk('local');
+        abort_unless($disk->exists($photo->private_path),404);
+        $bytes=$disk->get($photo->private_path);
+        abort_unless(is_string($bytes) &&
+            strlen($bytes)===(int)$photo->byte_size &&
+            hash_equals($photo->sha256,hash('sha256',$bytes)),409,
+            'Customer evidence photo failed integrity verification.');
+        $dimensions=@getimagesizefromstring($bytes);
+        abort_unless(is_array($dimensions) &&
+            in_array($photo->mime_type,['image/png','image/jpeg'],true) &&
+            ($dimensions['mime']??'')===$photo->mime_type,409,
+            'Customer evidence photo format failed verification.');
+        return ['bytes'=>$bytes,'mime_type'=>$photo->mime_type];
+    }
+
     public function revoke(Request $request,Company $company,int $id,int $signing): array
     {
         $item=DB::transaction(function()use($company,$id,$signing,$request):object {

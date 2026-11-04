@@ -55,6 +55,18 @@
 <strong>Rating:</strong> {{ $record['customer_rating']??'Not rated' }}
 <strong>Comment:</strong> {{ $record['customer_comment']?:'None' }}</div></section>
 @endif
+@if(!empty($customerPhotos))
+<section class="panel">
+<div class="panel-header"><h2>Original Customer Photo Evidence</h2></div>
+<p style="padding:0 20px">The signed PDF also contains these photos. Each original is verified against its saved SHA-256 hash before download.</p>
+<div class="table-wrap"><table><thead><tr><th>Photo</th><th>Type</th><th>Size</th><th>Added</th><th>Original</th></tr></thead><tbody>
+@foreach($customerPhotos as $photo)
+<tr><td>Customer Photo #{{ $photo['id'] }}</td><td>{{ $photo['mime_type'] }}</td><td>{{ number_format($photo['byte_size']) }} bytes</td><td>{{ $photo['created_at'] }}</td>
+<td><a class="btn btn-small btn-outline" href="{{ route('admin.acceptances.customerPhoto',[$record['id'],$photo['id']]) }}">Download Verified Original</a></td></tr>
+@endforeach
+</tbody></table></div>
+</section>
+@endif
 <section class="panel"><div class="panel-header"><h2>Customer Signing Requests</h2></div>
 <div class="table-wrap"><table><thead><tr><th>Request</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead><tbody>
 @forelse($requests as $signing)

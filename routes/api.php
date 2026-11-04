@@ -225,6 +225,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
             Route::get('/work-acceptances', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'index']);
             Route::get('/work-acceptances/{acceptance}', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'show'])->whereNumber('acceptance');
+            Route::get('/work-acceptances/{acceptance}/customer-photos', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'customerPhotos'])->whereNumber('acceptance');
+            Route::get('/work-acceptances/{acceptance}/customer-photos/{photo}', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'customerPhoto'])->whereNumber('acceptance')->whereNumber('photo')->middleware('throttle:30,1');
             Route::get('/work-acceptances/{acceptance}/signature', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'signature'])->whereNumber('acceptance')->middleware('throttle:30,1');
             Route::get('/work-acceptances/{acceptance}/pdf/{kind}', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'pdf'])->whereNumber('acceptance')->whereIn('kind',['approved','signed'])->middleware('throttle:30,1');
             Route::get('/work-acceptances/{acceptance}/requests', [\App\Http\Controllers\Api\WorkAcceptanceController::class,'requests'])->whereNumber('acceptance');
