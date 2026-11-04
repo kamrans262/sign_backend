@@ -260,4 +260,82 @@ class M15LabourTrackingTest extends TestCase
     }
 
 
+    public function test_worker_picker_only_returns_active_assignees_in_this_company(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('Assigned Workers');
+        $notAssigned=User::factory()->create(['is_active'=>true]);
+        $company->users()->attach($notAssigned->id,[
+            'role'=>'member','status'=>'active',
+            'permissions'=>json_encode(['jobs.read','jobs.write']),
+        ]);
+        $inactive=User::factory()->create(['is_active'=>true]);
+        $company->users()->attach($inactive->id,[
+            'role'=>'member','status'=>'inactive',
+            'permissions'=>json_encode(['jobs.read','jobs.write']),
+        ]);
+        DB::table('service_job_user')->insert([
+            'service_job_id'=>$job,'user_id'=>$inactive->id,
+        ]);
+        $this->getJson('/api/v1/jobs/'.$job.'/labour-workers')->assertOk()
+            ->assertJsonCount(1,'data.workers')
+            ->assertJsonPath('data.workers.0.id',$owner->id);
+    }
+
+    public function test_stale_timer_needs_explicit_admin_recovery_and_creates_no_fake_hours(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('Timer Recovery');
+        Carbon::setTestNow('2026-11-05 08:00:00 UTC');
+        $this->postJson('/api/v1/labour/timer/start',[
+            'request_key'=>(string)Str::uuid(),
+            'job_id'=>$job,'hourly_rate'=>'100.00',
+        ])->assertOk();
+        Carbon::setTestNow('2026-11-06 10:00:00 UTC');
+        $this->postJson('/api/v1/labour/timer/stop',[
+            'request_key'=>(string)Str::uuid(),
+        ])->assertStatus(409);
+        $this->assertDatabaseCount('job_labour_entries',0);
+        $admin=User::factory()->create([
+            'is_active'=>true,'is_platform_admin'=>true,
+        ]);
+        $this->actingAs($admin);
+        $payload=['confirm'=>1,'reason'=>'Worker forgot to stop timer; manually reconcile.',
+            'request_key'=>(string)Str::uuid()];
+        $url='/admin/time-labour/timer/'.$company->id.'/'.$owner->id.'/recover';
+        $this->post($url,$payload)->assertRedirect();
+        $this->post($url,$payload)->assertRedirect();
+        $this->assertDatabaseHas('job_labour_timers',[
+            'company_id'=>$company->id,
+            'worker_user_id'=>$owner->id,'status'=>'stopped',
+        ]);
+        $event=DB::table('job_labour_events')->where('company_id',$company->id)
+            ->where('event_type','timer_recovered')->sole();
+        $meta=json_decode($event->metadata,true,512,JSON_THROW_ON_ERROR);
+        $this->assertTrue($meta['manual_reconciliation_required']);
+        $this->assertSame(26*3600,$meta['recorded_seconds']);
+        $this->assertDatabaseCount('job_labour_entries',0);
+        $this->get('/admin/time-labour')->assertOk()
+            ->assertSeeText('Timer Recovery Audit')
+            ->assertSeeText('Worker forgot to stop timer');
+        Sanctum::actingAs($owner);
+        $this->withHeader('X-Company-Id',(string)$company->id);
+        $this->postJson('/api/v1/labour/timer/start',[
+            'request_key'=>(string)Str::uuid(),'job_id'=>$job,
+        ])->assertOk()->assertJsonPath('data.timer.status','running');
+        $this->assertDatabaseCount('job_labour_entries',0);
+    }
+
+    public function test_dst_missing_time_is_rejected_and_autumn_work_duration_is_absolute(): void
+    {
+        try {
+            LabourService::workSpan('2026-03-29',150,210);
+            $this->fail('Non-existent Europe/Zurich 02:30 was accepted.');
+        } catch (\\Illuminate\\Validation\\ValidationException $expected) {
+            $this->assertArrayHasKey('work_date',$expected->errors());
+        }
+        [$start,$end,$minutes]=LabourService::workSpan('2026-10-25',90,210);
+        $this->assertSame(180,$minutes);
+        $this->assertSame('2026-10-24 23:30:00',$start);
+        $this->assertSame('2026-10-25 02:30:00',$end);
+    }
+
 }
