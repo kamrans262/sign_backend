@@ -146,6 +146,38 @@ class M11JobMediaTest extends TestCase
         $this->assertDatabaseCount('managed_documents',1);
     }
 
+    public function test_private_voice_note_can_be_transcribed_without_publishing_it(): void
+    {
+        Storage::fake('local');
+        [$user,$company,$job] = $this->tenant('Voice transcription');
+        $bytes = "RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00";
+        $created = $this->post('/api/v1/jobs/'.$job.'/notes', [
+            'title'=>'Voice observation','body'=>'','type'=>'voice',
+            'visibility'=>'private',
+            'file'=>UploadedFile::fake()->createWithContent('memo.wav',$bytes),
+        ], ['Accept'=>'application/json'])->assertCreated();
+        $note = (int) $created->json('data.note.id');
+        config()->set('services.openai.key','m11-ci-fake-only');
+        Http::fake([
+            '*api.openai.com/v1/audio/transcriptions'=>Http::response([
+                'text'=>'An old window has broken glazing.',
+            ],200),
+            '*api.openai.com/v1/chat/completions'=>Http::response([
+                'choices'=>[['message'=>['content'=>json_encode([
+                    'title'=>'Voice report','content'=>'Window glazing was described as broken.',
+                ])]]],
+            ],200),
+        ]);
+        $this->postJson('/api/v1/jobs/'.$job.'/notes/'.$note.'/transcribe')
+            ->assertOk()->assertJsonPath('data.transcript','An old window has broken glazing.');
+        $this->postJson('/api/v1/jobs/'.$job.'/notes/'.$note.'/documents/prepare',[
+            'document_type'=>'report',
+        ])->assertCreated()->assertJsonPath('data.document.status','draft');
+        $this->assertDatabaseHas('job_notes',['id'=>$note,'body'=>'']);
+        $this->assertDatabaseCount('managed_documents',0);
+        Http::assertSentCount(3);
+    }
+
     public function test_customer_facing_notes_cannot_be_secretly_converted(): void
     {
         Storage::fake('local');
