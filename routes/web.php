@@ -93,6 +93,16 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/job-media/{kind}/{id}', [\App\Http\Controllers\Admin\JobMediaController::class, 'update'])->whereNumber('id')->name('job-media.update');
         Route::post('/job-media/{kind}/{id}/archive', [\App\Http\Controllers\Admin\JobMediaController::class, 'archive'])->whereNumber('id')->name('job-media.archive');
         Route::get('/job-media/{kind}/{id}/download', [\App\Http\Controllers\Admin\JobMediaController::class, 'download'])->whereNumber('id')->name('job-media.download');
+        // M13 Work Acceptance Management; all routes inherit platform admin auth.
+        Route::get('/work-acceptances', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'index'])->name('acceptances.index');
+        Route::get('/work-acceptances/create', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'create'])->name('acceptances.create');
+        Route::post('/work-acceptances', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'store'])->name('acceptances.store');
+        Route::get('/work-acceptances/{acceptance}/edit', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'edit'])->whereNumber('acceptance')->name('acceptances.edit');
+        Route::patch('/work-acceptances/{acceptance}', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'update'])->whereNumber('acceptance')->name('acceptances.update');
+        Route::post('/work-acceptances/{acceptance}/approve', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'approve'])->whereNumber('acceptance')->name('acceptances.approve');
+        Route::post('/work-acceptances/{acceptance}/send', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'send'])->whereNumber('acceptance')->middleware('throttle:6,1')->name('acceptances.send');
+        Route::post('/work-acceptances/{acceptance}/requests/{signature}/revoke', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'revoke'])->whereNumber('acceptance')->whereNumber('signature')->name('acceptances.revoke');
+        Route::get('/work-acceptances/{acceptance}/pdf/{kind}', [\App\Http\Controllers\Admin\WorkAcceptanceController::class,'pdf'])->whereNumber('acceptance')->whereIn('kind',['approved','signed'])->name('acceptances.pdf');
         // M12: Reports Management uses existing platform-admin guard.
         Route::get('/reports', [\App\Http\Controllers\Admin\SiteReportController::class,'index'])->name('reports.index');
         Route::get('/reports/create', [\App\Http\Controllers\Admin\SiteReportController::class,'create'])->name('reports.create');

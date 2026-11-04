@@ -39,6 +39,7 @@
       <a class="side-link {{ request()->routeIs('admin.documents.*') ? 'active' : '' }}" href="{{ route('admin.documents.index') }}" @if(request()->routeIs('admin.documents.*')) aria-current="page" @endif>
         <x-admin.icon name="briefcase" /><span>Document Management</span>
       </a>
+      <a class="side-link {{ request()->routeIs('admin.acceptances.*') ? 'active' : '' }}" href="{{ route('admin.acceptances.index') }}"><x-admin.icon name="briefcase"/><span>Work Acceptance Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}" href="{{ route('admin.reports.index') }}" @if(request()->routeIs('admin.reports.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Reports Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.addenda.*') ? 'active' : '' }}" href="{{ route('admin.addenda.index') }}" @if(request()->routeIs('admin.addenda.*')) aria-current="page" @endif>
         <x-admin.icon name="briefcase" /><span>Addenda Management</span>
@@ -99,6 +100,7 @@
         <a href="{{ route('admin.job-media.index') }}" class="{{ request()->routeIs('admin.job-media.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Photos & Notes Management</a>
         <a href="{{ route('admin.quotes.index') }}" class="{{ request()->routeIs('admin.quotes.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Quote Management</a>
         <a href="{{ route('admin.documents.index') }}" class="{{ request()->routeIs('admin.documents.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Document Management</a>
+        <a href="{{ route('admin.acceptances.index') }}" class="{{ request()->routeIs('admin.acceptances.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Work Acceptance Management</a>
         <a href="{{ route('admin.reports.index') }}" class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Reports Management</a>
         <a href="{{ route('admin.addenda.index') }}" class="{{ request()->routeIs('admin.addenda.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Addenda Management</a>
         <a href="{{ route('admin.signatures.index') }}" class="{{ request()->routeIs('admin.signatures.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Digital Signatures</a>
