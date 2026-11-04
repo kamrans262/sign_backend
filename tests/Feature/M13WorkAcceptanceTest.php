@@ -194,6 +194,8 @@ class M13WorkAcceptanceTest extends TestCase
         [$user,$company,$client,$job]=$this->setupTenant('Photos and Reservations');
         $id=$this->createAcceptance($job);
         $this->approve($id);
+        $this->getJson('/api/v1/work-acceptances/'.$id.'/customer-photos')
+            ->assertOk()->assertJsonCount(0,'data.photos');
         $record=DB::table('work_acceptances')->find($id);
         [$token,$signing,$requestUuid,$documentUuid,$consent]=$this->signingToken(
             $record,$company->id);
@@ -217,6 +219,35 @@ class M13WorkAcceptanceTest extends TestCase
             Storage::disk('local')->get($photo->private_path)));
         $this->get('/api/v1/work-acceptances/'.$id.'/pdf/signed')
             ->assertOk()->assertHeader('Content-Type','application/pdf');
+        $this->getJson('/api/v1/work-acceptances/'.$id.'/customer-photos')
+            ->assertOk()->assertJsonCount(1,'data.photos')
+            ->assertJsonPath('data.photos.0.id',$photo->id)
+            ->assertJsonPath('data.photos.0.sha256',$photo->sha256);
+        $this->get('/api/v1/work-acceptances/'.$id.'/customer-photos/'.$photo->id)
+            ->assertOk()->assertHeader('Content-Type','image/png');
+        $this->get('/api/v1/work-acceptances/'.$id.'/customer-photos/99999')
+            ->assertNotFound();
+        $admin=User::factory()->create([
+            'is_active'=>true,'is_platform_admin'=>true,
+        ]);
+        $this->actingAs($admin);
+        $this->get('/admin/work-acceptances/'.$id.'/edit')->assertOk()
+            ->assertSee('Original Customer Photo Evidence')
+            ->assertSee('Download Verified Original');
+        $this->get('/admin/work-acceptances/'.$id.'/customer-photos/'.$photo->id)
+            ->assertOk()->assertHeader('Content-Type','image/png');
+        Sanctum::actingAs($user);
+        Storage::disk('local')->put($photo->private_path,'tampered evidence');
+        $this->get('/api/v1/work-acceptances/'.$id.'/customer-photos/'.$photo->id)
+            ->assertStatus(409);
+        // Photo tampering never rewrites or invalidates the already frozen PDF.
+        $this->get('/api/v1/work-acceptances/'.$id.'/pdf/signed')
+            ->assertOk()->assertHeader('Content-Type','application/pdf');
+        [$otherUser,$otherCompany]=$this->setupTenant('Other Acceptance Tenant');
+        $this->getJson('/api/v1/work-acceptances/'.$id.'/customer-photos')
+            ->assertNotFound();
+        $this->get('/api/v1/work-acceptances/'.$id.'/customer-photos/'.$photo->id)
+            ->assertNotFound();
         $this->assertDatabaseCount('managed_document_versions',1);
     }
 
