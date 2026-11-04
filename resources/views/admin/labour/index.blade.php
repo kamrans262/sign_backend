@@ -56,7 +56,27 @@
 <td>{{ intdiv($timer['elapsed_seconds'],3600) }}h {{ intdiv($timer['elapsed_seconds']%3600,60) }}m</td>
 <td><form action="{{ route('admin.labour.timer.stop',[$timer['company_id'],$timer['worker_id']]) }}" method="post" onsubmit="return confirm('Stop this worker timer and create a pending time entry?')">
 @csrf<input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}">
-<button class="btn btn-small btn-outline">Stop Timer</button></form></td></tr>
+<button class="btn btn-small btn-outline">Stop Timer</button></form>
+<form action="{{ route('admin.labour.timer.recover',[$timer['company_id'],$timer['worker_id']]) }}" method="post" onsubmit="return confirm('Recover timer without billing any hours? You must add corrected time manually.')">
+@csrf
+<input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}">
+<input type="hidden" name="confirm" value="1">
+<label>Reason for recovery
+<input class="input" name="reason" required minlength="10" maxlength="2000" placeholder="Required explanation and follow-up" aria-label="Timer recovery reason"></label>
+<button class="btn btn-small btn-outline">Recover / Reset Timer</button>
+</form></td></tr>
 @empty<tr><td colspan="6">No running or paused timers.</td></tr>@endforelse
 </tbody></table></div></section>
+<section class="panel">
+<div class="panel-header"><h2>Timer Recovery Audit</h2><p class="panel-header-hint">Only explicit administrator interventions; recovered time must be reconciled manually.</p></div>
+<div class="table-wrap"><table><thead><tr><th>Worker</th><th>Company</th><th>Reported Time</th><th>Reason</th><th>Recorded</th><th>Actor</th></tr></thead><tbody>
+@forelse($recoveries as $event)
+@php $meta=json_decode((string)$event->metadata,true)?:[]; @endphp
+<tr><td>{{ $event->worker_name??'Worker #'.$event->worker_user_id }}</td>
+<td>#{{ $event->company_id }}</td>
+<td>{{ intdiv((int)($meta['recorded_seconds']??0),3600) }}h {{ intdiv(((int)($meta['recorded_seconds']??0))%3600,60) }}m (unbilled)</td>
+<td>{{ $meta['reason']??'Unknown' }}</td><td>{{ $event->created_at }}</td><td>User #{{ $event->actor_user_id }}</td></tr>
+@empty<tr><td colspan="6">No timer recoveries recorded.</td></tr>@endforelse
+</tbody></table></div>
+</section>
 @endsection
