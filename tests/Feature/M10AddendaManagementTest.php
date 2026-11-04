@@ -78,6 +78,28 @@ final class M10AddendaManagementTest extends TestCase
         return [$artifact,$bytes,$sha];
     }
 
+    private function signaturePng(): string
+    {
+        // Genuine PNG, as required by the hardened M8 shared composer.
+        $width=300;$height=100;$raw='';
+        for($y=0;$y<$height;$y++){
+            $row="\x00";
+            for($x=0;$x<$width;$x++){
+                $ink=($x>20 && $x<280 && abs($y-(30+$x/9))<2);
+                $row.=$ink?"\x12\x25\x36":"\xFF\xFF\xFF";
+            }
+            $raw.=$row;
+        }
+        $chunk=static function(string $type,string $data):string{
+            return pack('N',strlen($data)).$type.$data.
+                pack('N',crc32($type.$data));
+        };
+        return "\x89PNG\r\n\x1a\n".
+            $chunk('IHDR',pack('NNCCCCC',$width,$height,8,2,0,0,0)).
+            $chunk('IDAT',gzcompress($raw,6)).
+            $chunk('IEND','');
+    }
+
     private function body(int $id): array
     {
         return [
@@ -219,4 +241,87 @@ final class M10AddendaManagementTest extends TestCase
         ])->assertStatus(503);
         $this->assertDatabaseMissing('addenda',['id'=>$id,'status'=>'approved']);
     }
+    public function test_public_customer_signs_separate_addendum_once_without_modifying_original(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client]=$this->tenant();
+        [$artifact,$original]=$this->signedOriginal($company,$client);
+        $id=$this->postJson('/api/v1/addenda',$this->body($artifact->id))
+            ->assertCreated()->json('data.addendum.id');
+        $this->postJson('/api/v1/addenda/'.$id.'/approve',[
+            'confirmed'=>true,'expected_revision'=>1,
+        ])->assertOk();
+        $result=$this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
+            'signer_name'=>'Original Customer',
+            'signer_email'=>'customer@example.test','delivery'=>'link',
+        ])->assertCreated();
+        $token=basename(parse_url($result->json('data.secure_link'),PHP_URL_PATH));
+        $request=AddendumSigningRequest::firstOrFail();
+        $this->getJson('/api/public/addenda/'.$token)->assertOk()
+            ->assertJsonPath('data.addendum.status','approved');
+        $this->get('/api/public/addenda/'.$token.'/pdf')->assertOk()
+            ->assertHeader('Content-Type','application/pdf');
+        $payload=[
+            'addendumId'=>$id,
+            'documentId'=>$request->document_uuid,
+            'requestId'=>$request->request_uuid,
+            'signerId'=>$request->signer_uuid,
+            'documentVersion'=>$request->approved_revision.':'.$request->approved_pdf_sha256,
+            'consentReference'=>$request->consent_reference,
+            'method'=>'draw',
+            'signaturePngBase64'=>base64_encode($this->signaturePng()),
+            'consentAccepted'=>true,
+        ];
+        $this->postJson('/api/public/addenda/'.$token.'/submit',[
+            ...$payload,'consentReference'=>str_repeat('0',64),
+        ])->assertForbidden();
+        $response=$this->postJson('/api/public/addenda/'.$token.'/submit',$payload)
+            ->assertCreated()->assertJsonPath('data.status','signed');
+        $signed=Addendum::findOrFail($id);
+        $this->assertSame('signed',$signed->status);
+        $this->assertStringStartsWith('%PDF-',Storage::disk('local')
+            ->get($signed->signed_pdf_path));
+        $this->assertSame($signed->signed_pdf_sha256,
+            hash('sha256',Storage::disk('local')->get($signed->signed_pdf_path)));
+        $this->assertSame($original,
+            Storage::disk('local')->get($artifact->signed_pdf_path));
+        $this->postJson('/api/public/addenda/'.$token.'/submit',$payload)
+            ->assertStatus(410);
+        $this->getJson('/api/public/addenda/'.$token.'/receipt')->assertOk()
+            ->assertJsonPath('data.signed_pdf_sha256',$signed->signed_pdf_sha256);
+        $this->get('/api/public/addenda/'.$token.'/signed-pdf')->assertOk()
+            ->assertContent(Storage::disk('local')->get($signed->signed_pdf_path));
+        $this->getJson('/api/v1/documents?category=addends')->assertOk()
+            ->assertJsonPath('data.documents.0.id','addendum-'.$id);
+        $this->getJson('/api/v1/documents/addendum-'.$id)->assertOk()
+            ->assertJsonPath('data.related.0.id','signed-'.$artifact->id);
+    }
+
+    public function test_platform_admin_manages_addenda_without_exposing_public_edit_or_forged_signature(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client]=$this->tenant();
+        [$artifact]=$this->signedOriginal($company,$client);
+        $id=$this->postJson('/api/v1/addenda',$this->body($artifact->id))
+            ->assertCreated()->json('data.addendum.id');
+        $admin=User::factory()->create([
+            'is_active'=>true,'is_platform_admin'=>true,
+        ]);
+        $this->actingAs($admin);
+        $this->get('/admin/addenda')->assertOk()
+            ->assertSee('Addenda Management')->assertSee('A-2026-0005');
+        $this->get('/admin/addenda/'.$id)->assertOk()
+            ->assertSee('Original signed source');
+        $this->get('/admin/addenda/'.$id.'/edit')->assertOk()
+            ->assertSee('Edit Draft');
+        $this->post('/admin/addenda/'.$id.'/approve',[
+            'confirmed'=>'1','expected_revision'=>1,
+        ])->assertRedirect();
+        $this->assertDatabaseHas('addenda',['id'=>$id,'status'=>'approved']);
+        $this->get('/admin/addenda/'.$id.'/pdf')->assertOk()
+            ->assertHeader('Content-Type','application/pdf');
+        $this->get('/admin/addenda/'.$id.'/edit')->assertStatus(409);
+        $this->assertDatabaseCount('addendum_signing_requests',0);
+    }
+
 }
