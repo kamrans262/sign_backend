@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -62,6 +63,7 @@ class M12ReportsManagementTest extends TestCase
             ->assertJsonCount(1,'data.revisions')
             ->assertJsonPath('data.report.revision',1);
         $this->patchJson('/api/v1/reports/'.$id,[
+            'revision'=>1,
             'content'=>['sections'=>['siteProgress'=>'Two windows replaced and inspected.']],
         ])->assertOk()->assertJsonPath('data.report.revision',2);
         $this->postJson('/api/v1/reports/'.$id.'/approve',[
@@ -77,6 +79,7 @@ class M12ReportsManagementTest extends TestCase
             ->assertHeader('Content-Type','application/pdf');
         $this->get('/api/v1/documents/managed-'.$document.'/pdf')->assertOk();
         $this->patchJson('/api/v1/reports/'.$id,[
+            'revision'=>2,
             'title'=>'Tampered','content'=>['sections'=>['siteProgress'=>'Changed']],
         ])->assertStatus(409);
         $this->postJson('/api/v1/reports/'.$id.'/approve',[
@@ -85,9 +88,50 @@ class M12ReportsManagementTest extends TestCase
         $this->assertDatabaseCount('managed_documents',1);
         $this->assertDatabaseCount('managed_document_versions',1);
         $this->assertDatabaseCount('site_report_revisions',2);
+        $original=$this->get('/api/v1/reports/'.$id.'/pdf')->assertOk()->getContent();
+        $this->assertDatabaseHas('site_report_events',[
+            'site_report_id'=>$id,'event_type'=>'downloaded',
+        ]);
+        $replacement=UploadedFile::fake()->createWithContent('replacement.pdf',$original);
+        $this->post('/api/v1/documents/managed-'.$document.'/versions',[
+            'file'=>$replacement,
+        ])->assertStatus(409);
+        $this->assertDatabaseCount('managed_document_versions',1);
+        $this->get('/api/v1/documents/managed-'.$document.'/pdf')->assertOk();
+        $this->actingAs(User::factory()->create([
+            'is_active'=>true,'is_platform_admin'=>true,
+        ]));
+        $replacement=UploadedFile::fake()->createWithContent('replacement.pdf',$original);
+        $this->post('/admin/documents/managed-'.$document.'/versions',[
+            'file'=>$replacement,
+        ])->assertStatus(409);
+        $this->assertDatabaseCount('managed_document_versions',1);
+        Sanctum::actingAs($actor);
         $version=DB::table('managed_document_versions')->where('managed_document_id',$document)->first();
         Storage::disk('local')->put($version->private_path,'tampered');
         $this->get('/api/v1/reports/'.$id.'/pdf')->assertStatus(409);
+    }
+
+    public function test_stale_editor_and_ai_revision_are_rejected(): void
+    {
+        Storage::fake('local');
+        [$actor,$company,$client,$job]=$this->tenant('Stale Editor');
+        $id=$this->make($job);
+        $this->patchJson('/api/v1/reports/'.$id,[
+            'revision'=>1,'content'=>['sections'=>['siteProgress'=>'Updated by editor A']],
+        ])->assertOk()->assertJsonPath('data.report.revision',2);
+        $this->patchJson('/api/v1/reports/'.$id,[
+            'revision'=>1,'content'=>['sections'=>['siteProgress'=>'Stale editor B']],
+        ])->assertStatus(409);
+        $this->patchJson('/api/v1/reports/'.$id,[
+            'content'=>['sections'=>['siteProgress'=>'Missing revision']],
+        ])->assertUnprocessable();
+        $this->postJson('/api/v1/reports/'.$id.'/prepare-ai',[
+            'confirm'=>true,'revision'=>1,
+        ])->assertStatus(409);
+        $this->getJson('/api/v1/reports/'.$id)
+            ->assertJsonPath('data.report.content.sections.siteProgress','Updated by editor A');
+        $this->assertDatabaseCount('site_report_revisions',2);
     }
 
     public function test_meeting_minutes_are_structured_and_can_send_only_after_approval(): void
@@ -125,7 +169,7 @@ class M12ReportsManagementTest extends TestCase
                 'sections'=>['siteProgress'=>'Windows measured on site'],
             ])]]],
         ],200)]);
-        $this->postJson('/api/v1/reports/'.$id.'/prepare-ai',['confirm'=>true])
+        $this->postJson('/api/v1/reports/'.$id.'/prepare-ai',['confirm'=>true,'revision'=>1])
             ->assertOk()->assertJsonPath('data.suggestion.applied',false)
             ->assertJsonPath('data.suggestion.approved',false);
         $this->getJson('/api/v1/reports/'.$id)->assertJsonPath('data.report.status','draft')
@@ -142,6 +186,7 @@ class M12ReportsManagementTest extends TestCase
         $bReport=$this->make($bJob);
         $this->getJson('/api/v1/reports/'.$aReport)->assertNotFound();
         $this->patchJson('/api/v1/reports/'.$aReport,[
+            'revision'=>1,
             'title'=>'Unauthorized','content'=>['sections'=>['notes'=>'Wrong account']],
         ])->assertNotFound();
         $this->postJson('/api/v1/reports',[

@@ -149,10 +149,11 @@ final class SiteReportController extends Controller
         return redirect()->route('admin.reports.index')->with('success','Report archived.');
     }
 
-    public function pdf(int $report)
+    public function pdf(Request $request,int $report)
     {
         $item=$this->editRow($report);
         $bytes=$this->reports->verifiedPdf($item->company_id,$report);
+        $this->reports->logDownload($request,$this->company($item->company_id),$report);
         return response($bytes,200,[
             'Content-Type'=>'application/pdf',
             'Content-Disposition'=>'attachment; filename="'.$item->number.'.pdf"',
