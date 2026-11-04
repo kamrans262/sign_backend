@@ -16,6 +16,7 @@ on:
       - 'tests/Feature/M9DocumentReleaseSecurityTest.php'
       - 'scripts/m9_release_preflight.php'
       - 'scripts/m9_release_backup.sh'
+      - 'scripts/m9_release_deploy.sh'
   workflow_dispatch:
 
 permissions:
@@ -56,6 +57,7 @@ jobs:
         run: |
           for file in app/Services/DocumentCatalogService.php app/Http/Controllers/Api/DocumentController.php app/Http/Controllers/Admin/DocumentController.php database/migrations/2026_11_04_030000_create_document_management_tables.php tests/Feature/M9DocumentManagementTest.php tests/Feature/M9DocumentReleaseSecurityTest.php scripts/m9_release_preflight.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
           bash -n scripts/m9_release_backup.sh
+          bash -n scripts/m9_release_deploy.sh
           php artisan view:cache
           php artisan route:list --path=api/v1/documents
           php artisan route:list --path=admin/documents
