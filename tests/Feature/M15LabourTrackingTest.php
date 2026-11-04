@@ -338,4 +338,83 @@ class M15LabourTrackingTest extends TestCase
         $this->assertSame('2026-10-25 02:30:00',$end);
     }
 
+
+
+    public function test_timer_duplicate_transitions_and_reused_idempotency_keys_fail_closed(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M15 Retry Safety');
+        Carbon::setTestNow('2026-11-05 08:00:00 UTC');
+        $key=(string)Str::uuid();
+        $start=['request_key'=>$key,'job_id'=>$job,'hourly_rate'=>'10.01'];
+        $this->postJson('/api/v1/labour/timer/start',$start)
+            ->assertOk()->assertJsonPath('data.timer.status','running');
+        $this->postJson('/api/v1/labour/timer/pause',[
+            'request_key'=>$key,
+        ])->assertStatus(409);
+        $this->postJson('/api/v1/labour/timer/start',[
+            'request_key'=>(string)Str::uuid(),'job_id'=>$job,
+        ])->assertStatus(409);
+        Carbon::setTestNow('2026-11-05 08:02:00 UTC');
+        $this->postJson('/api/v1/labour/timer/pause',[
+            'request_key'=>(string)Str::uuid(),
+        ])->assertOk()->assertJsonPath('data.timer.elapsed_seconds',120);
+        $this->postJson('/api/v1/labour/timer/start',[
+            'request_key'=>(string)Str::uuid(),'job_id'=>$job,
+        ])->assertStatus(409);
+        $this->postJson('/api/v1/labour/timer/stop',[
+            'request_key'=>(string)Str::uuid(),
+        ])->assertOk()->assertJsonPath('data.entry.duration_minutes',2)
+          ->assertJsonPath('data.entry.cost_minor',33);
+        $this->assertDatabaseCount('job_labour_entries',1);
+        $this->assertDatabaseCount('job_labour_timer_requests',3);
+    }
+
+    public function test_manual_overnight_entry_validates_rate_and_blocks_overlap(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M15 Midnight');
+        [$start,$end,$minutes]=LabourService::workSpan('2026-11-05',1380,90);
+        $this->assertSame(150,$minutes);
+        $this->assertLessThan(strtotime($end),strtotime($start));
+        $payload=$this->entry($owner->id,$job,'19.99',1380,90);
+        $id=(int)$this->postJson('/api/v1/labour/entries',$payload)
+            ->assertCreated()->assertJsonPath('data.entry.duration_minutes',150)
+            ->assertJsonPath('data.entry.cost_minor',4998)
+            ->json('data.entry.id');
+        // Overlap check is on absolute UTC timestamps, not local clock labels.
+        $overlap=$payload;
+        $overlap['work_date']='2026-11-06';
+        $overlap['start_minutes']=30;
+        $overlap['end_minutes']=180;
+        $this->postJson('/api/v1/labour/entries',$overlap)
+            ->assertStatus(409);
+        $bad=$this->entry($owner->id,$job,'2.999',120,180);
+        $this->postJson('/api/v1/labour/entries',$bad)->assertUnprocessable();
+        $this->assertDatabaseHas('job_labour_entries',[
+            'id'=>$id,'status'=>'pending','cost_minor'=>4998,
+        ]);
+    }
+
+    public function test_removed_private_proof_cannot_be_downloaded_or_reattached(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client,$job]=$this->tenant('M15 Removed Proof');
+        $entry=(int)$this->postJson('/api/v1/labour/entries',
+            $this->entry($owner->id,$job))->assertCreated()
+            ->json('data.entry.id');
+        $proof=(int)$this->post('/api/v1/labour/entries/'.$entry.'/evidence',[
+            'file'=>UploadedFile::fake()->image('site.png',100,100),
+        ],['Accept'=>'application/json'])->assertCreated()->json('data.id');
+        $this->deleteJson('/api/v1/labour/entries/'.$entry.
+            '/evidence/'.$proof)->assertOk();
+        $this->get('/api/v1/labour/entries/'.$entry.
+            '/evidence/'.$proof)->assertNotFound();
+        $this->deleteJson('/api/v1/labour/entries/'.$entry.
+            '/evidence/'.$proof)->assertNotFound();
+        $this->assertDatabaseHas('job_labour_evidence',[
+            'id'=>$proof,'company_id'=>$company->id,
+        ]);
+        $this->assertNotNull(DB::table('job_labour_evidence')
+            ->where('id',$proof)->value('removed_at'));
+    }
+
 }
