@@ -42,8 +42,10 @@ final class ExpenseAiController extends Controller
         $types=['Fuel','Tools','Parking','Meals','Other','Material','Labour'];
         $expenseType=$value['expenseType']??null;
         $day=$value['date']??null;
+        $parsed=is_string($day)
+            ? \DateTimeImmutable::createFromFormat('!Y-m-d',$day):false;
         if(!is_string($day)||!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/D',$day)||
-            \DateTimeImmutable::createFromFormat('!Y-m-d',$day)?->format('Y-m-d')!==$day) {
+            $parsed===false||$parsed->format('Y-m-d')!==$day) {
             $day=null;
         }
         $amount=$value['amount']??null;
