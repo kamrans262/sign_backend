@@ -213,6 +213,12 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
         });
 
+        // M12: opt-in report dictation, no private audio persisted or published.
+        Route::middleware(['company.access','company.permission:jobs.read',
+            'company.permission:documents.write'])->post('/reports/voice/transcribe',
+            [\App\Http\Controllers\Api\SiteReportVoiceController::class,'transcribe'])
+            ->middleware('throttle:6,1');
+
         // M12: site reports and meeting minutes; approved PDFs are immutable M9 documents.
         Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
             Route::get('/reports', [\App\Http\Controllers\Api\SiteReportController::class,'index']);
