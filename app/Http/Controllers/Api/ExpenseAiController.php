@@ -19,6 +19,16 @@ final class ExpenseAiController extends Controller
         return $company;
     }
 
+    /** AI content is untrusted: never allow invalid calendar dates into drafts. */
+    private static function calendarDate(mixed $input): ?string
+    {
+        if(!is_string($input)||
+            !preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/D',$input))return null;
+        $parsed=\DateTimeImmutable::createFromFormat('!Y-m-d',$input);
+        return $parsed!==false&&$parsed->format('Y-m-d')===$input
+            ?$input:null;
+    }
+
     private static function suggestion(string $text,string $key): array
     {
         $prompt='Return JSON ONLY with optional jobReference, expenseType, date, amount, '
@@ -41,13 +51,7 @@ final class ExpenseAiController extends Controller
         abort_unless(is_array($value),502,'Invalid expense extraction response.');
         $types=['Fuel','Tools','Parking','Meals','Other','Material','Labour'];
         $expenseType=$value['expenseType']??null;
-        $day=$value['date']??null;
-        $parsed=is_string($day)
-            ? \DateTimeImmutable::createFromFormat('!Y-m-d',$day):false;
-        if(!is_string($day)||!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/D',$day)||
-            $parsed===false||$parsed->format('Y-m-d')!==$day) {
-            $day=null;
-        }
+        $day=self::calendarDate($value['date']??null);
         $amount=$value['amount']??null;
         if(!is_numeric($amount)||!is_finite((float)$amount)||$amount<=0||
             $amount>9999999999) $amount=null;
@@ -143,8 +147,7 @@ final class ExpenseAiController extends Controller
             'expenseType'=>in_array($raw['expenseType']??null,
                 ['Fuel','Tools','Parking','Meals','Other','Material','Labour'],true)
                     ?$raw['expenseType']:null,
-            'date'=>is_string($raw['date']??null)&&preg_match('/^\\d{4}-\\d{2}-\\d{2}$/D',$raw['date'])
-                ?$raw['date']:null,
+            'date'=>self::calendarDate($raw['date']??null),
             'amount'=>is_numeric($raw['amount']??null)&&
                 (float)$raw['amount']>0&&(float)$raw['amount']<9999999999
                     ?(float)$raw['amount']:null,
