@@ -1,0 +1,31 @@
+name: M15 Stage 1 Time and Labour Backend
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m15-backend
+  cancel-in-progress: true
+jobs:
+  labour:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint M15 source and compile Admin Blade
+        run: |
+          for file in database/migrations/2026_11_05_020000_create_labour_tracking_tables.php app/Services/LabourService.php app/Services/LabourTimerService.php app/Http/Controllers/Api/LabourController.php app/Http/Controllers/Api/LabourTimerController.php app/Http/Controllers/Api/LabourAiController.php app/Http/Controllers/Admin/LabourController.php tests/Feature/M15LabourTrackingTest.php; do php -l "$file" || exit 1; done
+          php artisan view:cache
+          php artisan route:list --path=api/v1/labour
+          php artisan route:list --path=admin/time-labour
+      - name: Test M15 tenant, timers and regressions
+        run: php artisan test --filter='M(15LabourTracking|14ExpenseTracking|13WorkAcceptance|12ReportsManagement)Test'
