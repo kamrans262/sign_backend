@@ -277,8 +277,18 @@ final class AddendumController extends Controller
                         ->subject('Sign2Digital - Addendum signature'));
             } catch (\Throwable $error) {
                 report($error);
+                DB::transaction(function () use ($item,$addendum,$request): void {
+                    $locked=AddendumSigningRequest::query()->lockForUpdate()
+                        ->findOrFail($item->id);
+                    if (in_array($locked->status,['ready','sent','viewed'],true)) {
+                        $locked->update(['status'=>'revoked','revoked_at'=>now()]);
+                        $source=Addendum::findOrFail($addendum);
+                        $this->service->event($source,'signature_delivery_failed',
+                            $request->user()->id,['signing_request_id'=>$locked->id]);
+                    }
+                });
                 return redirect()->route('admin.addenda.show',$addendum)
-                    ->withErrors(['email'=>'Request created, email not delivered.']);
+                    ->withErrors(['email'=>'Email transport failed; signing link revoked. Retry is safe.']);
             }
             $item->update(['status'=>'sent','sent_at'=>now()]);
             $source=Addendum::findOrFail($addendum);
@@ -286,7 +296,7 @@ final class AddendumController extends Controller
             $this->service->event($source,'document_sent',$request->user()->id,
                 ['channel'=>'email','signing_request_id'=>$item->id]);
             return redirect()->route('admin.addenda.show',$addendum)
-                ->with('success','Addendum signature email sent.');
+                ->with('success','Email accepted by transport. Final customer delivery is not verified.');
         }
         // One-time session flash. Bearer token is NEVER written to database or logs.
         return redirect()->route('admin.addenda.show',$addendum)
