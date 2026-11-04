@@ -74,6 +74,9 @@ final class SiteReportService
             'approved_at'=>$row->approved_at,'sent_at'=>$row->sent_at,
             'created_at'=>$row->created_at,'updated_at'=>$row->updated_at,
             'has_pdf'=>$row->managed_document_id!==null,
+            'project'=>$row->project??DB::table('service_jobs')->where('id',$row->service_job_id)->value('title'),
+            'customer'=>$row->customer??DB::table('clients')->where('id',$row->client_id)->value('full_name'),
+            'company_name'=>$row->company_name??null,
         ];
     }
 
