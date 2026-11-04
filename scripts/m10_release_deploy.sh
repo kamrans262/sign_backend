@@ -64,7 +64,22 @@ grep -qx 'release=M9' "$backup/m9-release-manifest.txt" || {
   gzip -t mysql.sql.gz
 )
 echo "M10_BACKUP_CHECKSUMS_PASS"
-echo "RESTORE_TEST_REQUIRED: A checksum does not demonstrate successful MySQL restore."
+# A production M9 backup must have passed a separate MySQL restore; no override.
+marker="$backup/m10-restore-rehearsal.txt"
+if [[ ! -f "$marker" || -L "$marker" ]]; then
+  echo "M10_DEPLOY_BLOCKED: Isolated MySQL restore rehearsal is required." >&2; exit 2
+fi
+grep -qx 'release=M10' "$marker" || {
+  echo "M10_DEPLOY_BLOCKED: Rehearsal marker has wrong release." >&2; exit 2;
+}
+grep -qx 'restored=M9' "$marker" || {
+  echo "M10_DEPLOY_BLOCKED: Rehearsal marker has wrong restore source." >&2; exit 2;
+}
+manifest_hash="$(sha256sum "$backup/SHA256SUMS.txt" | cut -d ' ' -f 1)"
+grep -qx "snapshot_manifest_sha256=$manifest_hash" "$marker" || {
+  echo "M10_DEPLOY_BLOCKED: Rehearsal did not verify this backup." >&2; exit 2;
+}
+echo "M10_RESTORE_REHEARSAL_VERIFIED"
 php scripts/m9_release_preflight.php --require-migrated
 php scripts/m10_release_preflight.php
 echo "M10_MIGRATION_BEGIN"
