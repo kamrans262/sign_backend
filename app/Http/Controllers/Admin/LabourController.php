@@ -86,8 +86,25 @@ final class LabourController extends Controller
         ]));
     }
 
+    private function normaliseClock(Request $request): void
+    {
+        $data=$request->validate([
+            'start_clock'=>['required','date_format:H:i'],
+            'end_clock'=>['required','date_format:H:i'],
+        ]);
+        $toMinutes=static function(string $time):int {
+            [$hours,$minutes]=array_map('intval',explode(':',$time));
+            return $hours*60+$minutes;
+        };
+        $request->merge([
+            'start_minutes'=>$toMinutes($data['start_clock']),
+            'end_minutes'=>$toMinutes($data['end_clock']),
+        ]);
+    }
+
     public function store(Request $request)
     {
+        $this->normaliseClock($request);
         $data=$request->validate([
             'company_id'=>['required','integer','exists:companies,id'],
         ]);
@@ -98,6 +115,7 @@ final class LabourController extends Controller
 
     public function update(Request $request,int $entry)
     {
+        $this->normaliseClock($request);
         $raw=$this->entry($entry);
         $this->labour->save($request,$this->company($raw->company_id),$entry);
         return redirect()->route('admin.labour.edit',$entry)
