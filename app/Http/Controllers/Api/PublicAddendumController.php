@@ -166,6 +166,10 @@ final class PublicAddendumController extends Controller
                     'method'=>$fields['method'],
                     'png'=>$png,
                 ]],$locked->consent_reference,'Addendum');
+            abort_unless(strlen($bytes) >= 12 && strlen($bytes) <= 12*1024*1024
+                && str_starts_with($bytes,'%PDF-')
+                && str_contains(substr($bytes,-4096),'%%EOF'),503,
+                'Signed addendum PDF exceeds safe download limits.');
             $sha=hash('sha256',$bytes);
             $path='addenda/signed/'.$item->company_id.'/'.$item->id.'/'.
                 $locked->id.'/'.$sha.'.pdf';
