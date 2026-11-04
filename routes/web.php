@@ -97,6 +97,21 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'upload'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.upload');
         Route::get('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'download'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.download');
         Route::delete('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'remove'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.destroy');
+        Route::get('/addenda', [\App\Http\Controllers\Admin\AddendumController::class,'index'])->name('addenda.index');
+        Route::get('/addenda/create', [\App\Http\Controllers\Admin\AddendumController::class,'create'])->name('addenda.create');
+        Route::post('/addenda', [\App\Http\Controllers\Admin\AddendumController::class,'store'])->name('addenda.store');
+        Route::get('/addenda/{addendum}', [\App\Http\Controllers\Admin\AddendumController::class,'show'])->whereNumber('addendum')->name('addenda.show');
+        Route::get('/addenda/{addendum}/edit', [\App\Http\Controllers\Admin\AddendumController::class,'edit'])->whereNumber('addendum')->name('addenda.edit');
+        Route::put('/addenda/{addendum}', [\App\Http\Controllers\Admin\AddendumController::class,'update'])->whereNumber('addendum')->name('addenda.update');
+        Route::post('/addenda/{addendum}/approve', [\App\Http\Controllers\Admin\AddendumController::class,'approve'])->whereNumber('addendum')->name('addenda.approve');
+        Route::get('/addenda/{addendum}/pdf', [\App\Http\Controllers\Admin\AddendumController::class,'pdf'])->whereNumber('addendum')->name('addenda.pdf');
+        Route::post('/addenda/{addendum}/signature-requests',
+            [\App\Http\Controllers\Admin\AddendumController::class,'requestSignature'])
+            ->whereNumber('addendum')->middleware('throttle:10,1')->name('addenda.signature');
+        Route::post('/addenda/{addendum}/signature-requests/{signature}/revoke',
+            [\App\Http\Controllers\Admin\AddendumController::class,'revoke'])
+            ->whereNumber('addendum')->whereNumber('signature')
+            ->middleware('throttle:10,1')->name('addenda.revoke');
         Route::get('/documents', [\App\Http\Controllers\Admin\DocumentController::class,'index'])->name('documents.index');
         Route::post('/documents', [\App\Http\Controllers\Admin\DocumentController::class,'store'])->name('documents.store');
         Route::get('/documents/{document}', [\App\Http\Controllers\Admin\DocumentController::class,'show'])->name('documents.show');
