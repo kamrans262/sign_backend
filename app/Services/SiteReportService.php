@@ -365,10 +365,43 @@ final class SiteReportService
             }
         }
         $photos=json_decode((string)($record->photo_ids??'[]'),true)?:[];
-        if($photos) {
-            $pdf->Ln(4);$pdf->SetFont('Arial','B',11);$pdf->MultiCell(0,7,'Job Photo References');
+        if ($photos) {
+            $pdf->Ln(4);
+            $pdf->SetFont('Arial','B',11);
+            $pdf->MultiCell(0,7,'Job Photos');
             $pdf->SetFont('Arial','',10);
-            foreach($photos as $photoId) $pdf->MultiCell(0,6,'Photo #'.$photoId.' (stored privately with this job)');
+            foreach ($photos as $index=>$photoId) {
+                $photo=DB::table('job_photos')->where('company_id',$record->company_id)
+                    ->where('service_job_id',$record->service_job_id)
+                    ->where('id',$photoId)->firstOrFail();
+                $disk=Storage::disk('local');
+                abort_unless($disk->exists($photo->private_path),409,'Report photo is unavailable.');
+                $bytes=$disk->get($photo->private_path);
+                abort_unless(is_string($bytes) &&
+                    hash_equals($photo->sha256,hash('sha256',$bytes)),409,
+                    'Report photo integrity check failed.');
+                // Long reports remain bounded; all photo IDs stay in the
+                // structured record, and up to eight verified images appear.
+                if ($index>=8) {
+                    $pdf->MultiCell(0,6,$this->toPdfText('Additional photo #'.$photoId.' (stored in job media)'));
+                    continue;
+                }
+                $dimensions=@getimagesizefromstring($bytes);
+                abort_unless(is_array($dimensions) &&
+                    ($dimensions['mime']??null)===$photo->mime_type &&
+                    (int)$dimensions[0]>0 && (int)$dimensions[1]>0,409,
+                    'Report photo metadata failed verification.');
+                $ratio=(int)$dimensions[0]/(int)$dimensions[1];
+                $width=min(110.0,86.0*$ratio);
+                $height=$width/$ratio;
+                if ($height>92) { $height=92; $width=92*$ratio; }
+                if ($pdf->GetY()+$height+13>267) $pdf->AddPage();
+                $pdf->MultiCell(0,6,$this->toPdfText('Photo #'.$photoId.': '.$photo->category));
+                $y=$pdf->GetY();
+                $pdf->Image($disk->path($photo->private_path),19,$y,$width,$height,
+                    $photo->mime_type==='image/png'?'PNG':'JPG');
+                $pdf->SetY($y+$height+5);
+            }
         }
         $pdf->Ln(6);
         $pdf->SetFont('Arial','I',8);
