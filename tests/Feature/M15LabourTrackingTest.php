@@ -219,5 +219,45 @@ class M15LabourTrackingTest extends TestCase
             ->assertJsonPath('data.overall_actual_cost_minor',null)
             ->assertJsonPath('data.unreconciled_external_labour_expense_minor',5000)
             ->assertJsonPath('data.approved_purchase_minor',0);
+    }    public function test_regular_worker_cannot_read_or_change_other_worker_time_or_proof(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client,$job]=$this->tenant('Worker Privacy');
+        $ownerRecord=(int)$this->postJson('/api/v1/labour/entries',
+            $this->entry($owner->id,$job))->assertCreated()->json('data.entry.id');
+        $proof=(int)$this->post('/api/v1/labour/entries/'.$ownerRecord.'/evidence',[
+            'file'=>UploadedFile::fake()->image('proof.png',240,100),
+        ],['Accept'=>'application/json'])->assertCreated()->json('data.id');
+        $worker=User::factory()->create(['is_active'=>true,'email_verified_at'=>now()]);
+        $company->users()->attach($worker->id,[
+            'role'=>'member','status'=>'active',
+            'permissions'=>json_encode(['jobs.read','jobs.write']),
+        ]);
+        DB::table('service_job_user')->insert([
+            'service_job_id'=>$job,'user_id'=>$worker->id,
+        ]);
+        Sanctum::actingAs($worker);
+        $this->withHeader('X-Company-Id',(string)$company->id);
+        $this->getJson('/api/v1/labour/entries')->assertOk()
+            ->assertJsonCount(0,'data.records');
+        $this->getJson('/api/v1/labour/entries/'.$ownerRecord)->assertNotFound();
+        $this->get('/api/v1/labour/entries/'.$ownerRecord.'/evidence/'.$proof)
+            ->assertNotFound();
+        $this->post('/api/v1/labour/entries/'.$ownerRecord.'/evidence',[
+            'file'=>UploadedFile::fake()->image('intrusion.png',120,100),
+        ],['Accept'=>'application/json'])->assertForbidden();
+        $this->deleteJson('/api/v1/labour/entries/'.$ownerRecord.
+            '/evidence/'.$proof)->assertForbidden();
+        $own=(int)$this->postJson('/api/v1/labour/entries',
+            $this->entry($worker->id,$job,'35.00'))
+            ->assertCreated()->json('data.entry.id');
+        $this->getJson('/api/v1/labour/entries')->assertOk()
+            ->assertJsonCount(1,'data.records');
+        $this->getJson('/api/v1/labour/entries/'.$own)->assertOk();
+        $this->postJson('/api/v1/labour/entries/'.$own.'/approve',[
+            'confirm'=>true,
+        ])->assertForbidden();
     }
+
+
 }
