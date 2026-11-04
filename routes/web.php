@@ -80,6 +80,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'upload'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.upload');
         Route::get('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'download'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.download');
         Route::delete('/companies/{company}/files/{kind}', [\App\Http\Controllers\Admin\CompanyResourcesController::class, 'remove'])->whereIn('kind', ['logo', 'terms'])->name('companies.files.destroy');
+        Route::get('/documents', [\App\Http\Controllers\Admin\DocumentController::class,'index'])->name('documents.index');
+        Route::post('/documents', [\App\Http\Controllers\Admin\DocumentController::class,'store'])->name('documents.store');
+        Route::get('/documents/{document}', [\App\Http\Controllers\Admin\DocumentController::class,'show'])->name('documents.show');
+        Route::get('/documents/{document}/pdf', [\App\Http\Controllers\Admin\DocumentController::class,'download'])->name('documents.pdf');
+        Route::post('/documents/{document}/versions', [\App\Http\Controllers\Admin\DocumentController::class,'addVersion'])->name('documents.versions.store');
+        Route::post('/documents/{document}/attachments', [\App\Http\Controllers\Admin\DocumentController::class,'addAttachment'])->name('documents.attachments.store');
+        Route::get('/documents/{document}/attachments/{attachment}/download',
+            [\App\Http\Controllers\Admin\DocumentController::class,'downloadAttachment'])
+            ->whereNumber('attachment')->name('documents.attachments.download');
         Route::get('/signatures', [\App\Http\Controllers\Admin\SignatureRequestController::class,'index'])->name('signatures.index');
         Route::get('/signatures/{signature}', [\App\Http\Controllers\Admin\SignatureRequestController::class,'show'])
             ->whereNumber('signature')->name('signatures.show');
