@@ -303,8 +303,20 @@ final class AddendumController extends Controller
                         ->subject('Sign2Digital - Addendum signature requested'));
             } catch (\Throwable $error) {
                 report($error);
-                return response()->json(['message'=>'Request created but email was not delivered.',
-                    'data'=>['request'=>$this->requestPayload($item)]],502);
+                // A failed SMTP submission must not keep a live, undisclosed
+                // capability that blocks retry. Keep the failure in audit.
+                DB::transaction(function () use ($item,$company,$request,$addendum): void {
+                    $locked=AddendumSigningRequest::query()
+                        ->where('company_id',$company->id)->lockForUpdate()
+                        ->findOrFail($item->id);
+                    if (in_array($locked->status,['ready','sent','viewed'],true)) {
+                        $locked->update(['status'=>'revoked','revoked_at'=>now()]);
+                        $source=$this->service->scoped($company->id,$addendum);
+                        $this->service->event($source,'signature_delivery_failed',
+                            $request->user()->id,['signing_request_id'=>$locked->id]);
+                    }
+                });
+                return response()->json(['message'=>'Email transport rejected the request; the link was revoked. You may retry.'],502);
             }
             $item->update(['status'=>'sent','sent_at'=>now()]);
             $source=$this->service->scoped($company->id,$addendum);
@@ -315,7 +327,9 @@ final class AddendumController extends Controller
         }
         return response()->json(['data'=>[
             'request'=>$this->requestPayload($item),
-            'secure_link'=>$link,'delivered'=>$data['delivery']==='email',
+            'secure_link'=>$link,
+            'transport_accepted'=>$data['delivery']==='email',
+            'delivered'=>false, // SMTP acceptance is not proof of mailbox delivery.
         ]],201,['Cache-Control'=>'private, no-store']);
     }
 
