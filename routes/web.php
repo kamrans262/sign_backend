@@ -74,6 +74,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
         Route::resource('jobs', \App\Http\Controllers\Admin\ServiceJobController::class)->except(['show']);
+        // M11 dedicated Photos & Notes Management.
+        Route::get('/job-media', [\App\Http\Controllers\Admin\JobMediaController::class, 'index'])->name('job-media.index');
+        Route::post('/job-media/photos', [\App\Http\Controllers\Admin\JobMediaController::class, 'uploadPhoto'])->name('job-media.photos.create');
+        Route::post('/job-media/notes', [\App\Http\Controllers\Admin\JobMediaController::class, 'createNote'])->name('job-media.notes.create');
+        Route::patch('/job-media/{kind}/{id}', [\App\Http\Controllers\Admin\JobMediaController::class, 'update'])->whereNumber('id')->name('job-media.update');
+        Route::post('/job-media/{kind}/{id}/archive', [\App\Http\Controllers\Admin\JobMediaController::class, 'archive'])->whereNumber('id')->name('job-media.archive');
+        Route::get('/job-media/{kind}/{id}/download', [\App\Http\Controllers\Admin\JobMediaController::class, 'download'])->whereNumber('id')->name('job-media.download');
         Route::get('/quotes', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'index'])->name('quotes.index');
         Route::get('/quotes/create', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'create'])->name('quotes.create');
         Route::post('/quotes', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'store'])->name('quotes.store');
