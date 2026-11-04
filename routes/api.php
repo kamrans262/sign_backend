@@ -183,6 +183,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/jobs/{job}/notes/{note}/documents', [\App\Http\Controllers\Api\JobNoteDocumentController::class, 'index'])->whereNumber('job')->whereNumber('note');
         });
         Route::middleware(['company.access', 'company.permission:jobs.write', 'company.permission:documents.write'])->group(function (): void {
+            Route::post('/jobs/{job}/notes/{note}/transcribe', [\App\Http\Controllers\Api\JobNoteDocumentController::class, 'transcribe'])
+                ->whereNumber('job')->whereNumber('note')->middleware('throttle:6,1');
             Route::post('/jobs/{job}/notes/{note}/documents/prepare', [\App\Http\Controllers\Api\JobNoteDocumentController::class, 'prepare'])
                 ->whereNumber('job')->whereNumber('note')->middleware('throttle:6,1');
             Route::patch('/jobs/{job}/notes/{note}/documents/{draft}', [\App\Http\Controllers\Api\JobNoteDocumentController::class, 'update'])
