@@ -21,6 +21,18 @@
           <option value="{{ $code }}" @selected(($filters['kind']??'')===$code)>{{ $label }}</option>
         @endforeach
       </select>
+      <select class="input" name="category" aria-label="Filter document category">
+        <option value="">All Categories</option>
+        @foreach(['quotes'=>'Quotes','contacts'=>'Contacts','reports'=>'Reports','addends'=>'Addenda','receipts'=>'Receipts','invoices'=>'Invoices','other'=>'Other'] as $code=>$label)
+          <option value="{{ $code }}" @selected(($filters['category']??'')===$code)>{{ $label }}</option>
+        @endforeach
+      </select>
+      <select class="input" name="status" aria-label="Filter document status">
+        <option value="">All Statuses</option>
+        @foreach(['draft'=>'Draft','approved'=>'Approved','sent'=>'Sent','signed'=>'Signed','file'=>'File','archived'=>'Archived'] as $code=>$label)
+          <option value="{{ $code }}" @selected(($filters['status']??'')===$code)>{{ $label }}</option>
+        @endforeach
+      </select>
       <button class="btn btn-primary" type="submit"><x-admin.icon name="search"/> Search</button>
       <a class="btn btn-outline" href="{{ route('admin.documents.index') }}">Clear</a>
     </form>
