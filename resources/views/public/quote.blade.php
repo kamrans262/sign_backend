@@ -59,10 +59,10 @@
       line-height: 1.5; margin-bottom: 5px; white-space: pre-line; overflow-wrap: anywhere;
     }
     /* Keep the date group aligned to the right edge of the quote card. */
-    .dates { min-width: 0; width: min(100%, 240px); justify-self: end; }
+    .dates { min-width: 0; width: min(100%, 195px); justify-self: end; }
     .date-line { display: grid; grid-template-columns: 76px minmax(0,1fr); gap: 7px; align-items: start; font-size: 12px; }
     .date-line + .date-line { margin-top: 9px; }
-    .date-line strong { font-weight: 600; white-space: nowrap; }
+    .date-line strong { font-weight: 600; white-space: nowrap; text-align: right; }
     .date-line span { min-width: 0; color: var(--placeholder); line-height: 1.5; text-align: right; }
     .item-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .item-table col:nth-child(1) { width: 42.857%; }
@@ -117,7 +117,7 @@
     }
     @media (max-width: 421px) {
       .billing-section { grid-template-columns: minmax(0,1fr); gap: 15px; }
-      .dates { width: min(100%, 240px); }
+      .dates { width: min(100%, 195px); }
     }
     @media (max-width: 401px) {
       .item-table th, .item-table td { font-size: 10px; }
