@@ -188,6 +188,38 @@ class M13WorkAcceptanceTest extends TestCase
             ['Accept'=>'application/json'])->assertStatus(410);
     }
 
+    public function test_customer_photo_evidence_is_embedded_and_reservations_are_not_silent(): void
+    {
+        Storage::fake('local');
+        [$user,$company,$client,$job]=$this->setupTenant('Photos and Reservations');
+        $id=$this->createAcceptance($job);
+        $this->approve($id);
+        $record=DB::table('work_acceptances')->find($id);
+        [$token,$signing,$requestUuid,$documentUuid,$consent]=$this->signingToken(
+            $record,$company->id);
+        $payload=[
+            'request_uuid'=>$requestUuid,'document_uuid'=>$documentUuid,
+            'consent_reference'=>$consent,'revision'=>1,
+            'decision'=>'accepted_with_reservations',
+            'customer_name'=>'Jean Customer','signature_png'=>$this->drawnPng(),
+            'consent'=>'1',
+        ];
+        $this->post('/accept-work/'.$token.'/submit',$payload,
+            ['Accept'=>'application/json'])->assertUnprocessable();
+        $payload['photos']=[UploadedFile::fake()->image('evidence.png',48,48)];
+        $this->post('/accept-work/'.$token.'/submit',$payload,
+            ['Accept'=>'application/json'])->assertOk()
+            ->assertJsonPath('data.report.acceptance_result','accepted_with_reservations');
+        $this->assertDatabaseCount('work_acceptance_customer_photos',1);
+        $photo=DB::table('work_acceptance_customer_photos')->first();
+        $this->assertTrue(Storage::disk('local')->exists($photo->private_path));
+        $this->assertSame($photo->sha256,hash('sha256',
+            Storage::disk('local')->get($photo->private_path)));
+        $this->get('/api/v1/work-acceptances/'.$id.'/pdf/signed')
+            ->assertOk()->assertHeader('Content-Type','application/pdf');
+        $this->assertDatabaseCount('managed_document_versions',1);
+    }
+
     public function test_invalid_customer_identity_consent_and_cross_company_access_are_blocked(): void
     {
         Storage::fake('local');
