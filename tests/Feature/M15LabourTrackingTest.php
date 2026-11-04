@@ -174,7 +174,7 @@ class M15LabourTrackingTest extends TestCase
         ]);
         $this->actingAs($admin);
         $this->get('/admin/time-labour')->assertOk()
-            ->assertSee('Time & Labour Tracking');
+            ->assertSeeText('Time & Labour Tracking');
         $this->get('/admin/time-labour/'.$entry.'/edit')->assertOk()
             ->assertSee('Window assembly')->assertSee('Verified Original');
         $this->post('/admin/time-labour/'.$entry.'/approve',['confirm'=>1])
