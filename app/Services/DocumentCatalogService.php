@@ -144,13 +144,6 @@ final class DocumentCatalogService
                 ->orderByDesc('version')->get(['id','version','original_name','mime_type','byte_size','sha256','created_at'])
                 ->map(fn ($v) => (array) $v)->all();
         }
-        if ($item['kind'] === 'addendum') {
-            $addendum=\App\Models\Addendum::query()->where('company_id',$companyId)->findOrFail($id);
-            $service=app(\App\Services\AddendumService::class);
-            return $addendum->status==='signed'
-                ? $service->signedBytes($addendum)
-                : $service->approvedBytes($addendum);
-        }
         if ($item['kind'] === 'quote') {
             return DB::table('service_quote_revisions')->where('service_quote_id', $item['entity_id'])
                 ->orderByDesc('revision')->get(['id','revision as version','created_at'])
@@ -261,6 +254,13 @@ final class DocumentCatalogService
         if ($item['kind'] === 'signed') {
             $artifact=SignedDocumentArtifact::query()->where('company_id',$companyId)->findOrFail($id);
             return app(SignatureCompletionService::class)->bytes($artifact);
+        }
+        if ($item['kind'] === 'addendum') {
+            $addendum=\App\Models\Addendum::query()->where('company_id',$companyId)->findOrFail($id);
+            $service=app(\App\Services\AddendumService::class);
+            return $addendum->status==='signed'
+                ? $service->signedBytes($addendum)
+                : $service->approvedBytes($addendum);
         }
         if ($item['kind'] === 'quote') {
             $quote=ServiceQuote::query()->where('company_id',$companyId)->findOrFail($id);
