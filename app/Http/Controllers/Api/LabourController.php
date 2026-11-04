@@ -27,6 +27,14 @@ final class LabourController extends Controller
         ]);
     }
 
+    private function readable(Request $request,Company $company,int $entry): object
+    {
+        $row=$this->service->find($company->id,$entry);
+        abort_unless($this->service->isManager($company,$request->user()) ||
+            (int)$row->worker_user_id===$request->user()?->id,404);
+        return $row;
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters=$request->validate([
@@ -40,14 +48,20 @@ final class LabourController extends Controller
             'page'=>['nullable','integer','min:1'],
             'per_page'=>['nullable','integer','between:1,100'],
         ]);
-        return $this->response($this->service->listing($this->company($request)->id,$filters));
+        $company=$this->company($request);
+        if(!$this->service->isManager($company,$request->user())) {
+            $requested=isset($filters['worker_id'])?(int)$filters['worker_id']:null;
+            abort_if($requested!==null&&$requested!==$request->user()?->id,403);
+            $filters['worker_id']=$request->user()?->id;
+        }
+        return $this->response($this->service->listing($company->id,$filters));
     }
 
     public function show(Request $request,int $entry): JsonResponse
     {
         $company=$this->company($request);
         return $this->response([
-            'entry'=>$this->service->payload($this->service->find($company->id,$entry)),
+            'entry'=>$this->service->payload($this->readable($request,$company,$entry)),
             'history'=>$this->service->history($company->id,$entry),
             'evidence'=>$this->service->evidence($company->id,$entry),
         ]);
@@ -104,8 +118,9 @@ final class LabourController extends Controller
 
     public function evidenceFile(Request $request,int $entry,int $evidence)
     {
-        $file=$this->service->evidenceFile(
-            $this->company($request)->id,$entry,$evidence);
+        $company=$this->company($request);
+        $this->readable($request,$company,$entry);
+        $file=$this->service->evidenceFile($company->id,$entry,$evidence);
         return response($file['bytes'],200,[
             'Content-Type'=>$file['mime'],
             'Content-Disposition'=>'attachment; filename="labour-proof-'.$evidence.
