@@ -134,6 +134,67 @@ class M12ReportsManagementTest extends TestCase
         $this->assertDatabaseCount('site_report_revisions',2);
     }
 
+    public function test_site_report_photo_access_is_report_scoped_and_pdf_contains_image(): void
+    {
+        Storage::fake('local');
+        [$actor,$company,$client,$job]=$this->tenant('Photo Report');
+        $id=$this->make($job);
+        $file=UploadedFile::fake()->image('progress.jpg',40,40);
+        $photo=(int)$this->post('/api/v1/jobs/'.$job.'/photos',[
+            'file'=>$file,'category'=>'during','caption'=>'Real site image',
+        ],['Accept'=>'application/json'])->assertCreated()->json('data.photo.id');
+        $this->patchJson('/api/v1/reports/'.$id,[
+            'revision'=>1,'photo_ids'=>[$photo],
+        ])->assertOk()->assertJsonPath('data.report.revision',2);
+        $this->getJson('/api/v1/reports/'.$id)
+            ->assertJsonPath('data.photos.0.id',$photo)
+            ->assertJsonPath('data.photos.0.mime_type','image/jpeg');
+        $this->get('/api/v1/reports/'.$id.'/photos/'.$photo)
+            ->assertOk()->assertHeader('Content-Type','image/jpeg');
+        $this->get('/api/v1/reports/'.$id.'/photos/999')->assertNotFound();
+        $this->postJson('/api/v1/reports/'.$id.'/approve',[
+            'confirm'=>true,'revision'=>2,
+        ])->assertOk();
+        $this->get('/api/v1/reports/'.$id.'/pdf')
+            ->assertOk()->assertHeader('Content-Type','application/pdf');
+        $this->postJson('/api/v1/reports',[
+            'job_id'=>$job,'kind'=>'site_report','title'=>'Too many photos',
+            'report_date'=>'2026-11-12','prepared_by'=>'Inspector',
+            'weather'=>'Sunny','location'=>'Client site',
+            'content'=>['sections'=>['siteProgress'=>'All images checked']],
+            'photo_ids'=>range(1,9),
+        ])->assertUnprocessable();
+        [$otherUser,$otherCompany,$otherClient,$otherJob]=$this->tenant('Other Photo Account');
+        $this->get('/api/v1/reports/'.$id.'/photos/'.$photo)->assertNotFound();
+    }
+
+    public function test_voice_transcription_requires_selected_job_and_never_saves_report(): void
+    {
+        Storage::fake('local');
+        [$actor,$company,$client,$job]=$this->tenant('Voice Reports');
+        $this->postJson('/api/v1/reports/voice/transcribe',[
+            'job_id'=>$job,
+        ])->assertUnprocessable();
+        $this->assertDatabaseCount('site_reports',0);
+        config()->set('services.openai.key','m12-voice-test-key');
+        Http::fake(['*api.openai.com/*'=>Http::response([
+            'text'=>'Visited the site and checked the window frames.',
+        ],200)]);
+        $audio=str_repeat("\x00\x00",320);
+        $wav='RIFF'.pack('V',36+strlen($audio)).'WAVEfmt '.
+            pack('VvvVVvv',16,1,1,16000,32000,2,16).
+            'data'.pack('V',strlen($audio)).$audio;
+        $file=UploadedFile::fake()->createWithContent('site.wav',$wav);
+        $this->post('/api/v1/reports/voice/transcribe',[
+            'job_id'=>$job,'file'=>$file,
+        ],['Accept'=>'application/json'])->assertOk()
+            ->assertJsonPath('data.applied',false)
+            ->assertJsonPath('data.approved',false)
+            ->assertJsonPath('data.job_id',$job);
+        $this->assertDatabaseCount('site_reports',0);
+        $this->assertDatabaseCount('managed_documents',0);
+    }
+
     public function test_meeting_minutes_are_structured_and_can_send_only_after_approval(): void
     {
         Storage::fake('local');
