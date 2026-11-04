@@ -26,6 +26,17 @@ class ServiceJobController extends Controller
         return is_array($perms) && in_array('quotes.read', $perms, true);
     }
 
+    private function canReadReports(Request $request): bool
+    {
+        $company = $this->company($request);
+        $member = $company->users()->where('users.id', $request->user()->id)
+            ->wherePivot('status', 'active')->first();
+        if (!$member) return false;
+        if (in_array($member->pivot->role, ['owner', 'admin'], true)) return true;
+        $perms = json_decode((string) $member->pivot->permissions, true);
+        return is_array($perms) && in_array('documents.read', $perms, true);
+    }
+
     private function company(Request $request): Company
     {
         $company = $request->attributes->get('company');
@@ -186,12 +197,18 @@ class ServiceJobController extends Controller
         $notes = DB::table('job_notes')->where('company_id',$target->company_id)
             ->where('service_job_id',$target->id)->whereNull('archived_at')
             ->orderByDesc('id')->limit(100)->get(['id','note_type']);
+        $reports = $this->canReadReports($request)
+            ? DB::table('site_reports')->where('company_id',$target->company_id)
+                ->where('service_job_id',$target->id)
+                ->orderByDesc('id')->limit(100)
+                ->get(['id','kind','number','title','status'])
+            : collect();
         return response()->json(['data' => [
             'job' => $this->payload($target),
             'sections' => [
                 'quotes' => $quotes, 'signed_quotes' => [], 'addenda' => [], 'documents' => [],
                 'photos' => $photos, 'notes' => $notes, 'purchases' => [], 'time' => [],
-                'deposits' => [], 'site_reports' => [], 'acceptance' => [], 'invoices' => [],
+                'deposits' => [], 'site_reports' => $reports, 'acceptance' => [], 'invoices' => [],
             ],
             'financials' => [
                 'quote_amount_chf' => null, 'expenses_chf' => null, 'labour_cost_chf' => null,
