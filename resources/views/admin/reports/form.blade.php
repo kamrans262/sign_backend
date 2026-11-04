@@ -40,6 +40,23 @@
 @foreach(['attendees_lines'=>'Attendees (one per line)','absentees_lines'=>'Absentees (one per line)','decisions_lines'=>'Decisions (one per line)','next_steps_lines'=>'Next Steps (one per line)','outstanding_points_lines'=>'Outstanding Points (one per line)','action_items_lines'=>'Action Items (task | owner | YYYY-MM-DD)'] as $key=>$label)
 <label>{{ $label }}<textarea class="input" name="{{ $key }}" rows="3" maxlength="12000" @readonly(!$draft)>{{ old($key,$key==='action_items_lines'?$actions:$lines(str_replace('_lines','',$key))) }}</textarea></label>
 @endforeach
+@if($editing && $report['kind']==='site_report')
+  <fieldset style="margin:15px 0;padding:15px;border:1px solid #D9E2EA;border-radius:10px">
+    <legend>Job Photos (maximum 8)</legend>
+    @if($photos->isEmpty())
+      <p class="muted">No photos are saved for this job. Add photos in Job Photos first.</p>
+    @else
+      @foreach($photos as $photo)
+        <label style="display:flex;align-items:center;gap:12px;padding:6px 0">
+          <input type="checkbox" name="photo_ids[]" value="{{ $photo->id }}"
+             @checked(in_array((int)$photo->id,old('photo_ids',$report['photo_ids']??[])))
+             @disabled(!$draft)>
+          <span>Photo #{{ $photo->id }} · {{ ucfirst($photo->category) }} · {{ $photo->caption?:'No caption' }}</span>
+        </label>
+      @endforeach
+    @endif
+  </fieldset>
+@endif
 @if($draft)<div><button class="btn btn-primary" type="submit">Save Draft</button></div>@endif
 </form>
 </section>

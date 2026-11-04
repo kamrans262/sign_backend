@@ -62,6 +62,11 @@ final class SiteReportController extends Controller
             'report'=>$this->reports->payload($row),
             'history'=>$this->reports->history($row->company_id,$report),
             'revisions'=>$this->reports->revisions($row->company_id,$report),
+            'photos'=>\Illuminate\Support\Facades\DB::table('job_photos')
+                ->where('company_id',$row->company_id)
+                ->where('service_job_id',$row->service_job_id)
+                ->whereNull('archived_at')
+                ->orderByDesc('id')->limit(100)->get(['id','caption','category']),
         ]));
     }
 
@@ -94,7 +99,8 @@ final class SiteReportController extends Controller
             if(!empty($parts[2]))$action['due_date']=$parts[2];
             $actions[]=$action;
         }
-        $request->merge(['content'=>[
+        $request->merge(['photo_ids'=>array_values((array)$request->input('photo_ids',[])),
+            'content'=>[
             'sections'=>array_filter($data['sections']??[],fn($v)=>is_string($v)&&trim($v)!==''),
             'attendees'=>$lines('attendees_lines'),
             'absentees'=>$lines('absentees_lines'),
