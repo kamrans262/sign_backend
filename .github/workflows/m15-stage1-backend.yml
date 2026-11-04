@@ -23,9 +23,10 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - name: Lint M15 source and compile Admin Blade
         run: |
-          for file in database/migrations/2026_11_05_020000_create_labour_tracking_tables.php app/Services/LabourService.php app/Services/LabourTimerService.php app/Http/Controllers/Api/LabourController.php app/Http/Controllers/Api/LabourTimerController.php app/Http/Controllers/Api/LabourAiController.php app/Http/Controllers/Admin/LabourController.php tests/Feature/M15LabourTrackingTest.php; do php -l "$file" || exit 1; done
+          for file in database/migrations/2026_11_05_020000_create_labour_tracking_tables.php app/Services/LabourService.php app/Services/LabourTimerService.php app/Http/Controllers/Api/LabourController.php app/Http/Controllers/Api/LabourTimerController.php app/Http/Controllers/Api/LabourAiController.php app/Http/Controllers/Admin/LabourController.php tests/Feature/M15LabourTrackingTest.php scripts/m15_release_preflight.php; do php -l "$file" || exit 1; done
           php artisan view:cache
           php artisan route:list --path=api/v1/labour
           php artisan route:list --path=admin/time-labour
+          php scripts/m15_release_preflight.php
       - name: Test M15 tenant, timers and regressions
         run: php artisan test --filter='M(15LabourTracking|14ExpenseTracking|13WorkAcceptance|12ReportsManagement)Test'
