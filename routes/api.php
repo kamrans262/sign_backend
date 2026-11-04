@@ -192,6 +192,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 [\App\Http\Controllers\Api\AddendumController::class,'requests'])->whereNumber('addendum');
         });
         Route::middleware(['company.access','company.permission:documents.write'])->group(function (): void {
+            Route::post('/addenda/prepare/voice', [\App\Http\Controllers\Api\AddendumAiController::class,'prepareVoice'])
+                ->middleware('throttle:10,1');
             Route::post('/addenda', [\App\Http\Controllers\Api\AddendumController::class,'store'])
                 ->middleware('throttle:15,1');
             Route::patch('/addenda/{addendum}', [\App\Http\Controllers\Api\AddendumController::class,'update'])
