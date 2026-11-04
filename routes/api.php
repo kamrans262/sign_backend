@@ -178,6 +178,19 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::delete('/jobs/{job}/notes/{note}', [\App\Http\Controllers\Api\JobMediaController::class, 'deleteNote'])->whereNumber('job')->whereNumber('note');
         });
 
+        // M11: private note -> AI suggestion -> explicit review -> immutable M9 PDF.
+        Route::middleware(['company.access', 'company.permission:jobs.read'])->group(function (): void {
+            Route::get('/jobs/{job}/notes/{note}/documents', [\App\Http\Controllers\Api\JobNoteDocumentController::class, 'index'])->whereNumber('job')->whereNumber('note');
+        });
+        Route::middleware(['company.access', 'company.permission:jobs.write', 'company.permission:documents.write'])->group(function (): void {
+            Route::post('/jobs/{job}/notes/{note}/documents/prepare', [\App\Http\Controllers\Api\JobNoteDocumentController::class, 'prepare'])
+                ->whereNumber('job')->whereNumber('note')->middleware('throttle:6,1');
+            Route::patch('/jobs/{job}/notes/{note}/documents/{draft}', [\App\Http\Controllers\Api\JobNoteDocumentController::class, 'update'])
+                ->whereNumber('job')->whereNumber('note')->whereNumber('draft');
+            Route::post('/jobs/{job}/notes/{note}/documents/{draft}/approve', [\App\Http\Controllers\Api\JobNoteDocumentController::class, 'approve'])
+                ->whereNumber('job')->whereNumber('note')->whereNumber('draft')->middleware('throttle:10,1');
+        });
+
         // M6: tenant-scoped quotes; AI is always proxied by Laravel, never by client keys.
         Route::middleware(['company.access','company.permission:quotes.read'])->group(function (): void {
             Route::get('/quotes', [\App\Http\Controllers\Api\ServiceQuoteController::class,'index']);
