@@ -106,6 +106,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/time-labour/{entry}/evidence/{evidence}', [\App\Http\Controllers\Admin\LabourController::class,'evidenceFile'])->whereNumber('entry')->whereNumber('evidence')->name('labour.evidence.file');
         Route::delete('/time-labour/{entry}/evidence/{evidence}', [\App\Http\Controllers\Admin\LabourController::class,'removeEvidence'])->whereNumber('entry')->whereNumber('evidence')->name('labour.evidence.remove');
         Route::post('/time-labour/timer/{company}/{worker}/stop', [\App\Http\Controllers\Admin\LabourController::class,'stopTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.stop');
+        Route::post('/time-labour/timer/{company}/{worker}/recover', [\App\Http\Controllers\Admin\LabourController::class,'recoverTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.recover');
         // M14: dedicated Expenses Management behind platform administrator authentication.
         Route::get('/expenses', [\App\Http\Controllers\Admin\ExpenseController::class,'index'])->name('expenses.index');
         Route::get('/expenses/create', [\App\Http\Controllers\Admin\ExpenseController::class,'create'])->name('expenses.create');
