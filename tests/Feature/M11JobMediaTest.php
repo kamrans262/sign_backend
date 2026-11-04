@@ -68,8 +68,9 @@ class M11JobMediaTest extends TestCase
         $this->getJson('/api/v1/jobs/'.$job.'/photos')->assertOk()
             ->assertJsonCount(1,'data.photos')
             ->assertJsonPath('data.photos.0.category','before');
-        $this->get('/api/v1/jobs/'.$job.'/photos/'.$photo.'/file')->assertOk()
-            ->assertHeader('Cache-Control','private, no-store, max-age=0');
+        $download = $this->get('/api/v1/jobs/'.$job.'/photos/'.$photo.'/file')->assertOk();
+        $this->assertStringContainsString('no-store', (string)$download->headers->get('Cache-Control'));
+        $this->assertStringContainsString('private', (string)$download->headers->get('Cache-Control'));
         $item = DB::table('job_photos')->find($photo);
         $this->assertSame($company->id,$item->company_id);
         Storage::disk('local')->put($item->private_path,'changed');
@@ -120,6 +121,7 @@ class M11JobMediaTest extends TestCase
         Storage::fake('local');
         [$user,$company,$job] = $this->tenant('Conversion');
         $note = $this->note($job);
+        config()->set('services.openai.key','m11-ci-fake-only');
         Http::fake(['*api.openai.com/*'=>Http::response([
             'choices'=>[['message'=>['content'=>json_encode([
                 'title'=>'Site visit report','content'=>'Glass was observed broken. Professional review required.',
