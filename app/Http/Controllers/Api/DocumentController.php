@@ -44,6 +44,7 @@ final class DocumentController extends Controller
             'versions'=>$this->documents->versions($companyId,$document),
             'attachments'=>$this->documents->attachments($companyId,$document),
             'history'=>$this->documents->history($companyId,$document),
+            'related'=>$this->documents->related($companyId,$document),
         ]],200,['Cache-Control'=>'private, no-store']);
     }
 
