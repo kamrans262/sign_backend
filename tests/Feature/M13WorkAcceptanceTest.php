@@ -284,6 +284,55 @@ class M13WorkAcceptanceTest extends TestCase
             ->assertNotFound();
     }
 
+
+    /**
+     * Emulates a recipient action after SMTP delivery begins but before the
+     * mobile request returns. A late send acknowledgement is metadata only:
+     * it must not overwrite a viewed, signed, or revoked acceptance.
+     */
+    public function test_late_email_completion_preserves_customer_and_revoked_states(): void
+    {
+        Storage::fake('local');
+        $acceptanceId=0;
+        $linkState='viewed';
+        Mail::shouldReceive('raw')->times(3)->andReturnUsing(
+            function () use (&$acceptanceId,&$linkState): void {
+                $link=DB::table('work_acceptance_requests')
+                    ->where('work_acceptance_id',$acceptanceId)->firstOrFail();
+                $requestChanges=['status'=>$linkState,'updated_at'=>now()];
+                if($linkState==='viewed')$requestChanges['viewed_at']=now();
+                if($linkState==='signed')$requestChanges['signed_at']=now();
+                if($linkState==='revoked')$requestChanges['revoked_at']=now();
+                DB::table('work_acceptance_requests')->where('id',$link->id)
+                    ->update($requestChanges);
+                DB::table('work_acceptances')->where('id',$acceptanceId)
+                    ->update(['status'=>match($linkState) {
+                        'signed'=>'accepted',
+                        'revoked'=>'approved',
+                        default=>'viewed',
+                    },'updated_at'=>now()]);
+            }
+        );
+
+        foreach(['viewed'=>'viewed','signed'=>'accepted','revoked'=>'approved']
+            as $requestStatus=>$expectedReportStatus) {
+            [,,$client,$job]=$this->setupTenant('SMTP race '.$requestStatus);
+            $acceptanceId=$this->createAcceptance($job);
+            $this->approve($acceptanceId);
+            $linkState=$requestStatus;
+
+            $this->postJson('/api/v1/work-acceptances/'.$acceptanceId.'/send',[
+                'confirm'=>true,
+            ])->assertOk()->assertJsonPath('data.report.status',$expectedReportStatus);
+            $this->assertDatabaseHas('work_acceptances',[
+                'id'=>$acceptanceId,'status'=>$expectedReportStatus,
+            ]);
+            $this->assertDatabaseHas('work_acceptance_requests',[
+                'work_acceptance_id'=>$acceptanceId,'status'=>$requestStatus,
+            ]);
+        }
+    }
+
     public function test_admin_management_is_guarded_and_signed_reports_are_read_only(): void
     {
         Storage::fake('local');
