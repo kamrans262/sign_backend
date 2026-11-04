@@ -181,6 +181,9 @@ class M13WorkAcceptanceTest extends TestCase
             'file'=>$replacement,
         ])->assertStatus(409);
         $this->assertDatabaseCount('managed_document_versions',1);
+        // Test the one-use state even after clearing the request throttle
+        // used to block repeated public submissions.
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         $this->post('/accept-work/'.$token.'/submit',$fields,
             ['Accept'=>'application/json'])->assertStatus(410);
     }

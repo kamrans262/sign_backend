@@ -203,12 +203,17 @@ class ServiceJobController extends Controller
                 ->orderByDesc('id')->limit(100)
                 ->get(['id','kind','number','title','status'])
             : collect();
+        $acceptances = $this->canReadReports($request)
+            ? DB::table('work_acceptances')->where('company_id',$target->company_id)
+                ->where('service_job_id',$target->id)->orderByDesc('id')->limit(100)
+                ->get(['id','number','status','revision'])
+            : collect();
         return response()->json(['data' => [
             'job' => $this->payload($target),
             'sections' => [
                 'quotes' => $quotes, 'signed_quotes' => [], 'addenda' => [], 'documents' => [],
                 'photos' => $photos, 'notes' => $notes, 'purchases' => [], 'time' => [],
-                'deposits' => [], 'site_reports' => $reports, 'acceptance' => [], 'invoices' => [],
+                'deposits' => [], 'site_reports' => $reports, 'acceptance' => $acceptances, 'invoices' => [],
             ],
             'financials' => [
                 'quote_amount_chf' => null, 'expenses_chf' => null, 'labour_cost_chf' => null,
