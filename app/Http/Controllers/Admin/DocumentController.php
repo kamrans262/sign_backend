@@ -83,7 +83,8 @@ final class DocumentController extends Controller
             metadata:['document_id'=>$document,'attachment_id'=>$attachment],request:$request);
         return response($bytes,200,[
             'Content-Type'=>$mime,
-            'Content-Disposition'=>'attachment; filename="Sign2Digital_Attachment_'.$attachment.'"',
+            'Content-Disposition'=>'attachment; filename="Sign2Digital_Attachment_'.$attachment.'.'.
+                ($mime==='application/pdf'?'pdf':($mime==='image/png'?'png':'jpg')).'"',
             'Cache-Control'=>'private, no-store, max-age=0',
             'X-Content-Type-Options'=>'nosniff',
         ]);
