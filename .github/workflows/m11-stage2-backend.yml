@@ -1,0 +1,84 @@
+name: M11 Stage 2 security and release verification
+on:
+  push:
+    branches: [feature/m11-job-photos-notes-2026-11-04]
+    paths:
+      - '.github/workflows/m11-stage2-backend.yml'
+      - 'app/Http/Controllers/Api/JobMediaController.php'
+      - 'app/Http/Controllers/Api/JobNoteDocumentController.php'
+      - 'app/Http/Controllers/Admin/JobMediaController.php'
+      - 'app/Http/Controllers/Api/ServiceJobController.php'
+      - 'database/migrations/2026_11_04_050000_create_job_media_tables.php'
+      - 'routes/**'
+      - 'tests/Feature/M11*'
+      - 'scripts/m11_*'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m11-stage2-backend
+  cancel-in-progress: true
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-only
+          MYSQL_DATABASE: sign2digital_m11_ci
+          MYSQL_USER: sign_ci
+          MYSQL_PASSWORD: sign-ci-only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s
+          --health-timeout=4s
+          --health-retries=25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, pdo_mysql, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Validate PHP, routes, templates and release shell scripts
+        run: |
+          for file in app/Http/Controllers/Api/JobMediaController.php app/Http/Controllers/Api/JobNoteDocumentController.php app/Http/Controllers/Admin/JobMediaController.php app/Http/Controllers/Api/ServiceJobController.php database/migrations/2026_11_04_050000_create_job_media_tables.php tests/Feature/M11JobMediaTest.php tests/Feature/M11Stage2SecurityTest.php scripts/m11_release_preflight.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          for file in scripts/m11_release_backup.sh scripts/m11_release_deploy.sh scripts/m11_release_restore_rehearsal.sh; do bash -n "$file" || exit 1; done
+          php artisan view:cache
+          php artisan route:list --path=api/v1/jobs
+          php artisan route:list --path=admin/job-media
+      - name: M5 to M11 regression suite (isolated SQLite)
+        run: php artisan test --filter='M(5ServiceJobManagement|5Stage2SecurityAndRelease|6ServiceQuoteManagement|6Stage2SecurityAndRelease|7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion|9DocumentManagement|9DocumentReleaseSecurity|10AddendaManagement|11JobMedia|11Stage2Security)Test'
+      - name: M11 on isolated MySQL 8 (not production)
+        env:
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_m11_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
+        run: |
+          php artisan migrate --force
+          php artisan test --filter='M(11JobMedia|11Stage2Security)Test'
+      - name: Production-mode read-only preflight simulation on isolated MySQL
+        env:
+          APP_ENV: production
+          APP_DEBUG: 'false'
+          APP_URL: https://sign2digital-ci.invalid
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_m11_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
+        run: |
+          mkdir -p storage/app/private
+          php scripts/m10_release_preflight.php --require-migrated
+          php -d upload_max_filesize=32M -d post_max_size=32M scripts/m11_release_preflight.php --require-migrated
