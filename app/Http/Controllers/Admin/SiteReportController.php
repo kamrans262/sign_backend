@@ -75,19 +75,32 @@ final class SiteReportController extends Controller
             'absentees_lines'=>['nullable','string','max:12000'],
             'decisions_lines'=>['nullable','string','max:12000'],
             'next_steps_lines'=>['nullable','string','max:12000'],
+            'outstanding_points_lines'=>['nullable','string','max:12000'],
             'action_items_lines'=>['nullable','string','max:12000'],
         ]);
         $lines=static fn(string $key)=>array_values(array_filter(array_map(
             'trim',preg_split('/\R/u',(string)($data[$key]??'')) ?: []),
             fn(string $value)=>$value!==''));
-        $actions=array_map(fn(string $text)=>['description'=>$text],
-            $lines('action_items_lines'));
+        $actions=[];
+        foreach($lines('action_items_lines') as $text) {
+            $parts=array_map('trim',explode('|',$text));
+            if(count($parts)>3 || $parts[0]==='') {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'action_items_lines'=>'Use Task | Owner | YYYY-MM-DD, one action per line.',
+                ]);
+            }
+            $action=['description'=>$parts[0]];
+            if(!empty($parts[1]))$action['assignee']=$parts[1];
+            if(!empty($parts[2]))$action['due_date']=$parts[2];
+            $actions[]=$action;
+        }
         $request->merge(['content'=>[
             'sections'=>array_filter($data['sections']??[],fn($v)=>is_string($v)&&trim($v)!==''),
             'attendees'=>$lines('attendees_lines'),
             'absentees'=>$lines('absentees_lines'),
             'decisions'=>$lines('decisions_lines'),
             'next_steps'=>$lines('next_steps_lines'),
+            'outstanding_points'=>$lines('outstanding_points_lines'),
             'action_items'=>$actions,
         ]]);
     }

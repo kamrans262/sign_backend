@@ -46,6 +46,7 @@ class M12ReportsManagementTest extends TestCase
                 ? ['sections'=>['siteProgress'=>'Windows measured on site','notes'=>'Two broken panes found']]
                 : ['sections'=>['summary'=>'Discussed repair schedule'],
                     'attendees'=>['Jean Test','Site Inspector'],'decisions'=>['Replace two panes'],
+                    'outstanding_points'=>['Supplier final confirmation'],
                     'action_items'=>[['description'=>'Order glass','assignee'=>'Site Inspector','due_date'=>'2026-11-15']]],
         ])->assertCreated()->json('data.report.id');
     }
@@ -103,7 +104,10 @@ class M12ReportsManagementTest extends TestCase
         $this->postJson('/api/v1/reports/'.$id.'/send',['confirm'=>true])
             ->assertOk()->assertJsonPath('data.report.status','sent');
         $this->getJson('/api/v1/reports/'.$id)->assertJsonPath(
-            'data.report.content.attendees.0','Jean Test');
+            'data.report.content.attendees.0','Jean Test')
+            ->assertJsonPath('data.report.content.outstanding_points.0','Supplier final confirmation')
+            ->assertJsonPath('data.report.content.action_items.0.assignee','Site Inspector')
+            ->assertJsonPath('data.report.content.action_items.0.due_date','2026-11-15');
         $this->assertDatabaseHas('site_reports',[
             'id'=>$id,'kind'=>'meeting_minutes','status'=>'sent',
         ]);

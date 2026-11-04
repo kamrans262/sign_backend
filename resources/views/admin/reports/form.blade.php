@@ -9,7 +9,7 @@
   $content=$editing?$report['content']:[];
   $sections=$content['sections']??[];
   $lines=fn($field)=>implode("\n",$content[$field]??[]);
-  $actions=implode("\n",array_map(fn($row)=>$row['description']??'',$content['action_items']??[]));
+  $actions=implode("\n",array_map(fn($row)=>implode(' | ',[$row['description']??'',$row['assignee']??'',$row['due_date']??'']),$content['action_items']??[]));
 @endphp
 <section class="panel">
 <div class="panel-header"><div><h2>{{ $editing?$report['number']:'New Report' }}</h2><p class="panel-header-hint">{{ $editing?ucfirst($report['status']):'Draft' }}</p></div>
@@ -37,7 +37,7 @@
 @foreach(['siteProgress'=>'Site Progress','notes'=>'Notes / Observations','issues'=>'Issues / Risks','materials'=>'Materials Delivery','labour'=>'Labour & Time','summary'=>'Summary','agenda'=>'Agenda'] as $field=>$label)
 <label>{{ $label }} <textarea class="input" name="sections[{{ $field }}]" rows="3" maxlength="6000" @readonly(!$draft)>{{ old('sections.'.$field,$sections[$field]??'') }}</textarea></label>
 @endforeach
-@foreach(['attendees_lines'=>'Attendees (one per line)','absentees_lines'=>'Absentees (one per line)','decisions_lines'=>'Decisions (one per line)','next_steps_lines'=>'Next Steps (one per line)','action_items_lines'=>'Action Items (one per line)'] as $key=>$label)
+@foreach(['attendees_lines'=>'Attendees (one per line)','absentees_lines'=>'Absentees (one per line)','decisions_lines'=>'Decisions (one per line)','next_steps_lines'=>'Next Steps (one per line)','outstanding_points_lines'=>'Outstanding Points (one per line)','action_items_lines'=>'Action Items (task | owner | YYYY-MM-DD)'] as $key=>$label)
 <label>{{ $label }}<textarea class="input" name="{{ $key }}" rows="3" maxlength="12000" @readonly(!$draft)>{{ old($key,$key==='action_items_lines'?$actions:$lines(str_replace('_lines','',$key))) }}</textarea></label>
 @endforeach
 @if($draft)<div><button class="btn btn-primary" type="submit">Save Draft</button></div>@endif
