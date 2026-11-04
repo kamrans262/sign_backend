@@ -1,0 +1,31 @@
+name: M14 Stage 1 Expenses and Receipts
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m14-backend
+  cancel-in-progress: true
+jobs:
+  expenses:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: M14 PHP lint and Blade compilation
+        run: |
+          for file in database/migrations/2026_11_05_010000_create_expenses_tracking_tables.php app/Services/ExpenseService.php app/Http/Controllers/Api/ExpenseController.php app/Http/Controllers/Api/ExpenseAiController.php app/Http/Controllers/Admin/ExpenseController.php tests/Feature/M14ExpenseTrackingTest.php; do php -l "$file" || exit 1; done
+          php artisan view:cache
+          php artisan route:list --path=api/v1/expenses
+          php artisan route:list --path=admin/expenses
+      - name: M14 expenses, signing and prior reports regression
+        run: php artisan test --filter='M(14ExpenseTracking|13WorkAcceptance|12ReportsManagement)Test'
