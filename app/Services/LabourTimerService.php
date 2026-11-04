@@ -209,6 +209,81 @@ final class LabourTimerService
         return $result;
     }
 
+    /**
+     * An administrator may abandon a stuck timer only with a recorded reason.
+     * No billable entry is created, so time must be reconciled manually.
+     * This works even when a timer exceeds the 24-hour automatic stop limit.
+     */
+    public function recover(Request $request,Company $company,int $worker): array
+    {
+        $this->labour->reviewer($company,$request->user());
+        $data=$request->validate([
+            'confirm'=>['required','accepted'],
+            'reason'=>['required','string','min:10','max:2000'],
+            'request_key'=>['required','string','min:8','max:64',
+                'regex:/^[A-Za-z0-9_-]+$/D'],
+        ]);
+        $actor=$request->user()?->id;
+        $result=DB::transaction(function()use($company,$worker,$data,$actor):array {
+            DB::table('companies')->where('id',$company->id)->lockForUpdate()
+                ->firstOrFail();
+            $previous=DB::table('job_labour_timer_requests')
+                ->where('company_id',$company->id)->where('worker_user_id',$worker)
+                ->where('request_key',$data['request_key'])->first();
+            if($previous) {
+                abort_unless($previous->action==='recover',409,
+                    'Idempotency key already used for a different action.');
+                return json_decode($previous->response,true,512,JSON_THROW_ON_ERROR);
+            }
+            $timer=DB::table('job_labour_timers')->where('company_id',$company->id)
+                ->where('worker_user_id',$worker)->lockForUpdate()->firstOrFail();
+            abort_unless(in_array($timer->status,['running','paused'],true),409,
+                'Only a running or paused timer can be recovered.');
+            $now=now('UTC');
+            $elapsed=(int)$timer->accumulated_seconds;
+            if($timer->status==='running'&&$timer->running_since)
+                $elapsed+=max(0,$now->timestamp-
+                    CarbonImmutable::parse($timer->running_since,'UTC')->timestamp);
+            DB::table('job_labour_timers')->where('id',$timer->id)->update([
+                'status'=>'stopped','running_since'=>null,
+                'accumulated_seconds'=>$elapsed,
+                'lock_version'=>$timer->lock_version+1,'updated_at'=>$now,
+            ]);
+            $new=DB::table('job_labour_timers')->where('id',$timer->id)->firstOrFail();
+            $answer=[
+                'timer'=>$this->snapshot($new),
+                'recovered'=>true,
+                'timesheet_created'=>false,
+                'manual_reconciliation_required'=>true,
+            ];
+            DB::table('job_labour_timer_requests')->insert([
+                'company_id'=>$company->id,'worker_user_id'=>$worker,
+                'request_key'=>$data['request_key'],'action'=>'recover',
+                'response'=>json_encode($answer,JSON_THROW_ON_ERROR),
+                'created_at'=>$now,
+            ]);
+            DB::table('job_labour_events')->insert([
+                'company_id'=>$company->id,'job_labour_entry_id'=>null,
+                'worker_user_id'=>$worker,'actor_user_id'=>$actor,
+                'event_type'=>'timer_recovered',
+                'metadata'=>json_encode([
+                    'reason'=>trim($data['reason']),
+                    'job_id'=>$timer->service_job_id,
+                    'started_at'=>$timer->started_at,
+                    'original_state'=>$timer->status,
+                    'recorded_seconds'=>$elapsed,
+                    'manual_reconciliation_required'=>true,
+                ],JSON_THROW_ON_ERROR),
+                'created_at'=>$now,
+            ]);
+            return $answer;
+        });
+        AuditLogger::record('admin.labour.timer_recovered',$request->user(),
+            null,$company,['worker_id'=>$worker,
+                'manual_reconciliation_required'=>true],$request);
+        return $result;
+    }
+
     public function active(?int $companyId=null): array
     {
         $q=DB::table('job_labour_timers as t')
