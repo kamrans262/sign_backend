@@ -78,6 +78,13 @@ migration="$(mysql --defaults-extra-file="$cnf" --database="$target" --batch \
 if [[ ! "$after" =~ ^[1-9][0-9]*$ || "$migration" != "1" ]]; then
   echo "M10_RESTORE_BLOCKED: MySQL restore or M9 baseline failed." >&2; exit 1
 fi
+# Record the SHA of the VERIFIED snapshot. Deployment must check this
+# marker against the exact same backup and never treat a CRC alone as restore.
+manifest_hash="$(sha256sum "$backup/SHA256SUMS.txt" | cut -d ' ' -f 1)"
+printf 'release=M10\nrestored=M9\nsnapshot_manifest_sha256=%s\nrestored_tables=%s\nverified_utc=%s\n' \
+  "$manifest_hash" "$after" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  > "$backup/m10-restore-rehearsal.txt"
+chmod 600 "$backup/m10-restore-rehearsal.txt"
 echo "M10_RESTORE_REHEARSAL_PASS"
 echo "M10_RESTORED_M9_TABLES $after"
 echo "INFO: The isolated database is retained for inspection. Production was not changed."
