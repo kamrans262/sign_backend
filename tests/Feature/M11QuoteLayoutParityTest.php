@@ -57,10 +57,9 @@ final class M11QuoteLayoutParityTest extends TestCase
         $this->assertStringContainsString('id="sign2digital-signing"', $signingView);
         $this->assertStringContainsString("'Sign2Digital - Signature Record'", $signedPdfSource);
         $this->assertStringContainsString('$pdf->useTemplate(', $signedPdfSource);
-        $this->assertStringContainsString("'Evidence of electronic consent.',", str_replace(
+        $this->assertStringContainsString(
             'Evidence of electronic consent. This PDF is not a qualified cryptographic digital signature.',
-            'Evidence of electronic consent.',
-            $signedPdfSource,
-        ));
+            $signedPdfSource
+        );
     }
 }
