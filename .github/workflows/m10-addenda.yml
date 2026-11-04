@@ -68,6 +68,7 @@ jobs:
           php artisan route:list --path=addendum-sign
           php -l scripts/m10_release_preflight.php
           bash -n scripts/m10_release_deploy.sh
+          bash -n scripts/m10_release_restore_rehearsal.sh
       - name: M10 and existing M7-M9 regression checks (SQLite)
         run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion|9DocumentManagement|9DocumentReleaseSecurity|10AddendaManagement)Test'
       - name: M10 isolated MySQL 8 migrations and tests
