@@ -178,26 +178,49 @@ final class SignatureCompletionService
      */
     public function emailFinalPdf(SignedDocumentArtifact $artifact): bool
     {
-        $artifact->loadMissing('request.quote.company');
+        $artifact->loadMissing('request.quote.company.owner');
         $signing=$artifact->request;
-        if (in_array((string) config('mail.default'), ['log','array','null'], true) ||
-            trim((string) $signing->signer_email)==='') {
+        $quote=$signing->quote;
+        if (in_array((string) config('mail.default'), ['log','array','null',''], true)) {
             return false;
+        }
+        $recipients=[
+            'customer'=>trim((string)$signing->signer_email),
+            'business_owner'=>trim((string)($quote->company?->owner?->email??'')),
+        ];
+        foreach($recipients as $address){
+            if(!filter_var($address,FILTER_VALIDATE_EMAIL)){
+                $this->workflow->event($signing,'signed_pdf_delivery_failed',null,null,
+                    ['reason'=>'recipient_not_configured']);
+                return false;
+            }
         }
         $bytes=$this->bytes($artifact);
-        $number=$signing->quote->custom_quote_number ?: $signing->quote->reference_number;
-        try {
-            Mail::raw("Your signed Sign2Digital quote ".$number.
-                " is attached. Please keep this copy for your records.",
-                fn($message) => $message->to($signing->signer_email)
-                    ->subject('Sign2Digital — Signed quote '.$number)
-                    ->attachData($bytes,'Sign2Digital_Signed_Quote.pdf',['mime'=>'application/pdf']));
-            $this->workflow->event($signing,'signed_pdf_emailed',null,null,['channel'=>'email']);
-            return true;
-        } catch (\Throwable $error) {
-            report($error);
-            $this->workflow->event($signing,'signed_pdf_delivery_failed');
-            return false;
+        $number=$quote->custom_quote_number ?: $quote->reference_number;
+        $sent=[];
+        $complete=true;
+        foreach($recipients as $role=>$address){
+            $normalized=mb_strtolower($address);
+            if(isset($sent[$normalized]))continue;
+            try {
+                Mail::raw(
+                    "Your signed Sign2Digital quote ".$number.
+                    " is attached. Keep this immutable PDF for your records.",
+                    fn($message)=>$message->to($address)
+                        ->subject('Sign2Digital — Signed quote '.$number)
+                        ->attachData($bytes,'Sign2Digital_Signed_Quote.pdf',
+                            ['mime'=>'application/pdf'])
+                );
+                $sent[$normalized]=true;
+                $this->workflow->event($signing,'signed_pdf_emailed',null,null,
+                    ['recipient_role'=>$role,'channel'=>'email']);
+            } catch(\Throwable $error){
+                report($error);
+                $complete=false;
+                $this->workflow->event($signing,'signed_pdf_delivery_failed',null,null,
+                    ['recipient_role'=>$role]);
+            }
         }
+        return $complete;
     }
 }
