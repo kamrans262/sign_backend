@@ -179,9 +179,20 @@ final class PublicAddendumController extends Controller
                 'signed_pdf_sha256'=>$sha,'signed_at'=>$signedAt,
             ]);
             $locked->update(['status'=>'signed','signed_at'=>$signedAt]);
+            // Retain concise consent evidence like M8; never store the
+            // signature PNG, raw signing token or provider credentials.
             $this->service->event($item,'signed',null,[
                 'request_id'=>$locked->id,
+                'request_uuid'=>$locked->request_uuid,
                 'mode'=>'remote','method'=>$fields['method'],
+                'signer_name'=>$locked->signer_name,
+                'consent_accepted'=>true,
+                'consent_reference'=>$locked->consent_reference,
+                'signature_evidence_sha256'=>hash('sha256',$png),
+                'ip_address'=>$request->ip(),
+                'user_agent'=>mb_substr((string)$request->userAgent(),0,500),
+                'signed_at_utc'=>$signedAt->toIso8601String(),
+                'approved_pdf_sha256'=>$locked->approved_pdf_sha256,
                 'signed_pdf_sha256'=>$sha,
             ]);
             return $item;
