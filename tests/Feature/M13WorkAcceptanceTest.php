@@ -143,7 +143,9 @@ class M13WorkAcceptanceTest extends TestCase
         $row=DB::table('work_acceptances')->find($id);
         [$token,$requestId,$uuid,$document,$consent]=$this->signingToken($row,$company->id);
         $this->get('/accept-work/'.$token)->assertOk()->assertSee('Work Acceptance')
-            ->assertSee('Renovated and cleaned entrance.');
+            ->assertSee('Renovated and cleaned entrance.')
+            ->assertSee('drawing=true;const p=xy(e)',false)
+            ->assertDontSee('drawing=true;marks=0;',false);
         $this->get('/accept-work/'.$token.'/approved-pdf')
             ->assertOk()->assertHeader('Content-Type','application/pdf');
         $fields=[
