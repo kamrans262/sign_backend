@@ -1,0 +1,76 @@
+name: M10 Addenda Stage 1 backend verification
+
+on:
+  push:
+    branches: [feature/m10-addenda-management-2026-11-04]
+    paths:
+      - '.github/workflows/m10-addenda.yml'
+      - 'app/Models/Addendum*.php'
+      - 'app/Services/AddendumService.php'
+      - 'app/Services/SignedPdfService.php'
+      - 'app/Http/Controllers/Api/*Addendum*.php'
+      - 'app/Http/Controllers/Admin/AddendumController.php'
+      - 'database/migrations/2026_11_04_040000_create_addenda_management_tables.php'
+      - 'resources/views/public/addendum*.blade.php'
+      - 'resources/views/public/signing-form.blade.php'
+      - 'resources/views/admin/addenda/**'
+      - 'resources/views/admin/layout.blade.php'
+      - 'routes/**'
+      - 'tests/Feature/M10AddendaManagementTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign2digital-m10-backend
+  cancel-in-progress: true
+
+jobs:
+  m10-stage1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-only
+          MYSQL_DATABASE: sign2digital_m10_ci
+          MYSQL_USER: sign_ci
+          MYSQL_PASSWORD: sign-ci-only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s
+          --health-timeout=4s
+          --health-retries=25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, pdo_mysql, mbstring, openssl, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Check M10 PHP syntax, compiled templates and routes
+        run: |
+          for file in app/Models/Addendum.php app/Models/AddendumSigningRequest.php app/Services/AddendumService.php app/Services/SignedPdfService.php app/Http/Controllers/Api/AddendumController.php app/Http/Controllers/Api/PublicAddendumController.php database/migrations/2026_11_04_040000_create_addenda_management_tables.php tests/Feature/M10AddendaManagementTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          if test -f app/Http/Controllers/Admin/AddendumController.php; then php -l app/Http/Controllers/Admin/AddendumController.php; fi
+          php artisan view:cache
+          php artisan route:list --path=api/v1/addenda
+          php artisan route:list --path=addendum-sign
+      - name: M10 and existing M7-M9 regression checks (SQLite)
+        run: php artisan test --filter='M(7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion|9DocumentManagement|9DocumentReleaseSecurity|10AddendaManagement)Test'
+      - name: M10 isolated MySQL 8 migrations and tests
+        env:
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_m10_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
+        run: |
+          php artisan migrate --force
+          php artisan test --filter='M10AddendaManagementTest'
