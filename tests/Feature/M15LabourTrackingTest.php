@@ -329,7 +329,7 @@ class M15LabourTrackingTest extends TestCase
         try {
             LabourService::workSpan('2026-03-29',150,210);
             $this->fail('Non-existent Europe/Zurich 02:30 was accepted.');
-        } catch (\\Illuminate\\Validation\\ValidationException $expected) {
+        } catch (\Illuminate\Validation\ValidationException $expected) {
             $this->assertArrayHasKey('work_date',$expected->errors());
         }
         [$start,$end,$minutes]=LabourService::workSpan('2026-10-25',90,210);
