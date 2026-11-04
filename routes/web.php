@@ -81,6 +81,16 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/job-media/{kind}/{id}', [\App\Http\Controllers\Admin\JobMediaController::class, 'update'])->whereNumber('id')->name('job-media.update');
         Route::post('/job-media/{kind}/{id}/archive', [\App\Http\Controllers\Admin\JobMediaController::class, 'archive'])->whereNumber('id')->name('job-media.archive');
         Route::get('/job-media/{kind}/{id}/download', [\App\Http\Controllers\Admin\JobMediaController::class, 'download'])->whereNumber('id')->name('job-media.download');
+        // M12: Reports Management uses existing platform-admin guard.
+        Route::get('/reports', [\App\Http\Controllers\Admin\SiteReportController::class,'index'])->name('reports.index');
+        Route::get('/reports/create', [\App\Http\Controllers\Admin\SiteReportController::class,'create'])->name('reports.create');
+        Route::post('/reports', [\App\Http\Controllers\Admin\SiteReportController::class,'store'])->name('reports.store');
+        Route::get('/reports/{report}/edit', [\App\Http\Controllers\Admin\SiteReportController::class,'edit'])->whereNumber('report')->name('reports.edit');
+        Route::patch('/reports/{report}', [\App\Http\Controllers\Admin\SiteReportController::class,'update'])->whereNumber('report')->name('reports.update');
+        Route::post('/reports/{report}/approve', [\App\Http\Controllers\Admin\SiteReportController::class,'approve'])->whereNumber('report')->name('reports.approve');
+        Route::post('/reports/{report}/send', [\App\Http\Controllers\Admin\SiteReportController::class,'send'])->whereNumber('report')->middleware('throttle:6,1')->name('reports.send');
+        Route::post('/reports/{report}/archive', [\App\Http\Controllers\Admin\SiteReportController::class,'archive'])->whereNumber('report')->name('reports.archive');
+        Route::get('/reports/{report}/pdf', [\App\Http\Controllers\Admin\SiteReportController::class,'pdf'])->whereNumber('report')->name('reports.pdf');
         Route::get('/quotes', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'index'])->name('quotes.index');
         Route::get('/quotes/create', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'create'])->name('quotes.create');
         Route::post('/quotes', [\App\Http\Controllers\Admin\ServiceQuoteController::class, 'store'])->name('quotes.store');
