@@ -1,0 +1,31 @@
+name: M12 Stage 1 report lifecycle and mobile API verification
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m12-stage1-backend
+  cancel-in-progress: true
+jobs:
+  report-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint M12 Laravel and compile admin
+        run: |
+          for file in app/Services/SiteReportService.php app/Http/Controllers/Api/SiteReportController.php app/Http/Controllers/Admin/SiteReportController.php database/migrations/2026_11_04_060000_create_site_reports_and_minutes_tables.php tests/Feature/M12ReportsManagementTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          php artisan view:cache
+          php artisan route:list --path=api/v1/reports
+          php artisan route:list --path=admin/reports
+      - name: M12 plus M11 and M9 regression
+        run: php artisan test --filter='M(12ReportsManagement|11JobMedia|11Stage2Security|9DocumentManagement|10AddendaManagement)Test'
