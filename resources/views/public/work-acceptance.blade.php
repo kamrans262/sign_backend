@@ -70,7 +70,7 @@ button,.btn{display:inline-block;background:#166282;border:0;border-radius:10px;
   ctx.strokeStyle='#122536';ctx.lineWidth=3.5;ctx.lineCap='round';ctx.lineJoin='round';
   let drawing=false,marks=0;
   function xy(e){const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}
-  canvas.addEventListener('pointerdown',e=>{drawing=true;marks=0;const p=xy(e);ctx.beginPath();ctx.moveTo(p.x,p.y);canvas.setPointerCapture(e.pointerId)});
+  canvas.addEventListener('pointerdown',e=>{drawing=true;const p=xy(e);ctx.beginPath();ctx.moveTo(p.x,p.y);canvas.setPointerCapture(e.pointerId)});
   canvas.addEventListener('pointermove',e=>{if(!drawing)return;const p=xy(e);ctx.lineTo(p.x,p.y);ctx.stroke();marks++});
   canvas.addEventListener('pointerup',()=>drawing=false);
   canvas.addEventListener('pointercancel',()=>drawing=false);
