@@ -43,6 +43,8 @@ final class WorkAcceptanceService
                 ? null:(int)$row->managed_document_id,
             'has_approved_pdf'=>$row->approved_pdf_sha256!==null,
             'has_signed_pdf'=>$row->signed_pdf_sha256!==null,
+            'signed_pdf_sha256'=>$row->signed_pdf_sha256,
+            'approved_pdf_sha256'=>$row->approved_pdf_sha256,
             'created_at'=>$row->created_at,'updated_at'=>$row->updated_at,
             'project'=>$row->project??DB::table('service_jobs')->where('id',$row->service_job_id)->value('title'),
             'customer'=>$row->customer??DB::table('clients')->where('id',$row->client_id)->value('full_name'),
