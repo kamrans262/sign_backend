@@ -164,6 +164,30 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 ->whereIn('method',['text','audio','image'])->middleware('throttle:10,1');
         });
 
+        // M9: unified document catalog; M7 and M8 originals are read-only sources.
+        Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
+            Route::get('/documents', [\App\Http\Controllers\Api\DocumentController::class,'index']);
+            Route::get('/documents/{document}', [\App\Http\Controllers\Api\DocumentController::class,'show']);
+            Route::get('/documents/{document}/history', [\App\Http\Controllers\Api\DocumentController::class,'history']);
+            Route::get('/documents/{document}/versions', [\App\Http\Controllers\Api\DocumentController::class,'versions']);
+            Route::get('/documents/{document}/attachments', [\App\Http\Controllers\Api\DocumentController::class,'attachments']);
+            Route::get('/documents/{document}/pdf', [\App\Http\Controllers\Api\DocumentController::class,'download'])
+                ->middleware('throttle:30,1');
+            Route::get('/documents/{document}/attachments/{attachment}/download',
+                [\App\Http\Controllers\Api\DocumentController::class,'downloadAttachment'])
+                ->whereNumber('attachment')->middleware('throttle:30,1');
+        });
+        Route::middleware(['company.access','company.permission:documents.write'])->group(function (): void {
+            Route::post('/documents', [\App\Http\Controllers\Api\DocumentController::class,'store'])
+                ->middleware('throttle:15,1');
+            Route::post('/documents/{document}/versions',
+                [\App\Http\Controllers\Api\DocumentController::class,'addVersion'])
+                ->middleware('throttle:15,1');
+            Route::post('/documents/{document}/attachments',
+                [\App\Http\Controllers\Api\DocumentController::class,'addAttachment'])
+                ->middleware('throttle:15,1');
+        });
+
         // M8: in-person signing has separate authenticated customer/business identities.
         Route::middleware(['company.access','company.permission:quotes.write'])->group(function (): void {
             Route::post('/quotes/{quote}/in-person-signing',
