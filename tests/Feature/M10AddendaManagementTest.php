@@ -11,6 +11,7 @@ use App\Models\SignatureRequest;
 use App\Models\SignedDocumentArtifact;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use setasign\Fpdi\Fpdi;
@@ -19,6 +20,15 @@ use Tests\TestCase;
 final class M10AddendaManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Laravel's shared test cache can retain throttles across isolated
+        // RefreshDatabase cases. Keep actual route throttling enabled while
+        // ensuring separate tests do not consume one another's limits.
+        Cache::flush();
+    }
 
     private function tenant(string $name='Owner Business'): array
     {
