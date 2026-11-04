@@ -1,10 +1,14 @@
 <section class="payment-card" aria-label="Customer Signature" style="margin-top:20px;padding:20px">
   <h2 class="section-title" style="font-size:18px">Customer Signature</h2>
-  <p class="payment-hint" style="margin-top:10px">Review the approved quote and its terms above. Sign as {{ $signing->signer_name }} using the same signature options as Sign2Digital.</p>
+  <p class="payment-hint" style="margin-top:10px">Review the approved {{ isset($addendum) ? 'addendum' : 'quote' }} and its terms above. Sign as {{ $signing->signer_name }} using the same signature options as Sign2Digital.</p>
 
-  <form id="sign2digital-signing" method="post" action="{{ route('signing.public.submit.browser', ['token'=>$signingToken]) }}" autocomplete="off">
+  <form id="sign2digital-signing" method="post" action="{{ isset($addendum) ? route('addenda.public.submit',['token'=>$signingToken]) : route('signing.public.submit.browser', ['token'=>$signingToken]) }}" autocomplete="off">
     @csrf
-    <input type="hidden" name="quoteId" value="{{ $signing->service_quote_id }}">
+    @if(isset($addendum))
+      <input type="hidden" name="addendumId" value="{{ $addendum->id }}">
+    @else
+      <input type="hidden" name="quoteId" value="{{ $signing->service_quote_id }}">
+    @endif
     <input type="hidden" name="documentId" value="{{ $signing->document_uuid }}">
     <input type="hidden" name="requestId" value="{{ $signing->request_uuid }}">
     <input type="hidden" name="signerId" value="{{ $signing->signer_uuid }}">
@@ -34,7 +38,7 @@
 
     <label class="s2d-consent">
       <input type="checkbox" name="consentAccepted" value="1" required>
-      <span>I have reviewed this exact approved quote and its terms and agree to sign electronically.</span>
+      <span>I have reviewed this exact approved {{ isset($addendum) ? 'addendum' : 'quote' }} and its terms and agree to sign electronically.</span>
     </label>
     <p id="s2d-warning" role="alert" class="s2d-warning" hidden></p>
     <button type="submit" id="s2d-submit" class="s2d-submit">Confirm Signature</button>
