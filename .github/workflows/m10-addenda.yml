@@ -7,13 +7,17 @@ on:
       - '.github/workflows/m10-addenda.yml'
       - 'app/Models/Addendum*.php'
       - 'app/Services/AddendumService.php'
+      - 'app/Services/DocumentCatalogService.php'
       - 'app/Services/SignedPdfService.php'
       - 'app/Http/Controllers/Api/*Addendum*.php'
+      - 'app/Http/Controllers/Api/DocumentController.php'
+      - 'app/Http/Controllers/Admin/DocumentController.php'
       - 'app/Http/Controllers/Admin/AddendumController.php'
       - 'database/migrations/2026_11_04_040000_create_addenda_management_tables.php'
       - 'resources/views/public/addendum*.blade.php'
       - 'resources/views/public/signing-form.blade.php'
       - 'resources/views/admin/addenda/**'
+      - 'resources/views/admin/documents/**'
       - 'resources/views/admin/layout.blade.php'
       - 'routes/**'
       - 'tests/Feature/M10AddendaManagementTest.php'
@@ -55,7 +59,7 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - name: Check M10 PHP syntax, compiled templates and routes
         run: |
-          for file in app/Models/Addendum.php app/Models/AddendumSigningRequest.php app/Services/AddendumService.php app/Services/SignedPdfService.php app/Http/Controllers/Api/AddendumController.php app/Http/Controllers/Api/PublicAddendumController.php database/migrations/2026_11_04_040000_create_addenda_management_tables.php tests/Feature/M10AddendaManagementTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
+          for file in app/Models/Addendum.php app/Models/AddendumSigningRequest.php app/Services/AddendumService.php app/Services/SignedPdfService.php app/Http/Controllers/Api/AddendumController.php app/Http/Controllers/Api/PublicAddendumController.php app/Http/Controllers/Api/AddendumAiController.php app/Http/Controllers/Api/DocumentController.php app/Http/Controllers/Admin/DocumentController.php app/Services/DocumentCatalogService.php database/migrations/2026_11_04_040000_create_addenda_management_tables.php tests/Feature/M10AddendaManagementTest.php routes/api.php routes/web.php; do php -l "$file" || exit 1; done
           if test -f app/Http/Controllers/Admin/AddendumController.php; then php -l app/Http/Controllers/Admin/AddendumController.php; fi
           php artisan view:cache
           php artisan route:list --path=api/v1/addenda
