@@ -112,7 +112,7 @@ final class M17InvoiceIssuanceTest extends TestCase
     {
         // This test exercises retries deliberately; route throttling is tested
         // separately and must not mask the idempotency assertions.
-        $this->withoutMiddleware(\\Illuminate\\Routing\\Middleware\\ThrottleRequests::class);
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Storage::fake('local');
         [$owner,$company,$id]=$this->readyInvoice();
         $url='/api/v1/invoices/'.$id;
