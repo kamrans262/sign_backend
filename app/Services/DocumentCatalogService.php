@@ -35,7 +35,12 @@ final class DocumentCatalogService
             ->join('service_quotes as q','q.id','=','d.service_quote_id')
             ->leftJoin('service_jobs as j','j.id','=','d.service_job_id')
             ->selectRaw("'addendum' as kind, d.id as entity_id, d.company_id, d.client_id, d.service_job_id as job_id, 'addends' as category, d.number, COALESCE(j.title,'') as project, q.client_name as customer, d.title as managed_title, d.status, d.revision as version, CASE WHEN d.status = 'signed' THEN d.signed_pdf_sha256 WHEN d.status IN ('approved','sent') THEN d.approved_pdf_sha256 ELSE NULL END as sha256, d.created_at as occurred_at, d.updated_at");
-        return DB::query()->fromSub($quotes->unionAll($signed)->unionAll($managed)->unionAll($addenda), 'documents');
+        $general = DB::table('general_documents as g')
+            ->leftJoin('service_jobs as j','j.id','=','g.service_job_id')
+            ->leftJoin('clients as c','c.id','=','g.client_id')
+            ->selectRaw("'general' as kind, g.id as entity_id, g.company_id, g.client_id, g.service_job_id as job_id, 'other' as category, g.number, COALESCE(j.title,'') as project, COALESCE(c.full_name,'') as customer, g.title as managed_title, g.status, g.current_revision as version, NULL as sha256, g.created_at as occurred_at, g.updated_at");
+        return DB::query()->fromSub($quotes->unionAll($signed)->unionAll($managed)
+            ->unionAll($addenda)->unionAll($general), 'documents');
     }
 
     private function format(object $row): array
@@ -74,7 +79,8 @@ final class DocumentCatalogService
             $query->where(function ($q) use ($needle): void {
                 $q->where('number', 'like', $needle)
                     ->orWhere('customer', 'like', $needle)
-                    ->orWhere('project', 'like', $needle);
+                    ->orWhere('project', 'like', $needle)
+                    ->orWhere('managed_title','like',$needle);
             });
         }
         $paginator = $query->orderByDesc('occurred_at')->orderByDesc('entity_id')
@@ -88,7 +94,7 @@ final class DocumentCatalogService
 
     public function resolve(int $companyId, string $key): array
     {
-        abort_unless(preg_match('/^(quote|signed|managed|addendum)-([1-9][0-9]*)$/D', $key, $match), 404);
+        abort_unless(preg_match('/^(quote|signed|managed|addendum|general)-([1-9][0-9]*)$/D', $key, $match), 404);
         $row = $this->unifiedQuery()
             ->where('company_id', $companyId)
             ->where('kind', $match[1])
@@ -138,6 +144,15 @@ final class DocumentCatalogService
     public function versions(int $companyId, string $key): array
     {
         $item = $this->resolve($companyId, $key);
+        if ($item['kind'] === 'general') {
+            return DB::table('general_document_revisions')
+                ->where('company_id',$companyId)
+                ->where('general_document_id',$item['entity_id'])
+                ->orderByDesc('revision')
+                ->get(['id','revision as version','source',
+                    'content_sha256 as sha256','created_at'])
+                ->map(fn($v)=>(array)$v)->all();
+        }
         if ($item['kind'] === 'managed') {
             return DB::table('managed_document_versions')
                 ->where('company_id', $companyId)->where('managed_document_id', $item['entity_id'])
@@ -168,6 +183,9 @@ final class DocumentCatalogService
     public function attachments(int $companyId, string $key): array
     {
         $item = $this->resolve($companyId, $key);
+        if($item['kind']==='general') {
+            return app(GeneralDocumentService::class)->attachments($companyId,$item['entity_id']);
+        }
         return DB::table('document_attachments')
             ->where('company_id',$companyId)->where('target_kind',$item['kind'])
             ->where('target_id',$item['entity_id'])->orderByDesc('id')
@@ -187,6 +205,18 @@ final class DocumentCatalogService
             ->map(fn ($row) => ['id'=>'document-event-'.$row->id,
                 'type'=>$row->event_type,'occurred_at'=>$row->created_at,
                 'actor_name'=>$row->actor_name])->all();
+        if($kind==='general') {
+            foreach(DB::table('general_document_events as ge')
+                ->leftJoin('users as u','u.id','=','ge.actor_user_id')
+                ->where('ge.company_id',$companyId)
+                ->where('ge.general_document_id',$id)
+                ->orderBy('ge.id')->get(['ge.id','ge.event_type',
+                    'ge.created_at','u.name as actor_name']) as $event) {
+                $history[]=['id'=>'general-event-'.$event->id,
+                    'type'=>$event->event_type,'occurred_at'=>$event->created_at,
+                    'actor_name'=>$event->actor_name];
+            }
+        }
         if ($kind === 'addendum') {
             foreach (DB::table('addendum_events as ae')
                 ->leftJoin('users as u','u.id','=','ae.actor_user_id')
@@ -251,6 +281,9 @@ final class DocumentCatalogService
     {
         $item=$this->resolve($companyId,$key);
         $id=$item['entity_id'];
+        if ($item['kind'] === 'general') {
+            abort(409,'General documents cannot be downloaded as official PDFs until issued in Stage 2.');
+        }
         if ($item['kind'] === 'signed') {
             $artifact=SignedDocumentArtifact::query()->where('company_id',$companyId)->findOrFail($id);
             return app(SignatureCompletionService::class)->bytes($artifact);
@@ -289,6 +322,11 @@ final class DocumentCatalogService
     public function attachmentBytes(int $companyId, string $key, int $attachmentId): array
     {
         $item=$this->resolve($companyId,$key);
+        if($item['kind']==='general') {
+            $file=app(GeneralDocumentService::class)->attachmentBytes(
+                $companyId,$item['entity_id'],$attachmentId);
+            return [$file['bytes'],$file['mime']];
+        }
         $row=DB::table('document_attachments')->where('company_id',$companyId)
             ->where('target_kind',$item['kind'])->where('target_id',$item['entity_id'])
             ->where('id',$attachmentId)->first();

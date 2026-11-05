@@ -18,11 +18,12 @@ final class DocumentController extends Controller
 
     private function companyIdFor(string $document): int
     {
-        abort_unless(preg_match('/^(quote|signed|managed|addendum)-([1-9][0-9]*)$/D',$document,$match),404);
+        abort_unless(preg_match('/^(quote|signed|managed|addendum|general)-([1-9][0-9]*)$/D',$document,$match),404);
         $table=match($match[1]) {
             'quote'=>'service_quotes', 'signed'=>'signed_document_artifacts',
             'addendum'=>'addenda',
             'managed'=>'managed_documents',
+            'general'=>'general_documents',
         };
         $id=DB::table($table)->where('id',(int)$match[2])->value('company_id');
         abort_unless($id,404);
@@ -34,7 +35,7 @@ final class DocumentController extends Controller
         $filters=$request->validate([
             'q'=>['nullable','string','max:255'],
             'company_id'=>['nullable','integer','exists:companies,id'],
-            'kind'=>['nullable',Rule::in(['quote','signed','managed','addendum'])],
+            'kind'=>['nullable',Rule::in(['quote','signed','managed','addendum','general'])],
             'category'=>['nullable',Rule::in(['quotes','contacts','reports','addends','receipts','invoices','other'])],
             'status'=>['nullable','string','max:24'],
             'page'=>['nullable','integer','min:1'],

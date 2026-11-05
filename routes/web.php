@@ -114,6 +114,16 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/time-labour/{entry}/evidence/{evidence}', [\App\Http\Controllers\Admin\LabourController::class,'removeEvidence'])->whereNumber('entry')->whereNumber('evidence')->name('labour.evidence.remove');
         Route::post('/time-labour/timer/{company}/{worker}/stop', [\App\Http\Controllers\Admin\LabourController::class,'stopTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.stop');
         Route::post('/time-labour/timer/{company}/{worker}/recover', [\App\Http\Controllers\Admin\LabourController::class,'recoverTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.recover');
+        // M18 General AI Documents: reuse existing Admin document navigation and UI.
+        Route::get('/general-documents', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'index'])->name('general-documents.index');
+        Route::get('/general-documents/create', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'create'])->name('general-documents.create');
+        Route::post('/general-documents', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'store'])->name('general-documents.store');
+        Route::get('/general-documents/{document}/edit', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'edit'])->whereNumber('document')->name('general-documents.edit');
+        Route::patch('/general-documents/{document}', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'update'])->whereNumber('document')->name('general-documents.update');
+        Route::post('/general-documents/{document}/{action}', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'transition'])->whereNumber('document')->whereIn('action',['review','approve','archive'])->name('general-documents.transition');
+        Route::post('/general-documents/{document}/attachments', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'upload'])->whereNumber('document')->name('general-documents.upload');
+        Route::get('/general-documents/{document}/attachments/{attachment}', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'attachment'])->whereNumber('document')->whereNumber('attachment')->name('general-documents.attachment');
+        Route::delete('/general-documents/{document}/attachments/{attachment}', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'removeAttachment'])->whereNumber('document')->whereNumber('attachment')->name('general-documents.removeAttachment');
         // M17: Admin invoice ledger and manual reconciliation.
         Route::get('/invoices', [\App\Http\Controllers\Admin\InvoiceController::class,'index'])->name('invoices.index');
         Route::get('/invoices/export', [\App\Http\Controllers\Admin\InvoiceController::class,'export'])->name('invoices.export');

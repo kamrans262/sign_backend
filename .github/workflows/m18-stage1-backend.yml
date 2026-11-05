@@ -1,0 +1,34 @@
+name: M18 Stage 1 General AI Documents Backend
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m18-stage1-backend
+  cancel-in-progress: true
+jobs:
+  test-general-documents:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint M18 PHP, compile admin views, routes and fresh migrations
+        run: |
+          for f in app/Services/GeneralDocumentService.php app/Http/Controllers/Api/GeneralDocumentController.php app/Http/Controllers/Admin/GeneralDocumentController.php database/migrations/2026_11_05_070000_create_general_documents.php tests/Feature/M18GeneralDocumentTest.php app/Services/DocumentCatalogService.php; do php -l "$f" || exit 1; done
+          php artisan view:cache
+          php artisan migrate --force
+          php artisan route:list --path=api/v1/general-documents
+          php artisan route:list --path=admin/general-documents
+      - name: M18 authoring and M9 document regressions
+        run: php artisan test --filter='M(18GeneralDocument|9DocumentManagement|9DocumentReleaseSecurity)Test'
+      - name: M17 invoice and M11 job note regressions
+        run: php artisan test --filter='M(17InvoiceIssuance|17InvoiceManagement|11JobPhotosNotes)Test'

@@ -241,6 +241,23 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/labour/timer/{action}', [\App\Http\Controllers\Api\LabourTimerController::class,'action'])->whereIn('action',['start','pause','resume','stop'])->middleware('throttle:30,1');
             Route::post('/labour/ai/voice', [\App\Http\Controllers\Api\LabourAiController::class,'voice'])->middleware('throttle:6,1');
         });
+        // M18: manual and AI-assisted general document authoring (Stage 1 only).
+        Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
+            Route::get('/general-documents', [\App\Http\Controllers\Api\GeneralDocumentController::class,'index']);
+            Route::get('/general-documents/{document}', [\App\Http\Controllers\Api\GeneralDocumentController::class,'show'])->whereNumber('document');
+            Route::get('/general-documents/{document}/revisions', [\App\Http\Controllers\Api\GeneralDocumentController::class,'revisions'])->whereNumber('document');
+            Route::get('/general-documents/{document}/attachments/{attachment}', [\App\Http\Controllers\Api\GeneralDocumentController::class,'attachment'])->whereNumber('document')->whereNumber('attachment')->middleware('throttle:30,1');
+        });
+        Route::middleware(['company.access','company.permission:documents.write'])->group(function (): void {
+            Route::post('/general-documents', [\App\Http\Controllers\Api\GeneralDocumentController::class,'store'])->middleware('throttle:20,1');
+            Route::patch('/general-documents/{document}', [\App\Http\Controllers\Api\GeneralDocumentController::class,'update'])->whereNumber('document');
+            Route::post('/general-documents/{document}/review', [\App\Http\Controllers\Api\GeneralDocumentController::class,'review'])->whereNumber('document');
+            Route::post('/general-documents/{document}/approve', [\App\Http\Controllers\Api\GeneralDocumentController::class,'approve'])->whereNumber('document');
+            Route::post('/general-documents/{document}/archive', [\App\Http\Controllers\Api\GeneralDocumentController::class,'archive'])->whereNumber('document');
+            Route::post('/general-documents/{document}/attachments', [\App\Http\Controllers\Api\GeneralDocumentController::class,'upload'])->whereNumber('document')->middleware('throttle:20,1');
+            Route::delete('/general-documents/{document}/attachments/{attachment}', [\App\Http\Controllers\Api\GeneralDocumentController::class,'removeAttachment'])->whereNumber('document')->whereNumber('attachment');
+            Route::post('/general-documents/ai/prepare', [\App\Http\Controllers\Api\GeneralDocumentController::class,'ai'])->middleware('throttle:6,1');
+        });
         // M17: invoice reads and explicit manual payment ledger, no gateway.
         Route::middleware(['company.access','company.permission:documents.read',
             'company.permission:jobs.read'])->group(function (): void {

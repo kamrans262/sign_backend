@@ -4,6 +4,7 @@
 @section('heading','Document Management')
 @section('description','Company documents, frozen quotes, signed artifacts, versions and attachments. All records are real and tenant-linked.')
 @section('content')
+<div class="toolbar"><a class="btn btn-primary" href="{{ route('admin.general-documents.index') }}">General AI Document Management</a></div>
 <section class="panel">
   <div class="panel-header"><div><h2>All Documents</h2><p class="panel-header-hint">{{ number_format($result['total']) }} records</p></div></div>
   <div class="toolbar">
@@ -17,7 +18,7 @@
       </select>
       <select class="input" name="kind" aria-label="Filter type">
         <option value="">All Sources</option>
-        @foreach(['quote'=>'Quotes','signed'=>'Signed Quotes','managed'=>'Uploaded Files','addendum'=>'Addenda'] as $code=>$label)
+        @foreach(['quote'=>'Quotes','signed'=>'Signed Quotes','managed'=>'Uploaded Files','addendum'=>'Addenda','general'=>'General AI Documents'] as $code=>$label)
           <option value="{{ $code }}" @selected(($filters['kind']??'')===$code)>{{ $label }}</option>
         @endforeach
       </select>
@@ -29,7 +30,7 @@
       </select>
       <select class="input" name="status" aria-label="Filter document status">
         <option value="">All Statuses</option>
-        @foreach(['draft'=>'Draft','approved'=>'Approved','sent'=>'Sent','signed'=>'Signed','file'=>'File','archived'=>'Archived'] as $code=>$label)
+        @foreach(['draft'=>'Draft','reviewed'=>'Reviewed','approved'=>'Approved','sent'=>'Sent','signed'=>'Signed','file'=>'File','archived'=>'Archived'] as $code=>$label)
           <option value="{{ $code }}" @selected(($filters['status']??'')===$code)>{{ $label }}</option>
         @endforeach
       </select>
@@ -50,7 +51,9 @@
           <td><span class="pill">{{ ucfirst($document['status']) }}</span></td>
           <td>v{{ $document['version'] }}</td>
           <td>{{ $document['created_at'] ? \Illuminate\Support\Carbon::parse($document['created_at'])->format('d M Y') : '—' }}</td>
-          <td><a class="btn btn-small btn-outline" href="{{ route('admin.documents.show',$document['id']) }}">Manage <x-admin.icon name="arrow-right"/></a></td>
+          <td><a class="btn btn-small btn-outline" href="{{ $document['kind']==='general'
+            ? route('admin.general-documents.edit',$document['entity_id'])
+            : route('admin.documents.show',$document['id']) }}">Manage <x-admin.icon name="arrow-right"/></a></td>
         </tr>
       @empty
         <tr><td colspan="8" class="empty">No documents match your filters.</td></tr>
