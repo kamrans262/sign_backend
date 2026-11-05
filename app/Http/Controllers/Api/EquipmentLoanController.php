@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Services\EquipmentLoanService;
+use App\Services\EquipmentLoanVoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -65,6 +66,10 @@ final class EquipmentLoanController extends Controller
     {
         return $this->respond(['loan'=>$this->service->transitionLoan(
             $request,$this->company($request),$loan,'return')]);
+    }
+    public function voice(Request $request,EquipmentLoanVoiceService $voice): JsonResponse
+    {
+        return $this->respond($voice->prepare($request,$this->company($request)));
     }
     public function history(Request $request,int $loan): JsonResponse
     {

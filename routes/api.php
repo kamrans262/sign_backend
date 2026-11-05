@@ -429,6 +429,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/equipment/{equipment}/photos',[\App\Http\Controllers\Api\EquipmentController::class,'photo'])->whereNumber('equipment')->middleware('throttle:10,1');
             Route::delete('/equipment/{equipment}/photos/{photo}',[\App\Http\Controllers\Api\EquipmentController::class,'removePhoto'])
                 ->whereNumber('equipment')->whereNumber('photo');
+            Route::post('/equipment-loans/voice/prepare',[\App\Http\Controllers\Api\EquipmentLoanController::class,'voice'])->middleware('throttle:4,1');
             Route::post('/equipment-loans',[\App\Http\Controllers\Api\EquipmentLoanController::class,'store'])->middleware('throttle:12,1');
             Route::patch('/equipment-loans/{loan}',[\App\Http\Controllers\Api\EquipmentLoanController::class,'update'])->whereNumber('loan');
             Route::post('/equipment-loans/{loan}/extend',[\App\Http\Controllers\Api\EquipmentLoanController::class,'extend'])->whereNumber('loan')->middleware('throttle:12,1');
