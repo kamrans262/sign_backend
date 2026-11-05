@@ -144,7 +144,7 @@
               @if($member->id !== $company->owner_user_id)
                 <div class="actions">
                   <a class="btn btn-small btn-outline" href="{{ route('admin.companies.members.edit', [$company, $member]) }}">Edit Access</a>
-                  <form method="post" action="{{ route('admin.companies.members.destroy', [$company, $member]) }}" onsubmit="return confirm('Remove this company membership?')">
+                  <form method="post" action="{{ route('admin.companies.members.destroy', [$company, $member]) }}" data-confirm="Remove this company membership?">
                     @csrf @method('delete')
                     <button class="btn btn-small btn-danger" type="submit">Remove</button>
                   </form>
