@@ -241,6 +241,25 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/labour/timer/{action}', [\App\Http\Controllers\Api\LabourTimerController::class,'action'])->whereIn('action',['start','pause','resume','stop'])->middleware('throttle:30,1');
             Route::post('/labour/ai/voice', [\App\Http\Controllers\Api\LabourAiController::class,'voice'])->middleware('throttle:6,1');
         });
+        // M16: CHF manual deposits; no payment gateway or automatic bank settlement.
+        Route::middleware(['company.access','company.permission:documents.read',
+            'company.permission:jobs.read'])->group(function (): void {
+            Route::get('/deposits', [\App\Http\Controllers\Api\DepositController::class,'index']);
+            Route::get('/deposits/{deposit}', [\App\Http\Controllers\Api\DepositController::class,'show'])->whereNumber('deposit');
+            Route::get('/deposits/{deposit}/receipts/{receipt}', [\App\Http\Controllers\Api\DepositController::class,'receipt'])->whereNumber('deposit')->whereNumber('receipt')->middleware('throttle:30,1');
+            Route::get('/jobs/{job}/deposit-summary', [\App\Http\Controllers\Api\DepositController::class,'summary'])->whereNumber('job');
+        });
+        Route::middleware(['company.access','company.permission:documents.write',
+            'company.permission:jobs.read'])->group(function (): void {
+            Route::post('/deposits', [\App\Http\Controllers\Api\DepositController::class,'store'])->middleware('throttle:20,1');
+            Route::post('/deposits/from-quote/{quote}', [\App\Http\Controllers\Api\DepositController::class,'fromQuote'])->whereNumber('quote')->middleware('throttle:10,1');
+            Route::patch('/deposits/{deposit}', [\App\Http\Controllers\Api\DepositController::class,'update'])->whereNumber('deposit');
+            Route::post('/deposits/{deposit}/receive', [\App\Http\Controllers\Api\DepositController::class,'receive'])->whereNumber('deposit')->middleware('throttle:10,1');
+            Route::post('/deposits/{deposit}/refund', [\App\Http\Controllers\Api\DepositController::class,'refund'])->whereNumber('deposit')->middleware('throttle:10,1');
+            Route::delete('/deposits/{deposit}', [\App\Http\Controllers\Api\DepositController::class,'destroy'])->whereNumber('deposit');
+            Route::post('/deposits/{deposit}/receipts', [\App\Http\Controllers\Api\DepositController::class,'upload'])->whereNumber('deposit')->middleware('throttle:20,1');
+            Route::delete('/deposits/{deposit}/receipts/{receipt}', [\App\Http\Controllers\Api\DepositController::class,'removeReceipt'])->whereNumber('deposit')->whereNumber('receipt');
+        });
         // M14: company-isolated purchases, private receipts and job budget aggregates.
         Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
             Route::get('/expenses', [\App\Http\Controllers\Api\ExpenseController::class,'index']);
