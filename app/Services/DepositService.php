@@ -221,6 +221,21 @@ final class DepositService
 
     public function fromQuote(Request $request,Company $company,int $quoteId): array
     {
+        // From-quote shortcuts must also be safe to retry after a lost response.
+        $validated=$request->validate([
+            'request_key'=>['nullable','string','between:8,100',
+                'regex:/^[A-Za-z0-9._-]+$/D'],
+        ]);
+        $key=$validated['request_key']??null;
+        if($key!==null) {
+            $existing=DB::table('job_deposits')->where('company_id',$company->id)
+                ->where('request_key',$key)->first();
+            if($existing!==null) {
+                abort_unless((int)$existing->service_quote_id===$quoteId,409,
+                    'Request key belongs to another approved quote.');
+                return $this->payload($this->find($company->id,(int)$existing->id));
+            }
+        }
         $quote=ServiceQuote::query()->where('company_id',$company->id)
             ->findOrFail($quoteId);
         abort_unless($quote->service_job_id!==null,422,'Quote must be linked to a job.');
