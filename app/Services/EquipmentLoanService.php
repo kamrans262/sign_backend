@@ -84,7 +84,8 @@ final class EquipmentLoanService
             ->where('equipment_asset_id',$r->id)->orderBy('id')->get();
         $hours=(float)$r->initial_hours+(float)$usage->sum('hours');
         return [
-            'id'=>(int)$r->id,'code'=>$r->code,'name'=>$r->name,
+            'id'=>(int)$r->id,'company_id'=>(int)$r->company_id,
+            'code'=>$r->code,'name'=>$r->name,
             'category'=>$r->category,'brand'=>$r->brand,'model'=>$r->model,
             'purchase_date'=>$r->purchase_date,'status'=>$r->status,
             'location'=>$r->location,'notes'=>$r->notes??'',
