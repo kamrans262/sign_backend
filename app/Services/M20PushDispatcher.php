@@ -20,7 +20,7 @@ final class M20PushDispatcher
         $limit = max(1, min(100, $limit));
         if (!$send || !$this->fcm->available()) {
             return ['enabled' => $this->fcm->available(), 'sent' => 0,
-                'retried' => 0, 'invalid' => 0, 'queued' => 0];
+                'retried' => 0, 'invalid' => 0, 'queued' => 0, 'unknown' => 0];
         }
         $recipients = DB::table('m20_reminders as r')
             ->join('m20_notification_preferences as p', function ($join): void {
@@ -45,7 +45,19 @@ final class M20PushDispatcher
                 $join->on('n.company_id', '=', 'p.company_id')
                     ->on('n.recipient_user_id', '=', 'p.user_id');
             })
-            ->where('p.push_enabled', true)->orderBy('n.id')->limit(100)->get([
+            ->where('p.push_enabled', true)
+            ->whereExists(function ($q): void {
+                $q->selectRaw('1')->from('m20_push_devices as d')
+                    ->whereColumn('d.company_id', 'n.company_id')
+                    ->whereColumn('d.user_id', 'n.recipient_user_id')
+                    ->where('d.enabled', true)
+                    ->whereNotExists(function ($existing): void {
+                        $existing->selectRaw('1')->from('m20_push_deliveries as pd')
+                            ->whereColumn('pd.notification_id', 'n.id')
+                            ->whereColumn('pd.device_id', 'd.id');
+                    });
+            })
+            ->orderBy('n.id')->limit(100)->get([
                 'n.id', 'n.company_id', 'n.recipient_user_id', 'n.event_key', 'p.locale',
             ]);
         $queued = 0;
@@ -69,31 +81,49 @@ final class M20PushDispatcher
                 ]);
             }
         }
-        $stats = ['enabled' => true, 'sent' => 0, 'retried' => 0, 'invalid' => 0, 'queued' => $queued];
+        $stats = ['enabled' => true, 'sent' => 0, 'retried' => 0, 'invalid' => 0, 'queued' => $queued, 'unknown' => 0];
         $ids = DB::table('m20_push_deliveries')->where(function ($q): void {
                 $q->whereIn('status', ['pending', 'retry'])
                     ->where(fn ($due) => $due->whereNull('next_attempt_at')
                         ->orWhere('next_attempt_at', '<=', now()));
-            })->orWhere(fn ($q) => $q->where('status', 'sending')
-                ->whereNotNull('locked_until')->where('locked_until', '<=', now()))
+            })
             ->orderBy('id')->limit($limit)->pluck('id');
+        // A lost HTTP result is not proof of failure; do not automatically
+        // replay expired in-flight messages (which might already be delivered).
+        DB::table('m20_push_deliveries')->where('status', 'sending')
+            ->whereNotNull('locked_until')->where('locked_until', '<=', now())
+            ->update(['status' => 'unknown', 'locked_until' => null,
+                'failure_code' => 'OUTCOME_UNKNOWN', 'updated_at' => now()]);
         foreach ($ids as $id) {
             $claim = DB::transaction(function () use ($id): ?object {
                 $row = DB::table('m20_push_deliveries')->where('id', $id)
                     ->lockForUpdate()->first();
                 if (!$row || $row->attempts >= 5
-                    || !in_array($row->status, ['pending', 'retry', 'sending'], true)
-                    || ($row->status === 'sending' && $row->locked_until > now()->toDateTimeString())
+                    || !in_array($row->status, ['pending', 'retry'], true)
                     || ($row->next_attempt_at && $row->next_attempt_at > now()->toDateTimeString()
-                        && $row->status !== 'sending')) return null;
+                        )) return null;
                 $notification = DB::table('m20_notifications')->where('id', $row->notification_id)->first();
                 $device = DB::table('m20_push_devices')->where('id', $row->device_id)->first();
                 $pref = $notification ? DB::table('m20_notification_preferences')
                     ->where('company_id', $notification->company_id)
                     ->where('user_id', $notification->recipient_user_id)->first() : null;
+                $reminder = $notification?->reminder_id
+                    ? DB::table('m20_reminders')->where('id', $notification->reminder_id)->first()
+                    : null;
+                $parts = $notification ? explode('.', $notification->event_key) : [];
+                $when = ($parts[1] ?? '') === 'follow_up'
+                    ? $reminder?->follow_up_at : $reminder?->due_at;
+                $staleReminder = $notification?->reminder_id &&
+                    (!$reminder || $reminder->status !== 'active'
+                    || !$reminder->send_notification
+                    || $reminder->company_id !== $notification->company_id
+                    || $reminder->owner_user_id !== $notification->recipient_user_id
+                    || (int) ($parts[3] ?? 0) !== (int) $reminder->lock_version
+                    || !$when || $when > now()->toDateTimeString());
                 if (!$notification || !$device || !$device->enabled || !$pref || !$pref->push_enabled
                     || $device->company_id !== $notification->company_id
-                    || $device->user_id !== $notification->recipient_user_id) {
+                    || $device->user_id !== $notification->recipient_user_id
+                    || $staleReminder) {
                     DB::table('m20_push_deliveries')->where('id', $id)->update([
                         'status' => 'revoked', 'locked_until' => null, 'updated_at' => now(),
                     ]);
@@ -108,7 +138,7 @@ final class M20PushDispatcher
             if (!$claim) continue;
             try {
                 $result = $this->fcm->send(
-                    Crypt::decryptString($claim->device->encrypted_token),
+                    Crypt::decryptString($claim->device->encrypted_fid),
                     $claim->row->title, $claim->row->body, [
                         'notification_id' => (string) $claim->notification->id,
                         'company_id' => (string) $claim->notification->company_id,
@@ -123,8 +153,9 @@ final class M20PushDispatcher
             $permanent = (bool) ($result['permanent'] ?? false);
             $success = (bool) ($result['ok'] ?? false);
             $attempts = $claim->row->attempts + 1;
-            $status = $success ? 'sent' : ($permanent ? 'invalid'
-                : ($attempts >= 5 ? 'failed' : 'retry'));
+            $status = $success ? 'submitted_to_provider' : ($permanent ? 'invalid'
+                : (($result['code'] ?? '') === 'TRANSPORT_ERROR' ? 'unknown'
+                : ($attempts >= 5 ? 'failed' : 'retry')));
             DB::transaction(function () use ($id, $claim, $result, $status, $attempts, $success, $permanent): void {
                 DB::table('m20_push_deliveries')->where('id', $id)->update([
                     'status' => $status,
@@ -148,7 +179,8 @@ final class M20PushDispatcher
                     'attempted_at' => now(), 'updated_at' => now(),
                 ]);
             });
-            $stats[$success ? 'sent' : ($permanent ? 'invalid' : 'retried')]++;
+            $stats[$success ? 'sent'
+                : ($permanent ? 'invalid' : ($status === 'unknown' ? 'unknown' : 'retried'))]++;
         }
         return $stats;
     }

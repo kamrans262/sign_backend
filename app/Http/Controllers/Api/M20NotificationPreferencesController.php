@@ -54,6 +54,14 @@ final class M20NotificationPreferencesController extends Controller
         }
         $existing = $this->scope($request)->first();
         $fields['push_enabled'] = $fields['push_enabled'] ?? (bool) ($existing?->push_enabled ?? false);
+        if (($fields['push_enabled'] ?? $existing?->push_enabled ?? false) === false
+            || ($fields['push_enabled'] ?? $existing?->push_enabled ?? false) === 0) {
+            // Opting out cancels this company's future queued device deliveries.
+            DB::table('m20_push_devices')->where('company_id',
+                $request->attributes->get('company')->id)
+                ->where('user_id', $request->user()->id)->where('enabled', true)
+                ->update(['enabled' => false, 'revoked_at' => now(), 'updated_at' => now()]);
+        }
         DB::table('m20_notification_preferences')->updateOrInsert([
             'company_id' => $request->attributes->get('company')->id,
             'user_id' => $request->user()->id,

@@ -61,14 +61,14 @@ final class M20FcmClient
     }
 
     /** No credentials, bearer tokens or FCM registration tokens in the result. */
-    public function send(string $token, string $title, string $body, array $data): array
+    public function send(string $fid, string $title, string $body, array $data): array
     {
         if (!$this->available()) return ['ok' => false, 'permanent' => false, 'code' => 'NOT_CONFIGURED'];
         try {
             $response = Http::withToken($this->authorization())->timeout(12)
                 ->acceptJson()->post('https://fcm.googleapis.com/v1/projects/sign-kamran/messages:send', [
                     'message' => [
-                        'token' => $token,
+                        'fid' => $fid,
                         'notification' => ['title' => $title, 'body' => $body],
                         'data' => array_map('strval', $data),
                         'android' => ['priority' => 'high'],

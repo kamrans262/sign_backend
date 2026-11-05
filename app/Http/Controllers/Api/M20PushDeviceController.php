@@ -16,7 +16,7 @@ final class M20PushDeviceController extends Controller
         $values = $request->validate([
             'installation_id' => ['required', 'uuid'],
             'platform' => ['required', 'in:android,ios'],
-            'token' => ['required', 'string', 'min:20', 'max:4096'],
+            'fid' => ['required', 'string', 'min:20', 'max:4096'],
         ]);
         abort_unless($fcm->available(), 503, 'Push notifications are not configured.');
         $company = $request->attributes->get('company')->id;
@@ -32,8 +32,8 @@ final class M20PushDeviceController extends Controller
                 'installation_id' => $values['installation_id'],
             ], [
                 'platform' => $values['platform'],
-                'token_hash' => hash('sha256', $values['token']),
-                'encrypted_token' => Crypt::encryptString($values['token']),
+                'fid_hash' => hash('sha256', $values['fid']),
+                'encrypted_fid' => Crypt::encryptString($values['fid']),
                 'enabled' => true, 'revoked_at' => null, 'last_seen_at' => now(),
                 'updated_at' => now(),
             ]);

@@ -58,7 +58,7 @@ final class M20Stage2PushDeliveryTest extends TestCase
     {
         $this->postJson('/api/v1/push-devices', [
             'installation_id' => $installation, 'platform' => 'android',
-            'token' => str_repeat('fcm-token-', 12),
+            'fid' => str_repeat('fcm-token-', 12),
         ])->assertOk()->assertJsonPath('data.registered', true);
     }
 
@@ -66,20 +66,20 @@ final class M20Stage2PushDeliveryTest extends TestCase
     {
         $this->postJson('/api/v1/push-devices', [
             'installation_id' => '56c74f2a-d7f7-4d34-b7cb-9e17f7d319f2',
-            'platform' => 'android', 'token' => str_repeat('a', 60),
+            'platform' => 'android', 'fid' => str_repeat('a', 60),
         ])->assertUnauthorized();
         [$user, $company] = $this->tenant();
         $this->postJson('/api/v1/push-devices', [
             'installation_id' => '56c74f2a-d7f7-4d34-b7cb-9e17f7d319f2',
-            'platform' => 'android', 'token' => str_repeat('a', 60),
+            'platform' => 'android', 'fid' => str_repeat('a', 60),
         ])->assertStatus(503);
         $this->ready(true);
         $this->register();
         $row = DB::table('m20_push_devices')->first();
         $this->assertSame($company->id, $row->company_id);
         $this->assertSame($user->id, $row->user_id);
-        $this->assertNotEquals(str_repeat('fcm-token-', 12), $row->encrypted_token);
-        $this->assertSame(str_repeat('fcm-token-', 12), Crypt::decryptString($row->encrypted_token));
+        $this->assertNotEquals(str_repeat('fcm-token-', 12), $row->encrypted_fid);
+        $this->assertSame(str_repeat('fcm-token-', 12), Crypt::decryptString($row->encrypted_fid));
         $this->register();
         $this->assertSame(1, DB::table('m20_push_devices')->count());
         $this->deleteJson('/api/v1/push-devices', [
@@ -116,7 +116,7 @@ final class M20Stage2PushDeliveryTest extends TestCase
         $this->assertSame(1, $result['queued']);
         $notification = DB::table('m20_notifications')->first();
         $delivery = DB::table('m20_push_deliveries')->first();
-        $this->assertSame('sent', $delivery->status);
+        $this->assertSame('submitted_to_provider', $delivery->status);
         $this->assertSame('Sign2Digital reminder', $delivery->title);
         $this->assertStringNotContainsString('PRIVATE', $delivery->body);
         $this->assertStringNotContainsString('Sensitive', $delivery->body);
@@ -125,6 +125,7 @@ final class M20Stage2PushDeliveryTest extends TestCase
         Http::assertSent(fn ($request) =>
             str_contains($request->url(), 'messages:send')
             && $request['message']['notification']['title'] === 'Sign2Digital reminder'
+            && $request['message']['fid'] === str_repeat('fcm-token-', 12)
             && $request['message']['data']['company_id'] === (string) $company->id
             && !str_contains(json_encode($request->data()), 'PRIVATE BANK PIN'));
         $second = app(M20PushDispatcher::class)->process(40, true);
@@ -161,4 +162,60 @@ final class M20Stage2PushDeliveryTest extends TestCase
         $this->assertSame($companyA->id,
             DB::table('m20_push_devices')->where('user_id', $userA->id)->value('company_id'));
     }
+
+    public function test_completed_reminder_is_not_pushed_after_it_was_enqueued(): void
+    {
+        $this->ready(true);
+        [$user, $company] = $this->tenant();
+        $this->register();
+        $this->putJson('/api/v1/notification-preferences', [
+            'in_app_enabled' => true, 'push_enabled' => true,
+            'locale' => 'en', 'timezone' => 'UTC',
+        ])->assertOk();
+        $reminder = $this->postJson('/api/v1/reminders', [
+            'title' => 'Cancel me', 'type' => 'other',
+            'due_at' => now()->subHour()->toIso8601String(),
+            'send_notification' => true,
+        ])->assertCreated()->json('data.reminder');
+        $this->getJson('/api/v1/notifications')->assertOk();
+        $this->postJson('/api/v1/reminders/'.$reminder['id'].'/status', [
+            'lock_version' => 1, 'action' => 'complete',
+        ])->assertOk();
+        Http::fake();
+        $result = app(M20PushDispatcher::class)->process(20, true);
+        $this->assertSame(0, $result['sent']);
+        Http::assertNothingSent();
+        $this->assertSame('revoked',
+            DB::table('m20_push_deliveries')->first()->status);
+    }
+
+    public function test_ambiguous_transport_error_is_unknown_and_not_retried(): void
+    {
+        $this->ready(true);
+        [$user, $company] = $this->tenant();
+        $this->register();
+        $this->putJson('/api/v1/notification-preferences', [
+            'in_app_enabled' => true, 'push_enabled' => true,
+            'locale' => 'en', 'timezone' => 'UTC',
+        ])->assertOk();
+        $this->postJson('/api/v1/reminders', [
+            'title' => 'Network uncertain', 'type' => 'other',
+            'due_at' => now()->subHour()->toIso8601String(),
+            'send_notification' => true,
+        ])->assertCreated();
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response([
+                'access_token' => 'm20-unknown-fake', 'expires_in' => 3600,
+            ]),
+            'https://fcm.googleapis.com/v1/projects/sign-kamran/messages:send' =>
+                function () { throw new \RuntimeException('network dropped'); },
+        ]);
+        $first = app(M20PushDispatcher::class)->process(20, true);
+        $this->assertSame(1, $first['unknown']);
+        $this->assertSame('unknown', DB::table('m20_push_deliveries')->first()->status);
+        $second = app(M20PushDispatcher::class)->process(20, true);
+        $this->assertSame(0, $second['unknown']);
+        $this->assertSame(1, DB::table('m20_push_deliveries')->first()->attempts);
+    }
+
 }

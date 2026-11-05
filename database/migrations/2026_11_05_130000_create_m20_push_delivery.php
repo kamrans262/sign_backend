@@ -13,8 +13,8 @@ return new class extends Migration {
             $t->foreignId('user_id')->constrained('users')->restrictOnDelete();
             $t->uuid('installation_id');
             $t->string('platform', 10);
-            $t->char('token_hash', 64);
-            $t->text('encrypted_token');
+            $t->char('fid_hash', 64);
+            $t->text('encrypted_fid');
             $t->boolean('enabled')->default(true);
             $t->timestamp('revoked_at')->nullable();
             $t->timestamp('last_seen_at')->nullable();
