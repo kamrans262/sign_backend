@@ -1,0 +1,31 @@
+name: M16 Stage 1 Deposit Management Backend
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m16-backend
+  cancel-in-progress: true
+jobs:
+  deposits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint M16 source and compile existing-style Admin pages
+        run: |
+          for file in database/migrations/2026_11_05_030000_create_deposit_tracking_tables.php app/Services/DepositService.php app/Http/Controllers/Api/DepositController.php app/Http/Controllers/Admin/DepositController.php tests/Feature/M16DepositManagementTest.php; do php -l "$file" || exit 1; done
+          php artisan view:cache
+          php artisan route:list --path=api/v1/deposits
+          php artisan route:list --path=admin/deposits
+      - name: Verify M16 lifecycle and earlier M12-M15 regressions
+        run: php artisan test --filter='M(16DepositManagement|15LabourTracking|14ExpenseTracking|13WorkAcceptance|12ReportsManagement)Test'
