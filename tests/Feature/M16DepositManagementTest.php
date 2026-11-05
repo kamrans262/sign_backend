@@ -120,8 +120,12 @@ final class M16DepositManagementTest extends TestCase
         $partial['quote_id']=$quote;
         $id=(int)$this->postJson('/api/v1/deposits',$partial)
             ->assertCreated()->json('data.deposit.id');
-        $this->postJson('/api/v1/deposits/from-quote/'.$quote,[])
-            ->assertCreated()->assertJsonPath('data.deposit.amount_minor',20000);
+        $quoteKey=['request_key'=>'quote-request-20261105-001'];
+        $made=$this->postJson('/api/v1/deposits/from-quote/'.$quote,$quoteKey)
+            ->assertCreated()->assertJsonPath('data.deposit.amount_minor',20000)
+            ->json('data.deposit.id');
+        $this->postJson('/api/v1/deposits/from-quote/'.$quote,$quoteKey)
+            ->assertCreated()->assertJsonPath('data.deposit.id',$made);
         $this->postJson('/api/v1/deposits/from-quote/'.$quote,[])
             ->assertStatus(409);
         $this->postJson('/api/v1/deposits',array_merge($partial,
@@ -383,6 +387,30 @@ final class M16DepositManagementTest extends TestCase
         $this->getJson('/api/v1/jobs/'.$job.'/deposit-summary')->assertOk()
             ->assertJsonPath('data.net_received_minor',0)
             ->assertJsonPath('data.refunded_minor',2999);
+        $this->assertDatabaseCount('job_deposits',1);
+    }
+
+
+    public function test_admin_manual_form_uses_retry_key_and_never_creates_twice(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M16 Admin Retry');
+        $admin=User::factory()->create(['is_active'=>true,'is_platform_admin'=>true]);
+        $this->actingAs($admin);
+        $this->get('/admin/deposits/create')->assertOk()
+            ->assertSee('name="request_key"',false);
+        $payload=array_merge($this->fields($job,'43.20'),[
+            'company_id'=>$company->id,'request_key'=>'admin-form-key-20261105',
+        ]);
+        $this->post('/admin/deposits',$payload)->assertRedirect();
+        $this->post('/admin/deposits',$payload)->assertRedirect();
+        $this->assertDatabaseCount('job_deposits',1);
+        $this->assertDatabaseHas('job_deposits',[
+            'company_id'=>$company->id,'amount_minor'=>4320,
+            'request_key'=>'admin-form-key-20261105',
+        ]);
+        $this->post('/admin/deposits',array_merge($payload,[
+            'amount'=>'45.00',
+        ]))->assertStatus(409);
         $this->assertDatabaseCount('job_deposits',1);
     }
 
