@@ -144,7 +144,11 @@ final class M18GeneralDocumentIssueTest extends TestCase
         ])->assertCreated()->json('data');
         $url=$signed['signature_link'];
         $this->get($url)->assertOk()->assertSee('Review and Sign General Document');
+        $this->assertDatabaseHas('general_document_signature_requests',[
+            'id'=>$signed['id'],'status'=>'viewed']);
         $json=$this->getJson($url)->assertOk()->json('data');
+        $this->assertSame(1,DB::table('general_document_events')
+            ->where('event_type','signature_link_viewed')->count());
         $this->get($url.'/pdf')->assertOk();
         $payload=[
             'request_uuid'=>$json['request_uuid'],'document_uuid'=>$json['document_uuid'],
@@ -256,4 +260,32 @@ final class M18GeneralDocumentIssueTest extends TestCase
             ->assertRedirect();
         $this->assertDatabaseCount('general_document_customer_links',1);
     }
+    public function test_blank_signature_is_rejected_without_signed_pdf(): void
+    {
+        [$user,$company,$client]=$this->tenant();
+        $id=$this->create($client->id);
+        $this->approve($id);$this->issued($id);
+        $request=$this->postJson('/api/v1/general-documents/'.$id.'/signature-requests',[
+            'signer_name'=>'Test Document Signer',
+            'signer_email'=>'document@example.test','confirm'=>true,
+        ])->assertCreated()->json('data');
+        $data=$this->getJson($request['signature_link'])->assertOk()->json('data');
+        $image=imagecreatetruecolor(240,90);
+        $white=imagecolorallocate($image,255,255,255);
+        imagefilledrectangle($image,0,0,239,89,$white);
+        ob_start();imagepng($image);$blank=base64_encode(ob_get_clean());
+        imagedestroy($image);
+        $this->postJson($request['signature_link'].'/submit',[
+            'request_uuid'=>$data['request_uuid'],
+            'document_uuid'=>$data['document_uuid'],
+            'consent_reference'=>$data['consent_reference'],
+            'revision'=>$data['revision'],
+            'signer_name'=>'Test Document Signer',
+            'signature_png'=>$blank,'consent'=>true,
+        ])->assertStatus(422);
+        $this->assertDatabaseHas('general_document_signature_requests',[
+            'id'=>$request['id'],'status'=>'viewed','signed_pdf_sha256'=>null]);
+        $this->get($request['signature_link'].'/signed-pdf')->assertStatus(409);
+    }
+
 }
