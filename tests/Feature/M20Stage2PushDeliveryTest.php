@@ -116,7 +116,7 @@ final class M20Stage2PushDeliveryTest extends TestCase
         $this->assertSame(1, $result['queued']);
         $notification = DB::table('m20_notifications')->first();
         $delivery = DB::table('m20_push_deliveries')->first();
-        $this->assertSame('submitted_to_provider', $delivery->status);
+        $this->assertSame('submitted', $delivery->status);
         $this->assertSame('Sign2Digital reminder', $delivery->title);
         $this->assertStringNotContainsString('PRIVATE', $delivery->body);
         $this->assertStringNotContainsString('Sensitive', $delivery->body);

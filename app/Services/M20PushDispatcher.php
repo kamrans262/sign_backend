@@ -153,7 +153,7 @@ final class M20PushDispatcher
             $permanent = (bool) ($result['permanent'] ?? false);
             $success = (bool) ($result['ok'] ?? false);
             $attempts = $claim->row->attempts + 1;
-            $status = $success ? 'submitted_to_provider' : ($permanent ? 'invalid'
+            $status = $success ? 'submitted' : ($permanent ? 'invalid'
                 : (($result['code'] ?? '') === 'TRANSPORT_ERROR' ? 'unknown'
                 : ($attempts >= 5 ? 'failed' : 'retry')));
             DB::transaction(function () use ($id, $claim, $result, $status, $attempts, $success, $permanent): void {
