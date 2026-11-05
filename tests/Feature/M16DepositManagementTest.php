@@ -260,4 +260,130 @@ final class M16DepositManagementTest extends TestCase
         $this->assertDatabaseCount('job_deposits',0);
     }
 
+
+    public function test_idempotent_retry_never_duplicates_a_pending_deposit_or_event(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M16 Retry');
+        $payload=array_merge($this->fields($job,'89.23'),[
+            'request_key'=>'mobile-local-deposit-8040',
+        ]);
+        $first=$this->postJson('/api/v1/deposits',$payload)
+            ->assertCreated()->assertJsonPath('data.deposit.amount_minor',8923)
+            ->json('data.deposit.id');
+        $second=$this->postJson('/api/v1/deposits',$payload)
+            ->assertCreated()->json('data.deposit.id');
+        $this->assertSame($first,$second);
+        $this->assertDatabaseCount('job_deposits',1);
+        $this->assertSame(1,DB::table('job_deposit_events')
+            ->where('job_deposit_id',$first)->where('event_type','created')->count());
+        $this->postJson('/api/v1/deposits',array_merge($payload,[
+            'amount'=>'90.01',
+        ]))->assertStatus(409);
+        $this->postJson('/api/v1/deposits',array_merge($payload,[
+            'request_key'=>'not valid key',
+        ]))->assertUnprocessable();
+        $this->assertDatabaseCount('job_deposits',1);
+    }
+
+    public function test_idempotency_key_is_company_scoped_and_does_not_leak_old_tenant(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M16 Key Company A');
+        $key='shared-device-request-1001';
+        $first=(int)$this->postJson('/api/v1/deposits',array_merge(
+            $this->fields($job),['request_key'=>$key]))
+            ->assertCreated()->json('data.deposit.id');
+        [$other,$otherCompany,$otherClient,$otherJob]=$this->tenant('M16 Key Company B');
+        $second=(int)$this->postJson('/api/v1/deposits',array_merge(
+            $this->fields($otherJob),['request_key'=>$key]))
+            ->assertCreated()->json('data.deposit.id');
+        $this->assertNotSame($first,$second);
+        $this->assertDatabaseCount('job_deposits',2);
+        $this->getJson('/api/v1/deposits/'.$first)->assertNotFound();
+        $this->getJson('/api/v1/deposits/'.$second)
+            ->assertOk()->assertJsonPath('data.deposit.company_id',$otherCompany->id);
+    }
+
+    public function test_retried_receipt_upload_uses_one_private_original_and_event(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client,$job]=$this->tenant('M16 Receipt Retry');
+        $id=(int)$this->postJson('/api/v1/deposits',array_merge(
+            $this->fields($job),['request_key'=>'receipt-request-2001']))
+            ->assertCreated()->json('data.deposit.id');
+        $original=UploadedFile::fake()->image('confirmation.png',80,80);
+        $bytes=file_get_contents($original->getRealPath());
+        $first=(int)$this->post('/api/v1/deposits/'.$id.'/receipts',[
+            'file'=>$original,
+        ],['Accept'=>'application/json'])->assertCreated()->json('data.id');
+        $second=(int)$this->post('/api/v1/deposits/'.$id.'/receipts',[
+            'file'=>UploadedFile::fake()->createWithContent('same.png',$bytes),
+        ],['Accept'=>'application/json'])->assertCreated()->json('data.id');
+        $this->assertSame($first,$second);
+        $this->assertSame(1,DB::table('job_deposit_receipts')->count());
+        $this->assertSame(1,DB::table('job_deposit_events')
+            ->where('event_type','receipt_added')->count());
+        $this->assertCount(1,Storage::disk('local')->allFiles(
+            'deposits/'.$company->id.'/'.$id));
+        $this->postJson('/api/v1/deposits/'.$id.'/receive',[
+            'confirm'=>true,'lock_version'=>1,
+        ])->assertOk();
+        $this->post('/api/v1/deposits/'.$id.'/receipts',[
+            'file'=>UploadedFile::fake()->createWithContent('same.png',$bytes),
+        ],['Accept'=>'application/json'])->assertStatus(409);
+        $this->assertDatabaseCount('job_deposit_receipts',1);
+    }
+
+    public function test_admin_export_includes_more_than_one_page_and_escapes_formulas(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M16 CSV Export');
+        $rows=[];
+        for($i=0;$i<121;$i++)$rows[]=[
+            'company_id'=>$company->id,'service_job_id'=>$job,
+            'client_name_snapshot'=>'Jean Dupont',
+            'amount_minor'=>100,'currency'=>'CHF','deposit_date'=>'2026-11-05',
+            'payment_method'=>'bank_transfer',
+            'reference_number'=>$i===120?' =2+2':'WIRE-'.str_pad((string)$i,3,'0',STR_PAD_LEFT),
+            'status'=>'pending','lock_version'=>1,
+            'created_at'=>now(),'updated_at'=>now(),
+        ];
+        DB::table('job_deposits')->insert($rows);
+        $admin=User::factory()->create([
+            'is_active'=>true,'is_platform_admin'=>true,
+        ]);
+        $this->actingAs($admin);
+        $csv=$this->get('/admin/deposits/export?company_id='.$company->id)
+            ->assertOk()->streamedContent();
+        $this->assertSame(123,count(preg_split('/\r?\n/',trim($csv))));
+        $this->assertStringContainsString("' =2+2",$csv);
+        $this->assertStringContainsString('WIRE-000',$csv);
+        $this->assertStringContainsString('WIRE-119',$csv);
+    }
+
+    public function test_refund_state_cannot_overstate_received_job_balances(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M16 Financial Replay');
+        $key='mobile-replay-20261105';
+        $p=array_merge($this->fields($job,'29.99'),['request_key'=>$key]);
+        $id=(int)$this->postJson('/api/v1/deposits',$p)->assertCreated()
+            ->json('data.deposit.id');
+        $this->postJson('/api/v1/deposits/'.$id.'/receive',[
+            'confirm'=>true,'lock_version'=>1,
+        ])->assertOk();
+        // HTTP retry after money is confirmed must not create another request.
+        $this->postJson('/api/v1/deposits',$p)
+            ->assertCreated()->assertJsonPath('data.deposit.status','received');
+        $this->getJson('/api/v1/jobs/'.$job.'/deposit-summary')
+            ->assertJsonPath('data.net_received_minor',2999);
+        $this->postJson('/api/v1/deposits/'.$id.'/refund',[
+            'confirm'=>true,'lock_version'=>2,
+            'reason'=>'Bank reference RF-2026-143 refund completed.',
+        ])->assertOk();
+        $this->postJson('/api/v1/deposits',$p)
+            ->assertCreated()->assertJsonPath('data.deposit.status','refunded');
+        $this->getJson('/api/v1/jobs/'.$job.'/deposit-summary')->assertOk()
+            ->assertJsonPath('data.net_received_minor',0)
+            ->assertJsonPath('data.refunded_minor',2999);
+        $this->assertDatabaseCount('job_deposits',1);
+    }
+
 }
