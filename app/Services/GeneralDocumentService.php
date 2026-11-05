@@ -190,6 +190,7 @@ final class GeneralDocumentService
             ->where('company_id',$company)->where('general_document_id',$id)
             ->whereNull('removed_at')->orderBy('id')->get()->map(fn($r)=>[
                 'id'=>(int)$r->id,'name'=>$r->original_name,
+                'original_name'=>$r->original_name,
                 'mime_type'=>$r->mime_type,'byte_size'=>(int)$r->byte_size,
                 'sha256'=>$r->sha256,'created_at'=>$r->created_at])->all();
     }
