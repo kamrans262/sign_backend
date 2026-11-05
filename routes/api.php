@@ -445,6 +445,20 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/equipment-loans/{loan}/return',[\App\Http\Controllers\Api\EquipmentLoanController::class,'returnLoan'])->whereNumber('loan')->middleware('throttle:12,1');
         });
 
+        // M20: real company/owner-scoped reminders and in-app notifications.
+        // Stage 1 never activates Firebase, SMTP or M19 borrower-email sending.
+        Route::middleware('company.access')->group(function (): void {
+            Route::get('/reminders', [\App\Http\Controllers\Api\M20ReminderController::class,'index']);
+            Route::post('/reminders', [\App\Http\Controllers\Api\M20ReminderController::class,'store'])->middleware('throttle:30,1');
+            Route::get('/reminders/{reminder}', [\App\Http\Controllers\Api\M20ReminderController::class,'show'])->whereNumber('reminder');
+            Route::patch('/reminders/{reminder}', [\App\Http\Controllers\Api\M20ReminderController::class,'update'])->whereNumber('reminder');
+            Route::post('/reminders/{reminder}/status', [\App\Http\Controllers\Api\M20ReminderController::class,'status'])->whereNumber('reminder');
+            Route::get('/notifications', [\App\Http\Controllers\Api\M20NotificationController::class,'index']);
+            Route::post('/notifications/read-all', [\App\Http\Controllers\Api\M20NotificationController::class,'markAllRead']);
+            Route::post('/notifications/{notification}/read', [\App\Http\Controllers\Api\M20NotificationController::class,'markRead'])->whereNumber('notification');
+            Route::delete('/notifications/{notification}', [\App\Http\Controllers\Api\M20NotificationController::class,'dismiss'])->whereNumber('notification');
+        });
+
         // M9: unified document catalog; M7 and M8 originals are read-only sources.
         Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
             Route::get('/documents', [\App\Http\Controllers\Api\DocumentController::class,'index']);

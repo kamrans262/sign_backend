@@ -298,6 +298,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/signatures/{signature}/resend-signed',
             [\App\Http\Controllers\Admin\SignatureRequestController::class,'resendSigned'])
             ->whereNumber('signature')->middleware('throttle:5,1')->name('signatures.resendSigned');
+        // M20: platform-admin-only notification text management.
+        Route::get('/notifications/templates', [\App\Http\Controllers\Admin\M20NotificationTemplateController::class,'index'])->name('notifications.index');
+        Route::get('/notifications/templates/{template}/edit', [\App\Http\Controllers\Admin\M20NotificationTemplateController::class,'edit'])->whereNumber('template')->name('notifications.edit');
+        Route::post('/notifications/templates/{template}/draft', [\App\Http\Controllers\Admin\M20NotificationTemplateController::class,'draft'])->whereNumber('template')->name('notifications.draft');
+        Route::post('/notifications/templates/{template}/publish', [\App\Http\Controllers\Admin\M20NotificationTemplateController::class,'publish'])->whereNumber('template')->name('notifications.publish');
+        Route::post('/notifications/templates/{template}/toggle', [\App\Http\Controllers\Admin\M20NotificationTemplateController::class,'toggle'])->whereNumber('template')->name('notifications.toggle');
+        Route::post('/notifications/templates/{template}/restore', [\App\Http\Controllers\Admin\M20NotificationTemplateController::class,'restore'])->whereNumber('template')->name('notifications.restore');
         Route::get('/audit', AuditController::class)->name('audit');
         Route::get('/mobile-auth', \App\Http\Controllers\Admin\MobileAuthController::class)->name('mobile-auth');
     });

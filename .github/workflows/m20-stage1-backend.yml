@@ -1,0 +1,71 @@
+name: M20 Stage 1 Reminders, Inbox and Editable Templates
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m20-stage1-backend
+  cancel-in-progress: true
+jobs:
+  sqlite-stage1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Syntax and migration/view/routes
+        run: |
+          for f in app/Services/M20NotificationTemplates.php app/Services/M20DueReminders.php app/Http/Controllers/Api/M20ReminderController.php app/Http/Controllers/Api/M20NotificationController.php app/Http/Controllers/Admin/M20NotificationTemplateController.php database/migrations/2026_11_05_110000_create_m20_reminders_notifications.php tests/Feature/M20RemindersNotificationsTest.php; do php -l "$f" || exit 1; done
+          php artisan migrate:fresh --force
+          php artisan view:cache
+          php artisan route:list --path=api/v1/reminders
+          php artisan route:list --path=api/v1/notifications
+          php artisan route:list --path=admin/notifications
+      - name: M20 Stage 1 acceptance
+        run: php artisan test tests/Feature/M20RemindersNotificationsTest.php
+      - name: Previous M19 reminder safety and financial regressions
+        run: php artisan test tests/Feature/M19EquipmentLoanStage2Test.php tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php
+  mysql-stage1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: m20_stage1_ci
+          MYSQL_DATABASE: sign2digital_m20
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pm20_stage1_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sign2digital_m20
+      DB_USERNAME: root
+      DB_PASSWORD: m20_stage1_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Full isolated MySQL 8.4 migration
+        run: php artisan migrate:fresh --force
+      - name: M20 tenant, due and editable copy tests
+        run: php artisan test tests/Feature/M20RemindersNotificationsTest.php
