@@ -134,7 +134,7 @@ final class M22ProfileSecuritySupportTest extends TestCase
         ])->assertOk()->assertJsonPath('data.has_photo',true);
         $this->get('/api/v1/me/photo')->assertOk()
             ->assertHeader('Content-Type','image/jpeg')
-            ->assertHeader('Cache-Control','private, no-store');
+            ->assertHeader('Cache-Control','no-store, private');
         $path=$user->fresh()->profile_photo_path;
         $this->assertNotNull($path);
         Storage::disk('local')->assertExists($path);

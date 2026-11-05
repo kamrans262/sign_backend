@@ -23,7 +23,9 @@
 @forelse($replies as $reply)
 <div class="panel-header"><div><strong>{{ $reply->author_name }}</strong><div class="muted">{{ $reply->created_at }} @if($reply->internal)· Private staff note@endif</div>
 <p>{{ $reply->body }}</p></div></div>
-@empty<p class="muted">No replies yet.</p>@endforelse
+@empty
+<p class="muted">No replies yet.</p>
+@endforelse
 <form method="post" action="{{ route('admin.support.reply',$item->id) }}">@csrf
 <div class="field"><label for="body">Reply or note</label><textarea id="body" class="input" name="body" rows="5" maxlength="10000" required>{{ old('body') }}</textarea></div>
 <div class="field"><label><input type="checkbox" name="internal" value="1"> Private staff note (hidden from user)</label></div>
@@ -31,6 +33,8 @@
 </form></section>
 <section class="panel"><div class="panel-header"><h2>Private Attachments</h2></div>
 @forelse($attachments as $attachment)<p><a href="{{ route('admin.support.attachment',[$item->id,$attachment->id]) }}">{{ $attachment->original_name }}</a> · {{ $attachment->mime_type }}</p>
-@empty<p class="muted">No attachments.</p>@endforelse
+@empty
+<p class="muted">No attachments.</p>
+@endforelse
 </section>
 @endsection
