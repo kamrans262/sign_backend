@@ -219,6 +219,9 @@ final class InvoiceDocumentService
             if($newPath)Storage::disk('local')->delete($newPath);
             throw $e;
         }
+        // Replays must verify both immutable artifacts before reporting success.
+        $this->verifiedSnapshot($issue);
+        $this->bytes($issue);
         return $this->issuePayload($issue);
     }
 
@@ -412,7 +415,7 @@ final class InvoiceDocumentService
                 ->update(['status'=>'sent','sent_at'=>now(),'updated_at'=>now()]);
             DB::table('service_invoice_events')->insert([
                 'company_id'=>$company->id,'service_invoice_id'=>$invoice,
-                'actor_user_id'=>$request->user()?->id,'event_type'=>'email_delivered',
+                'actor_user_id'=>$request->user()?->id,'event_type'=>'email_submitted',
                 'metadata'=>json_encode(['issue_sha256'=>$issue->pdf_sha256,
                     'mode'=>$data['mode'],'delivery_id'=>$id]),'created_at'=>now(),
             ]);
