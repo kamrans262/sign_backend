@@ -1,0 +1,70 @@
+name: M22 Stage 1 Profile Security Support
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: m22-stage1-backend
+  cancel-in-progress: true
+jobs:
+  sqlite-functional:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint M22 PHP and migrate
+        run: |
+          for f in app/Http/Controllers/Api/M22AccountController.php app/Http/Controllers/Api/M22SupportController.php app/Http/Controllers/Admin/M22SupportAdminController.php app/Mail/M22EmailChangeCodeMail.php app/Models/User.php database/migrations/2026_11_06_090000_create_m22_profile_security_support_tables.php tests/Feature/M22ProfileSecuritySupportTest.php; do php -l "$f" || exit 1; done
+          php artisan migrate:fresh --force
+          php artisan view:cache
+          php artisan route:list --path=api/v1/me
+          php artisan route:list --path=admin/support
+      - name: M22 authenticated and admin acceptance
+        run: php artisan test tests/Feature/M22ProfileSecuritySupportTest.php
+      - name: Existing M2 M3 M20 M21 regressions
+        run: php artisan test tests/Feature/M2EmailOtpAuthTest.php tests/Feature/M3CompanyManagementTest.php tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M21GlobalSearchTest.php
+  mysql-functional:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: m22_stage1_ci
+          MYSQL_DATABASE: sign2digital_m22_stage1
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pm22_stage1_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sign2digital_m22_stage1
+      DB_USERNAME: root
+      DB_PASSWORD: m22_stage1_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Real MySQL migrations and M22 acceptance
+        run: |
+          php artisan migrate:fresh --force
+          php artisan test tests/Feature/M22ProfileSecuritySupportTest.php
