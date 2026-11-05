@@ -75,7 +75,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 ->get(['companies.id', 'companies.name', 'companies.status']);
             return response()->json([
                 'data' => [
-                    'user' => $user->only(['id', 'name', 'email', 'phone_number', 'country_iso_code', 'dialing_code', 'email_verified_at']),
+                    'user' => $user->only(['id', 'name', 'email', 'phone_number', 'country_iso_code', 'dialing_code', 'email_verified_at', 'job_title']),
+                    'has_photo' => !empty($user->profile_photo_path),
                     'companies' => $companies->map(fn ($company) => [
                         'id' => $company->id,
                         'name' => $company->name,
@@ -93,19 +94,47 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 'phone_number' => ['nullable', 'string', 'max:40'],
                 'country_iso_code' => ['nullable', 'string', 'size:2'],
                 'dialing_code' => ['nullable', 'string', 'max:8'],
+                'job_title' => ['nullable', 'string', 'max:120'],
             ]);
             // Email changes require re-verification and are not silently accepted.
             $user->fill(\Illuminate\Support\Arr::only($data, [
-                'name', 'phone_number', 'country_iso_code', 'dialing_code',
+                'name', 'phone_number', 'country_iso_code', 'dialing_code', 'job_title',
             ]));
             $user->save();
             \App\Support\AuditLogger::record('mobile.account.profile_updated', $user, $user, request: $request);
             return response()->json(['data' => ['user' => $user->only([
-                'id', 'name', 'email', 'phone_number', 'country_iso_code', 'dialing_code',
+                'id', 'name', 'email', 'phone_number', 'country_iso_code', 'dialing_code', 'job_title',
             ])]]);
         });
 
 
+
+
+        // M22: user-owned account settings, security and Help & Support.
+        // No company header is trusted for account-wide resources.
+        Route::get('/me/security', [\App\Http\Controllers\Api\M22AccountController::class,'security']);
+        Route::get('/me/sessions', [\App\Http\Controllers\Api\M22AccountController::class,'security']);
+        Route::post('/me/password/change', [\App\Http\Controllers\Api\M22AccountController::class,'changePassword'])->middleware('throttle:5,1');
+        Route::delete('/me/sessions/{session}', [\App\Http\Controllers\Api\M22AccountController::class,'revokeSession'])->whereNumber('session')->middleware('throttle:5,1');
+        Route::post('/me/sessions/revoke-others', [\App\Http\Controllers\Api\M22AccountController::class,'revokeOthers'])->middleware('throttle:5,1');
+        Route::get('/me/photo', [\App\Http\Controllers\Api\M22AccountController::class,'photo'])->middleware('throttle:30,1');
+        Route::post('/me/photo', [\App\Http\Controllers\Api\M22AccountController::class,'savePhoto'])->middleware('throttle:10,1');
+        Route::delete('/me/photo', [\App\Http\Controllers\Api\M22AccountController::class,'deletePhoto'])->middleware('throttle:10,1');
+        Route::post('/me/email-change', [\App\Http\Controllers\Api\M22AccountController::class,'emailStart'])->middleware('throttle:3,1');
+        Route::post('/me/email-change/verify', [\App\Http\Controllers\Api\M22AccountController::class,'emailVerify'])->middleware('throttle:8,1');
+        Route::delete('/me/email-change', [\App\Http\Controllers\Api\M22AccountController::class,'emailCancel'])->middleware('throttle:5,1');
+        Route::get('/me/preferences', [\App\Http\Controllers\Api\M22AccountController::class,'preferences']);
+        Route::patch('/me/preferences', [\App\Http\Controllers\Api\M22AccountController::class,'savePreferences'])->middleware('throttle:20,1');
+        Route::get('/me/export', [\App\Http\Controllers\Api\M22AccountController::class,'export'])->middleware('throttle:5,1');
+        Route::post('/me/deactivate', [\App\Http\Controllers\Api\M22AccountController::class,'deactivate'])->middleware('throttle:3,1');
+
+        Route::get('/support/faqs', [\App\Http\Controllers\Api\M22SupportController::class,'faqs'])->middleware('throttle:60,1');
+        Route::get('/support/tickets', [\App\Http\Controllers\Api\M22SupportController::class,'index']);
+        Route::post('/support/tickets', [\App\Http\Controllers\Api\M22SupportController::class,'store'])->middleware('throttle:5,1');
+        Route::get('/support/tickets/{ticket}', [\App\Http\Controllers\Api\M22SupportController::class,'show'])->whereNumber('ticket');
+        Route::post('/support/tickets/{ticket}/replies', [\App\Http\Controllers\Api\M22SupportController::class,'reply'])->whereNumber('ticket')->middleware('throttle:10,1');
+        Route::post('/support/tickets/{ticket}/attachments', [\App\Http\Controllers\Api\M22SupportController::class,'upload'])->whereNumber('ticket')->middleware('throttle:6,1');
+        Route::get('/support/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Api\M22SupportController::class,'attachment'])->whereNumber('ticket')->whereNumber('attachment')->middleware('throttle:20,1');
 
         // M3: all company actions require a real Sanctum-authenticated account.
         // Access to each company is additionally checked on the server using
