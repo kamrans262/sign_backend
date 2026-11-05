@@ -77,6 +77,9 @@ final class InvoiceService
             'id'=>(int)$row->id,'company_id'=>(int)$row->company_id,
             'job_id'=>(int)$row->service_job_id,'client_id'=>(int)$row->client_id,
             'quote_id'=>$row->service_quote_id===null?null:(int)$row->service_quote_id,
+            'source_addenda_ids'=>DB::table('service_invoice_addenda')
+                ->where('service_invoice_id',$row->id)->pluck('addendum_id')
+                ->map(fn($n)=>(int)$n)->all(),
             'number'=>$row->invoice_number,'type'=>$row->invoice_type,
             'status'=>$status,'lifecycle_status'=>$row->status,
             'job'=>$row->job_title,'job_reference'=>$row->job_reference,
