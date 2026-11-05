@@ -550,6 +550,15 @@ final class EquipmentLoanService
             if(array_key_exists('borrower_email',$data))$values['borrower_email']=
                 $data['borrower_email']?mb_strtolower(trim($data['borrower_email'])):null;
             DB::table('equipment_loans')->where('id',$id)->update($values);
+            $reminders=app(EquipmentLoanReminderService::class);
+            if(array_key_exists('borrower_email',$values)
+                && $values['borrower_email'] !== $r->borrower_email){
+                $reminders->revokeConsentForContactChange(
+                    $company->id,$id,$request->user()?->id);
+            }else{
+                $reminders->cancelPending(
+                    $company->id,$id,$request->user()?->id,'loan_updated');
+            }
             $this->loanEvent($r,$request->user()?->id,'details_updated');
             return DB::table('equipment_loans')->where('id',$id)->firstOrFail();
         });
@@ -600,6 +609,15 @@ final class EquipmentLoanService
             }
             if(!empty($data['notes']))$meta['reason']=$data['notes'];
             DB::table('equipment_loans')->where('id',$id)->update($values);
+            $reminders=app(EquipmentLoanReminderService::class);
+            $reminders->cancelPending($company->id,$id,$request->user()?->id,
+                $action==='extend'?'return_date_extended':'loan_returned');
+            if($action==='return'){
+                DB::table('equipment_loan_reminder_settings')
+                    ->where('company_id',$company->id)
+                    ->where('equipment_loan_id',$id)
+                    ->update(['automatic_enabled'=>false,'updated_at'=>now()]);
+            }
             $this->loanEvent($r,$request->user()?->id,
                 $action==='extend'?'return_date_extended':'returned',$meta);
             $asset=$this->asset($company->id,$r->equipment_asset_id);

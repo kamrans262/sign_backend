@@ -130,3 +130,16 @@ Artisan::command('sign:otp-prune', function (): void {
 
     $this->info('Expired OTP challenges pruned: '.$deleted);
 })->purpose('Delete expired M2 OTP challenges older than 24 hours');
+
+
+// M19 overdue follow-up. Default is read-only; --send also requires an
+// explicit business opt-in AND EQUIPMENT_LOAN_AUTO_REMINDERS_ENABLED=true.
+// Never enable the sender flag while running test or demo fixtures.
+Artisan::command('sign:equipment-overdue-check {--send} {--max=40}',
+    function (\App\Services\EquipmentLoanReminderService $reminders): int {
+        $send=(bool)$this->option('send');
+        $max=max(1,min(100,(int)$this->option('max')));
+        $result=$reminders->processAutomatic($max,$send);
+        $this->line(json_encode($result,JSON_THROW_ON_ERROR));
+        return 0;
+    })->purpose('Inspect opted-in overdue equipment loans; explicitly dispatch only if configured');

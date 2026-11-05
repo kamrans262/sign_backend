@@ -148,6 +148,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/equipment-loans/{loan}/edit',[\App\Http\Controllers\Admin\EquipmentController::class,'loanEdit'])->whereNumber('loan')->name('equipment.loan.edit');
         Route::patch('/equipment-loans/{loan}',[\App\Http\Controllers\Admin\EquipmentController::class,'loanUpdate'])->whereNumber('loan')->name('equipment.loan.update');
         Route::post('/equipment-loans/{loan}/extend',[\App\Http\Controllers\Admin\EquipmentController::class,'loanExtend'])->whereNumber('loan')->name('equipment.loan.extend');
+        Route::put('/equipment-loans/{loan}/reminders/policy',
+            [\App\Http\Controllers\Admin\EquipmentController::class,'reminderPolicy'])->whereNumber('loan')->name('equipment.loan.reminder.policy');
+        Route::post('/equipment-loans/{loan}/reminders/send',
+            [\App\Http\Controllers\Admin\EquipmentController::class,'sendReminder'])->whereNumber('loan')->middleware('throttle:3,1')->name('equipment.loan.reminder.send');
         Route::post('/equipment-loans/{loan}/return',[\App\Http\Controllers\Admin\EquipmentController::class,'loanReturn'])->whereNumber('loan')->name('equipment.loan.return');
 
         // M18 General AI Documents: reuse existing Admin document navigation and UI.

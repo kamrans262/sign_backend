@@ -418,6 +418,10 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 ->whereNumber('equipment')->whereNumber('photo')->middleware('throttle:30,1');
             Route::get('/equipment-loans',[\App\Http\Controllers\Api\EquipmentLoanController::class,'index']);
             Route::get('/equipment-loans/{loan}',[\App\Http\Controllers\Api\EquipmentLoanController::class,'show'])->whereNumber('loan');
+            Route::get('/equipment-loans/{loan}/reminders/preview',
+                [\App\Http\Controllers\Api\EquipmentLoanController::class,'reminderPreview'])->whereNumber('loan');
+            Route::get('/equipment-loans/{loan}/reminders',
+                [\App\Http\Controllers\Api\EquipmentLoanController::class,'reminderHistory'])->whereNumber('loan');
             Route::get('/equipment-loans/{loan}/events',[\App\Http\Controllers\Api\EquipmentLoanController::class,'history'])->whereNumber('loan');
         });
         Route::middleware(['company.access','company.permission:equipment.write'])->group(function (): void {
@@ -434,6 +438,10 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/equipment-loans',[\App\Http\Controllers\Api\EquipmentLoanController::class,'store'])->middleware('throttle:12,1');
             Route::patch('/equipment-loans/{loan}',[\App\Http\Controllers\Api\EquipmentLoanController::class,'update'])->whereNumber('loan');
             Route::post('/equipment-loans/{loan}/extend',[\App\Http\Controllers\Api\EquipmentLoanController::class,'extend'])->whereNumber('loan')->middleware('throttle:12,1');
+            Route::post('/equipment-loans/{loan}/reminders/send',
+                [\App\Http\Controllers\Api\EquipmentLoanController::class,'sendReminder'])->whereNumber('loan')->middleware('throttle:3,1');
+            Route::put('/equipment-loans/{loan}/reminders/policy',
+                [\App\Http\Controllers\Api\EquipmentLoanController::class,'reminderPolicy'])->whereNumber('loan')->middleware('throttle:12,1');
             Route::post('/equipment-loans/{loan}/return',[\App\Http\Controllers\Api\EquipmentLoanController::class,'returnLoan'])->whereNumber('loan')->middleware('throttle:12,1');
         });
 

@@ -168,6 +168,8 @@ final class EquipmentController extends Controller
             'record'=>$this->service->loanPayload($r,
                 $this->service->companyDate($this->company($r->company_id))),
             'history'=>$this->service->loanHistory($r->company_id,$loan),
+            'reminderPreview'=>app(\App\Services\EquipmentLoanReminderService::class)
+                ->preview($this->company($r->company_id),$loan),
         ]));
     }
     public function loanStore(Request $request)
@@ -198,6 +200,28 @@ final class EquipmentController extends Controller
         return redirect()->route('admin.equipment.loan.edit',$loan)
             ->with('success','Return date extended and audited.');
     }
+    public function reminderPolicy(Request $request,int $loan,
+        \App\Services\EquipmentLoanReminderService $reminders)
+    {
+        $row=$this->loan($loan);
+        $reminders->policy($request,$this->company($row->company_id),$loan);
+        return redirect()->route('admin.equipment.loan.edit',$loan)
+            ->with('success','Loan reminder preferences updated.');
+    }
+
+    public function sendReminder(Request $request,int $loan,
+        \App\Services\EquipmentLoanReminderService $reminders)
+    {
+        $row=$this->loan($loan);
+        $result=$reminders->sendManual(
+            $request,$this->company($row->company_id),$loan);
+        $message=$result['status']==='submitted'
+            ?'Reminder submitted to email transport. Inbox receipt is not confirmed.'
+            :'Reminder outcome uncertain. Check delivery history; do not resend automatically.';
+        return redirect()->route('admin.equipment.loan.edit',$loan)
+            ->with('success',$message);
+    }
+
     public function loanReturn(Request $request,int $loan)
     {
         $r=$this->loan($loan);

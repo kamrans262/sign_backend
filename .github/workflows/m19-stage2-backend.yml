@@ -1,0 +1,73 @@
+name: M19 Stage 2 Equipment Loan Reminder Safety
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m19-stage2-backend
+  cancel-in-progress: true
+jobs:
+  sqlite-reminder-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: PHP lint, route and view compilation
+        run: |
+          for f in app/Services/EquipmentLoanReminderService.php app/Services/EquipmentLoanService.php app/Http/Controllers/Api/EquipmentLoanController.php app/Http/Controllers/Admin/EquipmentController.php app/Mail/EquipmentLoanReminderMail.php database/migrations/2026_11_05_100000_create_equipment_loan_reminders.php tests/Feature/M19EquipmentLoanStage2Test.php; do php -l "$f" || exit 1; done
+          php artisan migrate:fresh --force
+          php artisan view:cache
+          php artisan route:list --path=api/v1/equipment-loans
+          php artisan route:list --path=admin/equipment-loans
+          php artisan sign:equipment-overdue-check
+      - name: M19 Stage 2 reminder acceptance
+        run: php artisan test tests/Feature/M19EquipmentLoanStage2Test.php
+      - name: M19 Stage 1, M17 and M18 regressions
+        run: php artisan test tests/Feature/M19EquipmentLoanStage1Test.php tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php
+  mysql-reminder-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: m19_stage2_ci
+          MYSQL_DATABASE: sign2digital_m19_stage2
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pm19_stage2_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sign2digital_m19_stage2
+      DB_USERNAME: root
+      DB_PASSWORD: m19_stage2_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Full isolated MySQL 8.4 migration and safe FK constraints
+        run: |
+          php artisan migrate:fresh --force
+          php artisan tinker --execute='$names=\Illuminate\Support\Facades\DB::select("select CONSTRAINT_NAME from information_schema.REFERENTIAL_CONSTRAINTS where CONSTRAINT_SCHEMA=? and TABLE_NAME in (?,?,?)",["sign2digital_m19_stage2","equipment_loan_reminder_settings","equipment_loan_reminders","equipment_loan_delivery_attempts"]);$actual=array_map(static fn($r)=>$r->CONSTRAINT_NAME,$names);foreach(["m19_setting_loan_fk","m19_reminder_loan_fk","m19_attempt_reminder_fk"] as $expected)if(!in_array($expected,$actual,true))throw new \RuntimeException("Missing M19 FK ".$expected);echo "M19_STAGE2_MYSQL_FOREIGN_KEYS_OK";'
+      - name: Delivery and tenant tests on real MySQL with fake mail
+        run: php artisan test tests/Feature/M19EquipmentLoanStage2Test.php

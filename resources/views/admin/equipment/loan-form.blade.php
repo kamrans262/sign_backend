@@ -48,10 +48,61 @@
 <label>Actual Return Date<input class="input" type="date" name="actual_return_date" required min="{{ $record['loan_date'] }}" value="{{ date('Y-m-d') }}"></label>
 <button class="btn btn-primary" type="submit">Mark Returned</button></form>
 </div>
-<p style="padding:0 20px">Email reminders are not yet configured; no borrower has been contacted. Reminder sending is Stage 2.</p>
+<div style="padding:20px">
+<h3>Equipment Return Reminders</h3>
+<p>Manual sending requires your approval and configured real outbound email. Submitted does not mean received.</p>
+@if(!$reminderPreview['transport_ready'])
+<p class="muted">Outbound mail is not configured; no borrower email can be sent.</p>
+@endif
+<form method="post" action="{{ route('admin.equipment.loan.reminder.policy',$record['id']) }}">
+@csrf @method('PUT')
+<input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}">
+<input type="hidden" name="automatic_enabled" value="0">
+<label><input type="checkbox" name="automatic_enabled" value="1" @checked($reminderPreview['automatic_enabled'])>
+Enable overdue email reminders for this loan</label>
+<input type="hidden" name="recipient_confirmed" value="0">
+<label><input type="checkbox" name="recipient_confirmed" value="1" @checked($reminderPreview['recipient_confirmed'])>
+I confirm this borrower email belongs to the intended recipient.</label>
+<label>Repeat every (days)
+<input class="input" type="number" name="frequency_days" min="1" max="30"
+value="{{ $reminderPreview['frequency_days'] }}" required></label>
+@if(!$reminderPreview['automatic_global_enabled'])
+<p class="muted">Automatic sending is globally disabled until explicitly enabled during deployment.</p>
+@endif
+<button class="btn btn-outline" type="submit">Save Reminder Preferences</button>
+</form>
+<div style="margin-top:20px">
+<h3>Send a One-Time Email</h3>
+<p><strong>To:</strong> {{ $reminderPreview['borrower_email']?:'No borrower email' }}</p>
+<p><strong>Equipment:</strong> {{ $reminderPreview['equipment_name'] }}</p>
+<p><strong>Due:</strong> {{ $reminderPreview['expected_return_date'] }}</p>
+<form method="post" action="{{ route('admin.equipment.loan.reminder.send',$record['id']) }}"
+onsubmit="return confirm('Submit this equipment return email to the displayed borrower?')">
+@csrf
+<input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}">
+<input type="hidden" name="request_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}">
+<input type="hidden" name="confirm" value="1">
+<label><input type="checkbox" name="recipient_confirmed" value="1" required>
+Confirm recipient email and submit one email only</label>
+<button type="submit" class="btn btn-primary" @disabled(!$reminderPreview['send_available'])>
+Send Reminder Email</button>
+</form>
+</div>
+</div>
 @endif
 @endif
 </section>
+@if($record)
+<section class="panel"><div class="panel-header"><h2>Reminder Delivery History</h2></div>
+<div class="table-wrap"><table><thead><tr><th>Kind</th><th>Due</th><th>Status</th><th>Attempts</th><th>Recorded</th></tr></thead><tbody>
+@forelse($reminderPreview['delivery_history'] as $delivery)
+<tr><td>{{ ucfirst($delivery['kind']) }}</td><td>{{ $delivery['due_date'] }}</td>
+<td>{{ $delivery['status'] }}</td><td>{{ $delivery['attempt_count'] }}</td>
+<td>{{ $delivery['created_at'] }} <span class="muted">{{ $delivery['delivery_note'] }}</span></td></tr>
+@empty<tr><td colspan="5">No reminders requested. No email has been sent from this loan.</td></tr>
+@endforelse
+</tbody></table></div></section>
+@endif
 @if($record)
 <section class="panel"><div class="panel-header"><h2>Immutable Loan History</h2></div>
 <div class="table-wrap"><table><thead><tr><th>Event</th><th>Actor</th><th>When</th><th>Details</th></tr></thead><tbody>

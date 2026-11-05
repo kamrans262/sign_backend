@@ -71,6 +71,30 @@ final class EquipmentLoanController extends Controller
     {
         return $this->respond($voice->prepare($request,$this->company($request)));
     }
+    public function reminderPreview(Request $request,int $loan,
+        \App\Services\EquipmentLoanReminderService $reminders): JsonResponse
+    {
+        return $this->respond($reminders->preview($this->company($request),$loan));
+    }
+    public function reminderHistory(Request $request,int $loan,
+        \App\Services\EquipmentLoanReminderService $reminders): JsonResponse
+    {
+        return $this->respond(['reminders'=>$reminders->history(
+            $this->company($request),$loan)]);
+    }
+    public function reminderPolicy(Request $request,int $loan,
+        \App\Services\EquipmentLoanReminderService $reminders): JsonResponse
+    {
+        return $this->respond($reminders->policy(
+            $request,$this->company($request),$loan));
+    }
+    public function sendReminder(Request $request,int $loan,
+        \App\Services\EquipmentLoanReminderService $reminders): JsonResponse
+    {
+        return $this->respond(['reminder'=>$reminders->sendManual(
+            $request,$this->company($request),$loan)]);
+    }
+
     public function history(Request $request,int $loan): JsonResponse
     {
         return $this->respond(['events'=>$this->service->loanHistory(
