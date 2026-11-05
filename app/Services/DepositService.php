@@ -215,8 +215,20 @@ final class DepositService
         return $this->save($request,$company);
     }
 
+    private function reviewPermission(Request $request,Company $company): void
+    {
+        $actor=$request->user();
+        if ($actor?->is_platform_admin) return;
+        $member=$actor===null?null:$company->users()
+            ->where('users.id',$actor->id)->wherePivot('status','active')->first();
+        abort_unless(in_array($member?->pivot?->role,['owner','admin'],true),403,
+            'Company owner or administrator must confirm deposit payments.');
+    }
+
     public function change(Request $request,Company $company,int $id,string $action): array
     {
+        // Financial status changes cannot be self-approved by ordinary workers.
+        $this->reviewPermission($request,$company);
         abort_unless(in_array($action,['receive','refund','void'],true),404);
         $data=$request->validate([
             'confirm'=>['required','accepted'],
