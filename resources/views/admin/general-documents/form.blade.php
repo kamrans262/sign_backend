@@ -42,11 +42,11 @@ $plain=implode("\n\n",array_column($blocks,'text'));
 <form method="post" action="{{ route('admin.general-documents.transition',[$document['id'],'review']) }}">@csrf
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $document['lock_version'] }}"><button class="btn btn-primary">Mark Reviewed</button></form>
 @elseif($document['status']==='reviewed')
-<form method="post" action="{{ route('admin.general-documents.transition',[$document['id'],'approve']) }}" onsubmit="return confirm('Approve and lock this exact document revision?')">@csrf
+<form method="post" action="{{ route('admin.general-documents.transition',[$document['id'],'approve']) }}" data-confirm="Approve and lock this exact document revision?">@csrf
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $document['lock_version'] }}"><button class="btn btn-primary">Approve Document</button></form>
 @endif
 @if(in_array($document['status'],['draft','reviewed'],true))
-<form method="post" action="{{ route('admin.general-documents.transition',[$document['id'],'archive']) }}" onsubmit="return confirm('Archive this draft?')">@csrf
+<form method="post" action="{{ route('admin.general-documents.transition',[$document['id'],'archive']) }}" data-confirm="Archive this draft?">@csrf
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $document['lock_version'] }}"><button class="btn btn-outline">Archive</button></form>
 @endif</div></section>
 
@@ -56,7 +56,7 @@ $plain=implode("\n\n",array_column($blocks,'text'));
 <div style="padding:20px">
 @if(!$issued)
 <p>Issue the approved revision before making any customer links or signature requests.</p>
-<form method="post" action="{{ route('admin.general-documents.issue',$document['id']) }}" onsubmit="return confirm('Issue the exact approved document PDF?')">
+<form method="post" action="{{ route('admin.general-documents.issue',$document['id']) }}" data-confirm="Issue the exact approved document PDF?">
 @csrf <input type="hidden" name="confirm" value="1">
 <button class="btn btn-primary" type="submit">Issue Official PDF</button></form>
 @else
