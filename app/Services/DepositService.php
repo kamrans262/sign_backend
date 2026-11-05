@@ -368,10 +368,15 @@ final class DepositService
             ($mime==='application/pdf'?'.pdf':($mime==='image/png'?'.png':'.jpg'));
         abort_unless(Storage::disk('local')->put($path,$bytes),503);
         try {
-            $rid=DB::transaction(function()use($company,$request,$id,$data,$bytes,$path,$mime,$hash):int {
+            $created=false;
+            $rid=DB::transaction(function()use($company,$request,$id,$data,$bytes,$path,$mime,$hash,&$created):int {
                 $row=DB::table('job_deposits')->where('company_id',$company->id)
                     ->where('id',$id)->lockForUpdate()->firstOrFail();
                 abort_unless($row->status==='pending',409,'Receipts are locked after confirmation.');
+                $same=DB::table('job_deposit_receipts')->where('company_id',$company->id)
+                    ->where('job_deposit_id',$id)->where('sha256',$hash)
+                    ->whereNull('removed_at')->first();
+                if($same!==null) return (int)$same->id;
                 abort_if(DB::table('job_deposit_receipts')->where('job_deposit_id',$id)
                     ->whereNull('removed_at')->count()>=10,422,'Maximum 10 receipts.');
                 $rid=DB::table('job_deposit_receipts')->insertGetId([
@@ -384,8 +389,11 @@ final class DepositService
                 ]);
                 $this->event($company->id,$id,$request->user()?->id,
                     'receipt_added',['receipt_id'=>$rid]);
+                $created=true;
                 return $rid;
             });
+            // A retry must not leave a second private file or receipt event.
+            if(!$created) Storage::disk('local')->delete($path);
         } catch(\Throwable $e) {
             Storage::disk('local')->delete($path);
             throw $e;
