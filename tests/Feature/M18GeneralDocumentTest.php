@@ -194,5 +194,13 @@ final class M18GeneralDocumentTest extends TestCase
             'confirm'=>1,'lock_version'=>2])->assertRedirect();
         $this->assertDatabaseHas('general_documents',[
             'id'=>$id,'status'=>'approved','approved_revision'=>1]);
+    }    public function test_voice_requires_explicit_recording_and_never_auto_saves(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant();
+        $this->postJson('/api/v1/general-documents/voice/transcribe',[])
+            ->assertUnprocessable();
+        $this->assertDatabaseCount('general_documents',0);
     }
+
+
 }
