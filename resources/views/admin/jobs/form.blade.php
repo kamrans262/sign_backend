@@ -73,7 +73,7 @@
 </section>
 <section class="panel">
 <div class="panel-header"><div><h2>Archive Job</h2><p class="panel-header-hint">Archiving preserves the job and its future related history.</p></div></div>
-<form method="post" action="{{ route('admin.jobs.destroy', $job) }}" onsubmit="return confirm('Archive this job?')">
+<form method="post" action="{{ route('admin.jobs.destroy', $job) }}" data-confirm="Archive this job?">
 @csrf @method('delete')
 <button class="btn btn-danger" type="submit">Archive Job</button>
 </form></section>
