@@ -10,7 +10,7 @@
 <p class="panel-header-hint">{{ $editing?ucfirst($record['status']):'Pending' }} · CHF</p></div>
 <a class="btn btn-outline" href="{{ route('admin.deposits.index') }}">All Deposits</a></div>
 <form class="form-grid" style="padding:20px" method="post" action="{{ $editing?route('admin.deposits.update',$record['id']):route('admin.deposits.store') }}">
-@csrf @if($editing)@method('PATCH')<input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}">@endif
+@csrf @if($editing)@method('PATCH')<input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}">@else<input type="hidden" name="request_key" value="{{ old('request_key',(string)\Illuminate\Support\Str::uuid()) }}">@endif
 @if(!$editing)
 <label>Company <select name="company_id" class="input" required><option value="">Select Company</option>
 @foreach($companies as $company)<option value="{{ $company->id }}" @selected(old('company_id')==$company->id)>{{ $company->name }}</option>@endforeach</select></label>
