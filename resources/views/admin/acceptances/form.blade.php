@@ -33,13 +33,13 @@
 <div class="panel-header"><h2>Approval, Customer Signing and Documents</h2></div>
 <div class="toolbar">
 @if($draft)
-<form method="post" action="{{ route('admin.acceptances.approve',$record['id']) }}" onsubmit="return confirm('Freeze this report for customer acceptance?')">@csrf
+<form method="post" action="{{ route('admin.acceptances.approve',$record['id']) }}" data-confirm="Freeze this report for customer acceptance?">@csrf
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="revision" value="{{ $record['revision'] }}">
 <button type="submit" class="btn btn-primary">Approve v{{ $record['revision'] }}</button></form>
 @else
 <a class="btn btn-outline" href="{{ route('admin.acceptances.pdf',[$record['id'],'approved']) }}">Approved PDF</a>
 @if(in_array($record['status'],['approved','sent','viewed'],true))
-<form method="post" action="{{ route('admin.acceptances.send',$record['id']) }}" onsubmit="return confirm('Email a secure acceptance link to the client?')">@csrf<input type="hidden" name="confirm" value="1"><button class="btn btn-primary" type="submit">Email Customer</button></form>
+<form method="post" action="{{ route('admin.acceptances.send',$record['id']) }}" data-confirm="Email a secure acceptance link to the client?">@csrf<input type="hidden" name="confirm" value="1"><button class="btn btn-primary" type="submit">Email Customer</button></form>
 @endif
 @if($record['has_signed_pdf'])
 <a class="btn btn-primary" href="{{ route('admin.acceptances.pdf',[$record['id'],'signed']) }}">Download Signed PDF</a>
@@ -72,7 +72,7 @@
 @forelse($requests as $signing)
 <tr><td>{{ $signing['request_uuid'] }}</td><td>{{ ucfirst($signing['status']) }}</td><td>{{ $signing['expires_at'] }}</td><td>
 @if(in_array($signing['status'],['ready','sent','viewed'],true))
-<form method="post" action="{{ route('admin.acceptances.revoke',[$record['id'],$signing['id']]) }}" onsubmit="return confirm('Revoke this customer signing link?')">@csrf<button class="btn btn-small btn-outline" type="submit">Revoke</button></form>
+<form method="post" action="{{ route('admin.acceptances.revoke',[$record['id'],$signing['id']]) }}" data-confirm="Revoke this customer signing link?">@csrf<button class="btn btn-small btn-outline" type="submit">Revoke</button></form>
 @endif</td></tr>
 @empty<tr><td colspan="4">No requests sent yet.</td></tr>@endforelse
 </tbody></table></div></section>
