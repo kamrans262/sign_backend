@@ -19,6 +19,10 @@ final class M19EquipmentLoanStage2Test extends TestCase
 {
     use RefreshDatabase;
 
+    // RefreshDatabase restores ID 1 between tests, but Laravel's separate
+    // throttle cache is not rolled back. Unique actors preserve real limits.
+    private static int $actorSequence=10000;
+
     protected function tearDown(): void
     {
         Carbon::setTestNow();
@@ -30,7 +34,8 @@ final class M19EquipmentLoanStage2Test extends TestCase
         Carbon::setTestNow('2026-11-05 12:00:00 UTC');
         // Reset cross-test throttle keys, without disabling production rate limiting.
         Cache::flush();
-        $actor=User::factory()->create(['is_active'=>true,'email_verified_at'=>now()]);
+        $actor=User::factory()->create(['id'=>++self::$actorSequence,
+            'is_active'=>true,'email_verified_at'=>now()]);
         $company=Company::create([
             'owner_user_id'=>$actor->id,'name'=>'Lender Ltd',
             'country_iso_code'=>'CH','status'=>'active',
