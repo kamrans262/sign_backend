@@ -77,7 +77,9 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('company_id')->constrained()->restrictOnDelete();
             $table->foreignId('work_acceptance_id')->constrained('work_acceptances')->restrictOnDelete();
-            $table->foreignId('work_acceptance_request_id')->constrained('work_acceptance_requests')->restrictOnDelete();
+            $table->foreignId('work_acceptance_request_id');
+            $table->foreign('work_acceptance_request_id','m13_customer_photo_request_fk')
+                ->references('id')->on('work_acceptance_requests')->restrictOnDelete();
             $table->string('private_path',512)->unique();
             $table->string('mime_type',40);
             $table->unsignedBigInteger('byte_size');
