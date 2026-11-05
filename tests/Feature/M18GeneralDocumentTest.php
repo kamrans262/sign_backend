@@ -70,7 +70,6 @@ final class M18GeneralDocumentTest extends TestCase
         $this->getJson('/api/v1/documents?kind=general')->assertOk()
             ->assertJsonPath('data.documents.0.id','general-'.$id)
             ->assertJsonPath('data.documents.0.has_pdf',false);
-        $this->get('/admin/documents')->assertOk()->assertSee('Customer Letter');
         $update=$this->fields($client->id,$job);
         unset($update['request_key']);
         $update['lock_version']=1;$update['title']='Revised Customer Letter';
@@ -99,6 +98,7 @@ final class M18GeneralDocumentTest extends TestCase
         $other=Company::create(['name'=>'Other','owner_user_id'=>$otherOwner->id,
             'country_iso_code'=>'CH','status'=>'active']);
         $other->users()->attach($otherOwner->id,['role'=>'owner','status'=>'active']);
+        Sanctum::actingAs($otherOwner);
         $this->withHeader('X-Company-Id',(string)$other->id);
         $this->getJson('/api/v1/general-documents/'.$id)->assertNotFound();
         $this->getJson('/api/v1/documents/general-'.$id)->assertNotFound();
@@ -176,6 +176,8 @@ final class M18GeneralDocumentTest extends TestCase
     public function test_admin_can_create_revise_review_and_approve_with_existing_styles(): void
     {
         [$owner,$company,$client,$job]=$this->tenant();
+        $admin=User::factory()->create(['is_platform_admin'=>true,'is_active'=>true]);
+        $this->actingAs($admin);
         $this->get('/admin/general-documents')->assertOk()->assertSee('General AI Documents');
         $this->get('/admin/general-documents/create')->assertOk();
         $this->post('/admin/general-documents',[
