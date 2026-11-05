@@ -64,19 +64,19 @@
 <section class="panel"><div class="panel-header"><h2>Report Lifecycle</h2></div>
 <div class="toolbar">
 @if($draft)
-<form method="post" action="{{ route('admin.reports.approve',$report['id']) }}" onsubmit="return confirm('Approve and freeze this report as a PDF in Documents?');">
+<form method="post" action="{{ route('admin.reports.approve',$report['id']) }}" data-confirm="Approve and freeze this report as a PDF in Documents?">
 @csrf <input type="hidden" name="confirm" value="1"><input type="hidden" name="revision" value="{{ $report['revision'] }}">
 <button type="submit" class="btn btn-primary">Approve PDF (v{{ $report['revision'] }})</button></form>
 @else
 <a class="btn btn-outline" href="{{ route('admin.reports.pdf',$report['id']) }}">Download Verified PDF</a>
 <a class="btn btn-outline" href="{{ route('admin.documents.show','managed-'.$report['managed_document_id']) }}">Document & History</a>
 @if(in_array($report['status'],['approved','sent'],true))
-<form method="post" action="{{ route('admin.reports.send',$report['id']) }}" onsubmit="return confirm('Send the approved PDF to the linked client email?');">
+<form method="post" action="{{ route('admin.reports.send',$report['id']) }}" data-confirm="Send the approved PDF to the linked client email?">
 @csrf <input type="hidden" name="confirm" value="1"><button class="btn btn-primary" type="submit">Send to Client</button></form>
 @endif
 @endif
 @if($report['status']!=='archived')
-<form method="post" action="{{ route('admin.reports.archive',$report['id']) }}" onsubmit="return confirm('Archive this report? Approved PDF will be preserved.');">
+<form method="post" action="{{ route('admin.reports.archive',$report['id']) }}" data-confirm="Archive this report? Approved PDF will be preserved.">
 @csrf <button class="btn btn-outline" type="submit">Archive</button></form>
 @endif
 </div></section>
