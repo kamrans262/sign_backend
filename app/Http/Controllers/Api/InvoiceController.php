@@ -41,6 +41,12 @@ final class InvoiceController extends Controller
         return $this->json($this->invoices->listing($this->company($request)->id,$filters));
     }
 
+    public function sources(Request $request,int $job): JsonResponse
+    {
+        return $this->json($this->invoices->sources(
+            $this->company($request)->id,$job));
+    }
+
     public function availableDeposits(Request $request,int $job): JsonResponse
     {
         return $this->json($this->invoices->availableDeposits(
