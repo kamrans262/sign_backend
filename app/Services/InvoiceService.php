@@ -137,6 +137,72 @@ final class InvoiceService
             'last_page'=>max(1,(int)ceil($total/$limit))];
     }
 
+    public function sources(int $company,int $jobId): array
+    {
+        ServiceJob::query()->where('company_id',$company)->findOrFail($jobId);
+        $quotes=DB::table('service_quotes')->where('company_id',$company)
+            ->where('service_job_id',$jobId)->whereNotNull('approved_at')
+            ->whereIn('status',['approved','sent'])
+            ->orderByDesc('id')->limit(20)->get();
+        $availableQuotes=[];
+        foreach($quotes as $q){
+            $items=DB::table('service_quote_items')
+                ->where('service_quote_id',$q->id)->orderBy('position')->get();
+            $lines=[];
+            foreach($items as $item){
+                // Missing prices remain missing, not guessed as CHF 0.
+                $lines[]=['description'=>trim($item->title.
+                    ($item->description?"\n".$item->description:'')).
+                    ($item->dimensions?"\nDimensions: ".$item->dimensions:''),
+                    'quantity'=>$item->quantity,
+                    'unit_price_minor'=>$item->unit_price_minor,
+                    'priced'=>$item->unit_price_minor!==null &&
+                        $item->quantity!==null];
+            }
+            $availableQuotes[]=[
+                'kind'=>'approved_quote','id'=>(int)$q->id,
+                'number'=>$q->custom_quote_number?:$q->reference_number,
+                'vat_basis_points'=>(int)$q->vat_basis_points,
+                'total_minor'=>$q->total_minor===null?null:(int)$q->total_minor,
+                'items'=>$lines,
+            ];
+        }
+        $addenda=DB::table('addenda')->where('company_id',$company)
+            ->where('service_job_id',$jobId)->whereNotNull('signed_at')
+            ->whereNotNull('signed_pdf_sha256')
+            ->orderByDesc('id')->limit(20)->get();
+        $availableAddenda=[];
+        foreach($addenda as $a){
+            $invoiced=DB::table('service_invoice_addenda')
+                ->where('addendum_id',$a->id)->exists();
+            $availableAddenda[]=[
+                'kind'=>'signed_addendum','id'=>(int)$a->id,
+                'number'=>$a->number,'already_invoiced'=>$invoiced,
+                'vat_basis_points'=>(int)$a->vat_basis_points,
+                'total_minor'=>(int)$a->total_minor,
+                'items'=>[[
+                    'description'=>trim($a->title."\n".$a->change_description.
+                        ($a->additional_work?"\n".$a->additional_work:'')),
+                    'quantity'=>$a->quantity,'unit_price_minor'=>$a->unit_price_minor,
+                    'priced'=>$a->quantity!==null&&$a->unit_price_minor!==null,
+                ]],
+            ];
+        }
+        $accepted=DB::table('work_acceptances')
+            ->where('company_id',$company)->where('service_job_id',$jobId)
+            ->whereNotNull('signed_at')->orderByDesc('id')->limit(20)
+            ->get(['id','number','completed_work','completion_date','acceptance_result']);
+        return ['job_id'=>$jobId,'currency'=>'CHF',
+            'quotes'=>$availableQuotes,'addenda'=>$availableAddenda,
+            // Accepted work describes scope only; never assume labour prices.
+            'completed_work'=>$accepted->map(fn($w)=>[
+                'id'=>(int)$w->id,'number'=>$w->number,
+                'description'=>$w->completed_work,'date'=>$w->completion_date,
+                'pricing_available'=>false,
+            ])->all(),
+        ];
+    }
+
     public function availableDeposits(int $company,int $job): array
     {
         ServiceJob::query()->where('company_id',$company)->findOrFail($job);
@@ -214,6 +280,8 @@ final class InvoiceService
         $fields=$request->validate([
             'job_id'=>['required','integer','min:1'],
             'quote_id'=>['nullable','integer','min:1'],
+            'addenda_ids'=>['sometimes','array','max:20'],
+            'addenda_ids.*'=>['integer','min:1','distinct'],
             'invoice_number'=>['nullable','string','max:50','regex:/^[A-Za-z0-9._\/-]+$/D'],
             'invoice_type'=>['required',Rule::in(['deposit','final'])],
             'invoice_date'=>['required','date_format:Y-m-d'],
@@ -253,7 +321,7 @@ final class InvoiceService
             $fields['invoice_type'],$fields['invoice_number']??null,
             $fields['invoice_date'],$fields['due_date'],$fields['vat_basis_points'],
             trim((string)($fields['iban']??'')),trim((string)($fields['notes']??'')),
-            trim((string)($fields['terms']??'')),$items,$alloc,
+            trim((string)($fields['terms']??'')),array_values($fields['addenda_ids']??[]),$items,$alloc,
         ],JSON_THROW_ON_ERROR));
         $actor=$request->user()?->id;
         $replayed=false;
@@ -283,6 +351,23 @@ final class InvoiceService
                 abort_unless($quote->approved_at!==null &&
                     in_array($quote->status,['approved','sent'],true),422,
                     'Only approved job quotes can be invoice sources.');
+            }
+            $linkedAddenda=array_map('intval',$fields['addenda_ids']??[]);
+            if($linkedAddenda!==[]){
+                abort_unless($fields['invoice_type']==='final',422,
+                    'Only final invoices may include signed addenda.');
+                $verified=DB::table('addenda')->where('company_id',$company->id)
+                    ->where('service_job_id',$job->id)
+                    ->whereIn('id',$linkedAddenda)
+                    ->whereNotNull('signed_at')
+                    ->whereNotNull('signed_pdf_sha256')->pluck('id')
+                    ->map(fn($n)=>(int)$n)->all();
+                abort_unless(count($verified)===count($linkedAddenda),422,
+                    'All addenda must be signed originals for the same job.');
+                $used=DB::table('service_invoice_addenda')
+                    ->whereIn('addendum_id',$linkedAddenda);
+                if($id!==null)$used->where('service_invoice_id','!=',$id);
+                abort_if($used->exists(),409,'A signed addendum was already invoiced.');
             }
             $value=[
                 'invoice_date'=>$fields['invoice_date'],
@@ -350,6 +435,14 @@ final class InvoiceService
                     'service_invoice_id'=>$created,
                 ]));
             }
+            DB::table('service_invoice_addenda')
+                ->where('service_invoice_id',$created)->delete();
+            foreach($linkedAddenda as $addendum){
+                DB::table('service_invoice_addenda')->insert([
+                    'company_id'=>$company->id,'service_invoice_id'=>$created,
+                    'addendum_id'=>$addendum,'created_at'=>now(),
+                ]);
+            }
             if($alloc){
                 $remaining=$total;
                 $available=DB::table('job_deposits as d')
@@ -375,7 +468,7 @@ final class InvoiceService
             }
             $this->event($company->id,$created,$actor,$id===null?'draft_created':'draft_updated',[
                 'total_minor'=>$total,'source_quote_id'=>$quoteId,
-                'allocations_enabled'=>$alloc,
+                'allocations_enabled'=>$alloc,'source_addenda_ids'=>$linkedAddenda,
             ]);
             return $this->find($company->id,$created);
         });
@@ -514,6 +607,8 @@ final class InvoiceService
                 ->where('status','recorded')->exists(),409,
                 'Recorded payments must be reconciled before voiding.');
             DB::table('service_invoice_deposit_allocations')
+                ->where('service_invoice_id',$invoice)->delete();
+            DB::table('service_invoice_addenda')
                 ->where('service_invoice_id',$invoice)->delete();
             DB::table('service_invoices')->where('id',$invoice)->update([
                 'status'=>'void','voided_at'=>now(),
