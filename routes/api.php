@@ -421,6 +421,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/equipment-loans/{loan}/events',[\App\Http\Controllers\Api\EquipmentLoanController::class,'history'])->whereNumber('loan');
         });
         Route::middleware(['company.access','company.permission:equipment.write'])->group(function (): void {
+            Route::post('/equipment/voice/prepare',[\App\Http\Controllers\Api\EquipmentController::class,'voice'])->middleware('throttle:4,1');
             Route::post('/equipment',[\App\Http\Controllers\Api\EquipmentController::class,'store'])->middleware('throttle:15,1');
             Route::patch('/equipment/{equipment}',[\App\Http\Controllers\Api\EquipmentController::class,'update'])->whereNumber('equipment');
             Route::post('/equipment/{equipment}/archive',[\App\Http\Controllers\Api\EquipmentController::class,'archive'])->whereNumber('equipment');

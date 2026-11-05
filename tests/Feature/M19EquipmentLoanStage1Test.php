@@ -280,4 +280,16 @@ final class M19EquipmentLoanStage1Test extends TestCase
         $this->assertDatabaseCount('equipment_assets',2);
     }
 
+    public function test_asset_voice_missing_provider_key_preserves_manual_workflow(): void
+    {
+        $this->setupTenant();
+        config(['services.openai.key'=>'']);
+        $this->postJson('/api/v1/equipment/voice/prepare',[
+            'file'=>UploadedFile::fake()->createWithContent('asset.wav',
+                'RIFF'.str_repeat("\0",4).'WAVE'.str_repeat('x',64)),
+        ])->assertStatus(503);
+        $this->makeAsset('ASSET-MANUAL');
+        $this->assertDatabaseHas('equipment_assets',['code'=>'ASSET-MANUAL']);
+    }
+
 }

@@ -68,6 +68,11 @@ final class EquipmentController extends Controller
         return $this->respond(['asset'=>$this->service->maintenance(
             $request,$this->company($request),$equipment)],201);
     }
+    public function voice(Request $request,\App\Services\EquipmentLoanVoiceService $voice): JsonResponse
+    {
+        return $this->respond($voice->prepareAsset($request,$this->company($request)));
+    }
+
     public function photo(Request $request,int $equipment): JsonResponse
     {
         return $this->respond(['asset'=>$this->service->addPhoto(
