@@ -7,7 +7,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#FFFFFF">
   <title>@yield('title', 'Overview') | Sign2Digital Admin</title>
-  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=4">
+  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=5">
 </head>
 <body class="admin-body hope-ui-adapt">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -47,8 +47,6 @@
       <a class="side-link {{ request()->routeIs('admin.equipment.*') ? 'active' : '' }}" href="{{ route('admin.equipment.index') }}" @if(request()->routeIs('admin.equipment.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Equipment &amp; Loans Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.reminders.*') ? 'active' : '' }}" href="{{ route('admin.reminders.index') }}" @if(request()->routeIs('admin.reminders.*')) aria-current="page" @endif><x-admin.icon name="history" /><span>Reminders Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}" href="{{ route('admin.notifications.index') }}" @if(request()->routeIs('admin.notifications.*')) aria-current="page" @endif><x-admin.icon name="history" /><span>Notifications &amp; Templates</span></a>
-        <a href="{{ route('admin.reminders.index') }}" class="{{ request()->routeIs('admin.reminders.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Reminders Management</a>
-        <a href="{{ route('admin.notifications.index') }}" class="{{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Notifications &amp; Templates</a>
       <a class="side-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}" href="{{ route('admin.reports.index') }}" @if(request()->routeIs('admin.reports.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Reports Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.addenda.*') ? 'active' : '' }}" href="{{ route('admin.addenda.index') }}" @if(request()->routeIs('admin.addenda.*')) aria-current="page" @endif>
         <x-admin.icon name="briefcase" /><span>Addenda Management</span>
@@ -114,6 +112,9 @@
       <a href="{{ route('admin.deposits.index') }}" class="{{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Deposit Management</a>
       <a href="{{ route('admin.invoices.index') }}" class="{{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Invoice Management</a>
       <a href="{{ route('admin.expenses.index') }}" class="{{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Expenses Management</a>
+        <a href="{{ route('admin.equipment.index') }}" class="{{ request()->routeIs('admin.equipment.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Equipment &amp; Loans Management</a>
+        <a href="{{ route('admin.reminders.index') }}" class="{{ request()->routeIs('admin.reminders.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Reminders Management</a>
+        <a href="{{ route('admin.notifications.index') }}" class="{{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Notifications &amp; Templates</a>
       <a href="{{ route('admin.reports.index') }}" class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Reports Management</a>
         <a href="{{ route('admin.addenda.index') }}" class="{{ request()->routeIs('admin.addenda.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Addenda Management</a>
         <a href="{{ route('admin.signatures.index') }}" class="{{ request()->routeIs('admin.signatures.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Digital Signatures</a>
@@ -144,9 +145,56 @@
         </div>
       @endif
       @yield('content')
-      <footer class="admin-footer">Sign2Digital <span>·</span> Secure management console</footer>
+      <footer class="admin-footer">Sign2Digital</footer>
     </main>
   </div>
 </div>
+
+<dialog id="admin-confirm-dialog" class="admin-confirm-dialog" aria-labelledby="admin-confirm-title" aria-describedby="admin-confirm-message">
+  <div class="admin-confirm-inner">
+    <div class="admin-confirm-icon" aria-hidden="true"><x-admin.icon name="alert-circle" /></div>
+    <h2 id="admin-confirm-title">Confirm action</h2>
+    <p id="admin-confirm-message"></p>
+    <div class="admin-confirm-actions">
+      <button type="button" class="btn btn-outline" id="admin-confirm-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="admin-confirm-approve">Confirm</button>
+    </div>
+  </div>
+</dialog>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const dialog = document.getElementById('admin-confirm-dialog');
+  const message = document.getElementById('admin-confirm-message');
+  const cancel = document.getElementById('admin-confirm-cancel');
+  const approve = document.getElementById('admin-confirm-approve');
+  let pending = null;
+  document.addEventListener('submit', function (event) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-confirm')) return;
+    if (form.dataset.confirmApproved === '1') {
+      delete form.dataset.confirmApproved;
+      return;
+    }
+    event.preventDefault();
+    pending = { form: form, submitter: event.submitter };
+    message.textContent = form.getAttribute('data-confirm') || 'Proceed with this action?';
+    dialog.showModal();
+    cancel.focus();
+  }, true);
+  cancel.addEventListener('click', function () { dialog.close(); });
+  dialog.addEventListener('close', function () { pending = null; });
+  approve.addEventListener('click', function () {
+    const choice = pending;
+    dialog.close();
+    if (!choice || !choice.form.isConnected) return;
+    choice.form.dataset.confirmApproved = '1';
+    if (choice.submitter && choice.submitter.form === choice.form) {
+      choice.form.requestSubmit(choice.submitter);
+    } else {
+      choice.form.requestSubmit();
+    }
+  });
+});
+</script>
 </body>
 </html>
