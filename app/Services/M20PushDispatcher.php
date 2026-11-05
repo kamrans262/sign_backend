@@ -28,6 +28,15 @@ final class M20PushDispatcher
                 $join->on('r.company_id', '=', 'p.company_id')
                     ->on('r.owner_user_id', '=', 'p.user_id');
             })
+            ->join('companies as company', 'company.id', '=', 'r.company_id')
+            ->join('company_user as membership', function ($join): void {
+                $join->on('membership.company_id', '=', 'r.company_id')
+                    ->on('membership.user_id', '=', 'r.owner_user_id');
+            })
+            ->join('users as recipient', 'recipient.id', '=', 'r.owner_user_id')
+            ->where('company.status', 'active')
+            ->where('membership.status', 'active')
+            ->where('recipient.is_active', true)
             ->where('r.status', 'active')->where('r.send_notification', true)
             ->where(function ($q): void {
                 $q->where(fn ($due) => $due->whereNotNull('r.due_at')->where('r.due_at', '<=', now())
@@ -47,6 +56,16 @@ final class M20PushDispatcher
                     ->on('n.recipient_user_id', '=', 'p.user_id');
             })
             ->where('p.push_enabled', true)
+            ->whereExists(function ($q): void {
+                $q->selectRaw('1')->from('company_user as cu')
+                    ->join('companies as c', 'c.id', '=', 'cu.company_id')
+                    ->join('users as u', 'u.id', '=', 'cu.user_id')
+                    ->whereColumn('cu.company_id', 'n.company_id')
+                    ->whereColumn('cu.user_id', 'n.recipient_user_id')
+                    ->where('cu.status', 'active')
+                    ->where('c.status', 'active')
+                    ->where('u.is_active', true);
+            })
             ->whereExists(function ($q): void {
                 $q->selectRaw('1')->from('m20_push_devices as d')
                     ->whereColumn('d.company_id', 'n.company_id')
@@ -123,7 +142,17 @@ final class M20PushDispatcher
                     || !$when || $when > now()->toDateTimeString());
                 $staleBusiness = $notification && !$notification->reminder_id
                     && !$this->business->actionable($notification);
-                if (!$notification || !$device || !$device->enabled || !$pref || !$pref->push_enabled
+                // Revoke queued deliveries if membership or account access was
+                // removed since the notification was created.
+                $authorized = $notification && DB::table('company_user as cu')
+                    ->join('companies as c', 'c.id', '=', 'cu.company_id')
+                    ->join('users as u', 'u.id', '=', 'cu.user_id')
+                    ->where('cu.company_id', $notification->company_id)
+                    ->where('cu.user_id', $notification->recipient_user_id)
+                    ->where('cu.status', 'active')
+                    ->where('c.status', 'active')
+                    ->where('u.is_active', true)->exists();
+                if (!$authorized || !$notification || !$device || !$device->enabled || !$pref || !$pref->push_enabled
                     || $device->company_id !== $notification->company_id
                     || $device->user_id !== $notification->recipient_user_id
                     || $staleReminder || $staleBusiness) {

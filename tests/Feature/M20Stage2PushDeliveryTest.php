@@ -249,4 +249,39 @@ final class M20Stage2PushDeliveryTest extends TestCase
             ->assertDontSee(str_repeat('fcm-token-', 12));
     }
 
+    public function test_revoked_company_membership_blocks_already_queued_push(): void
+    {
+        $this->ready(true);
+        [$user, $company] = $this->tenant();
+        $this->register();
+        $this->putJson('/api/v1/notification-preferences', [
+            'in_app_enabled' => true, 'push_enabled' => true,
+            'locale' => 'en', 'timezone' => 'UTC',
+        ])->assertOk();
+        $this->postJson('/api/v1/reminders', [
+            'title' => 'Revoked membership', 'type' => 'other',
+            'due_at' => now()->subHour()->toIso8601String(),
+            'send_notification' => true,
+        ])->assertCreated();
+        $this->getJson('/api/v1/notifications')->assertOk();
+        $notificationId = DB::table('m20_notifications')->value('id');
+        $deviceId = DB::table('m20_push_devices')->value('id');
+        DB::table('m20_push_deliveries')->insert([
+            'notification_id' => $notificationId,
+            'device_id' => $deviceId,
+            'title' => 'Sign2Digital', 'body' => 'Open the application.',
+            'status' => 'pending', 'attempts' => 0,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        // A notification was already enqueued before access was removed.
+        DB::table('company_user')->where('company_id', $company->id)
+            ->where('user_id', $user->id)->update(['status' => 'removed']);
+        Http::fake();
+        $result = app(M20PushDispatcher::class)->process(40, true);
+        $this->assertSame(0, $result['sent']);
+        Http::assertNothingSent();
+        $this->assertSame('revoked',
+            DB::table('m20_push_deliveries')->first()->status);
+    }
+
 }
