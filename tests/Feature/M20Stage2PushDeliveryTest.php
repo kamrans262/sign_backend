@@ -284,4 +284,55 @@ final class M20Stage2PushDeliveryTest extends TestCase
             DB::table('m20_push_deliveries')->first()->status);
     }
 
+
+    public function test_admin_published_push_copy_is_used_without_rebuilding_mobile(): void
+    {
+        $this->ready(true);
+        [$user, $company] = $this->tenant();
+        $template = DB::table('m20_notification_templates')
+            ->where('template_key', 'reminder.due')
+            ->where('channel', 'push')->where('locale', 'en')->first();
+        $admin = User::factory()->create([
+            'is_active' => true, 'is_platform_admin' => true,
+        ]);
+        $this->actingAs($admin);
+        $this->post('/admin/notifications/templates/'.$template->id.'/draft', [
+            'draft_title' => 'Admin changed reminder heading',
+            'draft_body' => 'Please open Sign2Digital for an update.',
+            'draft_revision' => $template->draft_revision,
+        ])->assertRedirect();
+        $this->post('/admin/notifications/templates/'.$template->id.'/publish', [
+            'confirm' => '1',
+        ])->assertRedirect();
+
+        Sanctum::actingAs($user);
+        $this->withHeader('X-Company-Id', (string) $company->id);
+        $this->register();
+        $this->putJson('/api/v1/notification-preferences', [
+            'in_app_enabled' => true, 'push_enabled' => true,
+            'locale' => 'en', 'timezone' => 'UTC',
+        ])->assertOk();
+        $this->postJson('/api/v1/reminders', [
+            'title' => 'Client details must stay private',
+            'type' => 'other', 'due_at' => now()->subHour()->toIso8601String(),
+            'send_notification' => true,
+        ])->assertCreated();
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response([
+                'access_token' => 'mock-copy-acceptance', 'expires_in' => 3600,
+            ]),
+            'https://fcm.googleapis.com/v1/projects/sign-kamran/messages:send' =>
+                Http::response(['name' => 'projects/sign-kamran/messages/copy'], 200),
+        ]);
+        $this->assertSame(1, app(M20PushDispatcher::class)->process(20, true)['sent']);
+        $this->assertSame('Admin changed reminder heading',
+            DB::table('m20_push_deliveries')->first()->title);
+        $this->assertSame('Please open Sign2Digital for an update.',
+            DB::table('m20_push_deliveries')->first()->body);
+        Http::assertSent(fn ($request) =>
+            str_contains($request->url(), 'messages:send')
+            && $request['message']['notification']['title'] === 'Admin changed reminder heading'
+            && $request['message']['notification']['body'] ===
+                'Please open Sign2Digital for an update.');
+    }
 }
