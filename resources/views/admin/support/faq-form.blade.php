@@ -24,5 +24,5 @@
 <div class="form-actions"><button class="btn btn-primary">Save FAQ</button></div>
 </section></form>
 @if($item)<section class="panel"><form method="post" action="{{ route('admin.support.faq.delete',$item->id) }}">@csrf
-<button class="btn btn-outline" onclick="return confirm('Delete this FAQ?')">Delete FAQ</button></form></section>@endif
+<button class="btn btn-outline" data-confirm="Delete this FAQ?">Delete FAQ</button></form></section>@endif
 @endsection
