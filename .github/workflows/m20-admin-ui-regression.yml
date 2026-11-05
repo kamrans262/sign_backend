@@ -1,0 +1,36 @@
+name: M20 Admin UI Regression
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  admin-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, openssl, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: PHP, Blade and Admin UI regression checks
+        run: |
+          php -l tests/Feature/AdminUiConsistencyTest.php
+          php artisan view:cache
+          php artisan test tests/Feature/AdminUiConsistencyTest.php
+      - name: Confirm modal JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          content = Path('resources/views/admin/layout.blade.php').read_text()
+          match = re.search(r'<script>(.*?)</script>', content, re.S)
+          assert match, 'Admin confirmation script missing'
+          Path('/tmp/sign2digital-confirm.js').write_text(match.group(1))
+          PY
+          node --check /tmp/sign2digital-confirm.js
