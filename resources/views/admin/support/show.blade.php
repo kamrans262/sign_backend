@@ -21,7 +21,11 @@
 </section>
 <section class="panel"><div class="panel-header"><h2>Conversation and Private Notes</h2></div>
 @forelse($replies as $reply)
-<div class="panel-header"><div><strong>{{ $reply->author_name }}</strong><div class="muted">{{ $reply->created_at }} @if($reply->internal)· Private staff note@endif</div>
+<div class="panel-header"><div><strong>{{ $reply->author_name }}</strong><div class="muted">{{ $reply->created_at }}
+@if($reply->internal)
+ · Private staff note
+@endif
+</div>
 <p>{{ $reply->body }}</p></div></div>
 @empty
 <p class="muted">No replies yet.</p>
