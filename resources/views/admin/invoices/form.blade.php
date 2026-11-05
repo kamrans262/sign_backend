@@ -9,6 +9,7 @@ $editing=isset($record);
 $invoice=$editing?$record['invoice']:null;
 $draft=!$editing||$invoice['lifecycle_status']==='draft';
 $items=old('items',$editing?$record['items']:[]);
+$selectedAddenda=old('addenda_ids',$editing?$invoice['source_addenda_ids']:[]);
 @endphp
 <section class="panel"><div class="panel-header"><div>
 <h2>{{ $editing?$invoice['number']:'Create Draft Invoice' }}</h2>
@@ -38,6 +39,14 @@ $items=old('items',$editing?$record['items']:[]);
 @foreach($quotes as $quote)<option value="{{ $quote->id }}" @selected(old('quote_id',$invoice['quote_id']??'')==$quote->id)>
 {{ $quote->reference_number }} · Job #{{ $quote->service_job_id }} · Company #{{ $quote->company_id }}</option>@endforeach
 </select>@if($editing && $invoice['quote_id'])<input type="hidden" name="quote_id" value="{{ $invoice['quote_id'] }}">@endif</label>
+<label>Signed Addenda (optional, final invoices only)
+<select class="input" name="addenda_ids[]" multiple size="5">
+@foreach($addenda as $addendum)
+<option value="{{ $addendum->id }}" @selected(in_array($addendum->id,array_map('intval',$selectedAddenda)))>
+{{ $addendum->number }} · {{ $addendum->title }} · Job #{{ $addendum->service_job_id }} (Company #{{ $addendum->company_id }})
+</option>
+@endforeach
+</select><small>Hold Ctrl / Command to select multiple signed addenda. Already invoiced items are rejected.</small></label>
 <label>Invoice Type <select name="invoice_type" class="input" required>
 @foreach(['final'=>'Final Invoice','deposit'=>'Deposit Invoice'] as $key=>$label)
 <option value="{{ $key }}" @selected(old('invoice_type',$invoice['type']??'final')===$key)>{{ $label }}</option>@endforeach</select></label>
@@ -48,7 +57,7 @@ $items=old('items',$editing?$record['items']:[]);
 <label>IBAN <input class="input" name="iban" maxlength="64" value="{{ old('iban',$invoice['iban']??'') }}"></label>
 <label>Notes <textarea class="input" name="notes" rows="3" maxlength="12000">{{ old('notes',$invoice['notes']??'') }}</textarea></label>
 <label>Terms <textarea class="input" name="terms" rows="3" maxlength="12000">{{ old('terms',$invoice['terms']??'') }}</textarea></label>
-<label><input type="checkbox" name="allocate_deposits" value="1" @checked(old('allocate_deposits',!$editing&&($invoice['type']??'final')==='final'))>
+<label><input type="checkbox" name="allocate_deposits" value="1" @checked(old('allocate_deposits',($invoice['type']??'final')==='final'))>
  Apply available, actually received M16 job deposits once (final invoices only)</label>
 <div style="grid-column:1/-1"><h3>Invoice Items</h3><p class="muted">Price values use CHF cents (9900 = CHF 99.00). Add up to 10 lines here; more are supported through the API.</p>
 <div class="table-wrap"><table><thead><tr><th>#</th><th>Description</th><th>Quantity</th><th>Unit price (cents)</th></tr></thead><tbody>
