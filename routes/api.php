@@ -245,6 +245,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         Route::middleware(['company.access','company.permission:documents.read',
             'company.permission:jobs.read'])->group(function (): void {
             Route::get('/invoices', [\App\Http\Controllers\Api\InvoiceController::class,'index']);
+            Route::get('/jobs/{job}/invoice-deposits', [\App\Http\Controllers\Api\InvoiceController::class,'availableDeposits'])->whereNumber('job');
             Route::get('/invoices/{invoice}', [\App\Http\Controllers\Api\InvoiceController::class,'show'])->whereNumber('invoice');
             Route::get('/invoices/{invoice}/attachments/{attachment}', [\App\Http\Controllers\Api\InvoiceController::class,'attachment'])->whereNumber('invoice')->whereNumber('attachment')->middleware('throttle:30,1');
         });
