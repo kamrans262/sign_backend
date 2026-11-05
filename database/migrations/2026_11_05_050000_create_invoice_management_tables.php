@@ -88,6 +88,15 @@ return new class extends Migration
             $t->unique('job_deposit_id','m17_deposit_allocated_once');
             $t->index(['company_id','service_invoice_id'],'m17_invoice_allocations');
         });
+        Schema::create('service_invoice_addenda',function(Blueprint $t):void{
+            $t->id();
+            $t->foreignId('company_id')->constrained()->restrictOnDelete();
+            $t->foreignId('service_invoice_id')->constrained('service_invoices')->restrictOnDelete();
+            $t->foreignId('addendum_id')->constrained('addenda')->restrictOnDelete();
+            $t->timestamp('created_at')->useCurrent();
+            $t->unique('addendum_id','m17_addendum_invoiced_once');
+            $t->index(['company_id','service_invoice_id'],'m17_invoice_addendum_links');
+        });
         Schema::create('service_invoice_events',function(Blueprint $t):void{
             $t->id();
             $t->foreignId('company_id')->constrained()->restrictOnDelete();
@@ -117,6 +126,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('service_invoice_attachments');
         Schema::dropIfExists('service_invoice_events');
+        Schema::dropIfExists('service_invoice_addenda');
         Schema::dropIfExists('service_invoice_deposit_allocations');
         Schema::dropIfExists('service_invoice_payments');
         Schema::dropIfExists('service_invoice_items');
