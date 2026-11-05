@@ -107,6 +107,20 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/time-labour/{entry}/evidence/{evidence}', [\App\Http\Controllers\Admin\LabourController::class,'removeEvidence'])->whereNumber('entry')->whereNumber('evidence')->name('labour.evidence.remove');
         Route::post('/time-labour/timer/{company}/{worker}/stop', [\App\Http\Controllers\Admin\LabourController::class,'stopTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.stop');
         Route::post('/time-labour/timer/{company}/{worker}/recover', [\App\Http\Controllers\Admin\LabourController::class,'recoverTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.recover');
+        // M17: Admin invoice ledger and manual reconciliation.
+        Route::get('/invoices', [\App\Http\Controllers\Admin\InvoiceController::class,'index'])->name('invoices.index');
+        Route::get('/invoices/export', [\App\Http\Controllers\Admin\InvoiceController::class,'export'])->name('invoices.export');
+        Route::get('/invoices/create', [\App\Http\Controllers\Admin\InvoiceController::class,'create'])->name('invoices.create');
+        Route::post('/invoices', [\App\Http\Controllers\Admin\InvoiceController::class,'store'])->name('invoices.store');
+        Route::get('/invoices/{invoice}/edit', [\App\Http\Controllers\Admin\InvoiceController::class,'edit'])->whereNumber('invoice')->name('invoices.edit');
+        Route::patch('/invoices/{invoice}', [\App\Http\Controllers\Admin\InvoiceController::class,'update'])->whereNumber('invoice')->name('invoices.update');
+        Route::post('/invoices/{invoice}/approve', [\App\Http\Controllers\Admin\InvoiceController::class,'approve'])->whereNumber('invoice')->name('invoices.approve');
+        Route::post('/invoices/{invoice}/payments', [\App\Http\Controllers\Admin\InvoiceController::class,'payment'])->whereNumber('invoice')->name('invoices.payment');
+        Route::post('/invoices/{invoice}/payments/{payment}/void', [\App\Http\Controllers\Admin\InvoiceController::class,'voidPayment'])->whereNumber('invoice')->whereNumber('payment')->name('invoices.voidPayment');
+        Route::post('/invoices/{invoice}/void', [\App\Http\Controllers\Admin\InvoiceController::class,'voidInvoice'])->whereNumber('invoice')->name('invoices.voidInvoice');
+        Route::post('/invoices/{invoice}/attachments', [\App\Http\Controllers\Admin\InvoiceController::class,'upload'])->whereNumber('invoice')->name('invoices.upload');
+        Route::get('/invoices/{invoice}/attachments/{attachment}', [\App\Http\Controllers\Admin\InvoiceController::class,'attachment'])->whereNumber('invoice')->whereNumber('attachment')->name('invoices.attachment');
+        Route::delete('/invoices/{invoice}/attachments/{attachment}', [\App\Http\Controllers\Admin\InvoiceController::class,'removeAttachment'])->whereNumber('invoice')->whereNumber('attachment')->name('invoices.removeAttachment');
         // M16: manual deposit management under existing platform administrator guard.
         Route::get('/deposits', [\App\Http\Controllers\Admin\DepositController::class,'index'])->name('deposits.index');
         Route::get('/deposits/export', [\App\Http\Controllers\Admin\DepositController::class,'export'])->name('deposits.export');
