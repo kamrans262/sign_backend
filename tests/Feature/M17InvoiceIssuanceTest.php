@@ -61,7 +61,7 @@ final class M17InvoiceIssuanceTest extends TestCase
         $this->assertStringStartsWith('%PDF-',$body);
         $this->assertSame($first['sha256'],hash('sha256',$body));
         $this->get($url.'/pdf/download')->assertOk()
-            ->assertHeader('Cache-Control','private, no-store, max-age=0');
+            ->assertHeader('Cache-Control','max-age=0, no-store, private');
         $this->postJson($url.'/void',[
             'confirm'=>true,'lock_version'=>2,'reason'=>'Please void this issue',
         ])->assertStatus(409);
@@ -110,6 +110,9 @@ final class M17InvoiceIssuanceTest extends TestCase
 
     public function test_delivery_requires_real_transport_and_never_fabricates_success(): void
     {
+        // This test exercises retries deliberately; route throttling is tested
+        // separately and must not mask the idempotency assertions.
+        $this->withoutMiddleware(\\Illuminate\\Routing\\Middleware\\ThrottleRequests::class);
         Storage::fake('local');
         [$owner,$company,$id]=$this->readyInvoice();
         $url='/api/v1/invoices/'.$id;
