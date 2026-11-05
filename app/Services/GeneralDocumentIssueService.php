@@ -459,6 +459,29 @@ final class GeneralDocumentIssueService
         return [$item,$issue];
     }
 
+    /** Track the first authenticated-capability customer view exactly once. */
+    public function openSigning(Request $request,string $token): array
+    {
+        [$item,$issue]=$this->signing($token,false);
+        if($item->status==='ready'){
+            DB::transaction(function()use($item,$issue,$request):void{
+                $current=DB::table('general_document_signature_requests')
+                    ->where('id',$item->id)->lockForUpdate()->firstOrFail();
+                if($current->status!=='ready')return;
+                abort_unless($current->revoked_at===null
+                    && \Illuminate\Support\Carbon::parse($current->expires_at)->isFuture(),
+                    410,'Signing link expired.');
+                DB::table('general_document_signature_requests')
+                    ->where('id',$current->id)->update([
+                        'status'=>'viewed','viewed_at'=>now(),'updated_at'=>now(),
+                    ]);
+                $this->event($issue->company_id,$issue->general_document_id,null,
+                    'signature_link_viewed',['signature_request_id'=>$current->id]);
+            });
+        }
+        return $this->signingSummary($token);
+    }
+
     public function signingSummary(string $token): array
     {
         [$s,$issue]=$this->signing($token,false);
