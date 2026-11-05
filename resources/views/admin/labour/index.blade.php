@@ -10,7 +10,7 @@
 <section class="panel">
 <div class="panel-header"><div><h2>Time & Labour Tracking</h2><p class="panel-header-hint">{{ number_format($result['total']) }} records · All company scopes</p></div>
 <a class="btn btn-outline" href="{{ route('admin.labour.export',request()->except('page')) }}">Export CSV</a></div>
-<div class="toolbar"><form class="search" action="{{ route('admin.labour.index') }}" method="get">
+<div class="toolbar"><form class="search admin-labour-filters" action="{{ route('admin.labour.index') }}" method="get">
 <input class="input" name="q" type="search" placeholder="Worker, job, reference or task" value="{{ $filters['q']??'' }}">
 <select class="input" name="company_id"><option value="">All Companies</option>
 @foreach($companies as $company)<option value="{{ $company->id }}" @selected(($filters['company_id']??'')==$company->id)>{{ $company->name }}</option>@endforeach
@@ -27,7 +27,7 @@
 </select>
 <input class="input" name="from" type="date" aria-label="From date" value="{{ $filters['from']??'' }}">
 <input class="input" name="to" type="date" aria-label="To date" value="{{ $filters['to']??'' }}">
-<button class="btn btn-primary">Filter</button><a class="btn btn-outline" href="{{ route('admin.labour.index') }}">Clear</a>
+<div class="admin-labour-filter-actions"><button class="btn btn-primary">Filter</button><a class="btn btn-outline" href="{{ route('admin.labour.index') }}">Clear</a></div>
 </form></div>
 <div class="table-wrap"><table><thead><tr><th>ID</th><th>Job</th><th>Worker</th><th>Type</th><th>Date</th><th>Minutes</th><th>Rate CHF</th><th>Cost CHF</th><th>Status</th><th>Action</th></tr></thead><tbody>
 @forelse($result['records'] as $record)
