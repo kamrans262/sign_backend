@@ -78,12 +78,12 @@ $selectedAddenda=old('addenda_ids',$editing?$invoice['source_addenda_ids']:[]);
 <section class="panel"><div class="panel-header"><h2>Review & Financial Actions</h2></div>
 <div class="toolbar">
 @if($invoice['lifecycle_status']==='draft')
-<form method="post" action="{{ route('admin.invoices.approve',$invoice['id']) }}" onsubmit="return confirm('Approve and lock the reviewed invoice?')">@csrf
+<form method="post" action="{{ route('admin.invoices.approve',$invoice['id']) }}" data-confirm="Approve and lock the reviewed invoice?">@csrf
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $invoice['lock_version'] }}">
 <button class="btn btn-primary">Approve Invoice</button></form>
 @endif
 @if(in_array($invoice['lifecycle_status'],['draft','approved'],true) && $invoice['received_minor']===0)
-<form method="post" action="{{ route('admin.invoices.voidInvoice',$invoice['id']) }}" onsubmit="return confirm('Void invoice and retain history?')">@csrf
+<form method="post" action="{{ route('admin.invoices.voidInvoice',$invoice['id']) }}" data-confirm="Void invoice and retain history?">@csrf
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $invoice['lock_version'] }}">
 <input class="input" name="reason" minlength="8" maxlength="2000" required placeholder="Reason for void">
 <button class="btn btn-outline">Void Invoice</button></form>
@@ -91,7 +91,7 @@ $selectedAddenda=old('addenda_ids',$editing?$invoice['source_addenda_ids']:[]);
 </div></section>
 @if(in_array($invoice['lifecycle_status'],['approved','sent'],true) && $invoice['amount_due_minor']>0)
 <section class="panel"><div class="panel-header"><h2>Record a Manual Payment</h2></div>
-<form class="toolbar" method="post" action="{{ route('admin.invoices.payment',$invoice['id']) }}" onsubmit="return confirm('Has the money already been received outside Sign2Digital?')">@csrf
+<form class="toolbar" method="post" action="{{ route('admin.invoices.payment',$invoice['id']) }}" data-confirm="Has the money already been received outside Sign2Digital?">@csrf
 <input type="hidden" name="confirm" value="1">
 <input type="hidden" name="request_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}">
 <label>Amount CHF <input class="input" name="amount" inputmode="decimal" required placeholder="{{ number_format($invoice['amount_due_minor']/100,2,'.','') }}"></label>
@@ -105,12 +105,12 @@ $selectedAddenda=old('addenda_ids',$editing?$invoice['source_addenda_ids']:[]);
 <section class="panel"><div class="panel-header"><h2>Official Invoice PDF &amp; Delivery</h2></div>
 <div style="padding:20px">
 @if(empty($issuedDocument))
-<form method="post" action="{{ route('admin.invoices.issue',$invoice['id']) }}" onsubmit="return confirm('Issue the final, immutable invoice PDF?')">@csrf
+<form method="post" action="{{ route('admin.invoices.issue',$invoice['id']) }}" data-confirm="Issue the final, immutable invoice PDF?">@csrf
 <input type="hidden" name="confirm" value="1"><button class="btn btn-primary">Issue Official PDF</button></form>
 @else
 <p>Issued revision {{ $issuedDocument->revision }} &mdash; SHA-256: <code>{{ $issuedDocument->pdf_sha256 }}</code></p>
 <a class="btn btn-outline" href="{{ route('admin.invoices.issuedPdf',$invoice['id']) }}">Download Verified PDF</a>
-<form class="toolbar" method="post" action="{{ route('admin.invoices.send',$invoice['id']) }}" onsubmit="return confirm('Send this issued invoice to the specified customer email?')">@csrf
+<form class="toolbar" method="post" action="{{ route('admin.invoices.send',$invoice['id']) }}" data-confirm="Send this issued invoice to the specified customer email?">@csrf
 <input type="hidden" name="request_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}">
 <label>Recipient email <input class="input" type="email" name="recipient_email" maxlength="255" required value="{{ $invoice['client_email'] }}"></label>
 <label>Delivery <select class="input" name="mode"><option value="link">Secure link</option><option value="pdf">Attach verified PDF</option></select></label>
@@ -129,7 +129,7 @@ $selectedAddenda=old('addenda_ids',$editing?$invoice['source_addenda_ids']:[]);
 <tr><td>#{{ $payment['id'] }}</td><td>{{ number_format($payment['amount_minor']/100,2) }}</td>
 <td>{{ $payment['paid_at'] }}</td><td>{{ $payment['method'] }}</td><td>{{ $payment['reference_number'] }}</td>
 <td>{{ $payment['status'] }}</td><td>@if($payment['status']==='paid')
-<form method="post" action="{{ route('admin.invoices.voidPayment',[$invoice['id'],$payment['id']]) }}" onsubmit="return confirm('Void recorded payment, not a bank refund?')">@csrf
+<form method="post" action="{{ route('admin.invoices.voidPayment',[$invoice['id'],$payment['id']]) }}" data-confirm="Void recorded payment, not a bank refund?">@csrf
 <input type="hidden" name="confirm" value="1"><input class="input" name="reason" minlength="8" maxlength="2000" required placeholder="Correction reason">
 <button class="btn btn-small btn-outline">Void Record</button></form>@else Retained @endif</td></tr>
 @empty<tr><td colspan="7">No payments have been confirmed.</td></tr>@endforelse
