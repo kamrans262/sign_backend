@@ -106,6 +106,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::middleware(['auth', 'platform.admin'])->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('/', DashboardController::class)->name('dashboard');
+        Route::get('/search', \App\Http\Controllers\Admin\GlobalSearchController::class)
+            ->middleware('throttle:60,1')->name('search.index');
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
         Route::resource('jobs', \App\Http\Controllers\Admin\ServiceJobController::class)->except(['show']);

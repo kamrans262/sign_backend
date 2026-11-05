@@ -445,6 +445,10 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/equipment-loans/{loan}/return',[\App\Http\Controllers\Api\EquipmentLoanController::class,'returnLoan'])->whereNumber('loan')->middleware('throttle:12,1');
         });
 
+        // M21: permission-filtered, tenant-scoped aggregated search.
+        Route::middleware(['company.access', 'throttle:60,1'])
+            ->get('/search', \App\Http\Controllers\Api\GlobalSearchController::class);
+
         // M20: real company/owner-scoped reminders and in-app notifications.
         // Stage 1 never activates Firebase, SMTP or M19 borrower-email sending.
         Route::middleware('company.access')->group(function (): void {

@@ -23,6 +23,9 @@
       <a class="side-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.dashboard')) aria-current="page" @endif>
         <x-admin.icon name="overview" /><span>Dashboard</span>
       </a>
+      <a class="side-link {{ request()->routeIs('admin.search.*') ? 'active' : '' }}" href="{{ route('admin.search.index') }}" @if(request()->routeIs('admin.search.*')) aria-current="page" @endif>
+        <x-admin.icon name="briefcase" /><span>Global Search</span>
+      </a>
       <a class="side-link {{ request()->routeIs('admin.companies.*') ? 'active' : '' }}" href="{{ route('admin.companies.index') }}" @if(request()->routeIs('admin.companies.*')) aria-current="page" @endif>
         <x-admin.icon name="building" /><span>Company Management</span>
       </a>
