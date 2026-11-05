@@ -70,7 +70,7 @@
 </tbody></table></div></section>
 @if(!$record['current_loan_id'])
 <section class="panel"><div class="panel-header"><h2>Archive Equipment</h2></div>
-<form class="toolbar" method="post" action="{{ route('admin.equipment.archive',$record['id']) }}" onsubmit="return confirm('Archive this equipment? Loan history will remain.')">
+<form class="toolbar" method="post" action="{{ route('admin.equipment.archive',$record['id']) }}" data-confirm="Archive this equipment? Loan history will remain.">
 @csrf<input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}">
 <button class="btn btn-outline">Archive Equipment</button></form></section>
 @endif
