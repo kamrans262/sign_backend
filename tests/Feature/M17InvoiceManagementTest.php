@@ -330,8 +330,58 @@ final class M17InvoiceManagementTest extends TestCase
             'confirm'=>true,'lock_version'=>1,
         ])->assertOk();
         $this->getJson($source)->assertJsonPath('data.available_minor',12000);
+        $this->getJson($source)->assertJsonPath('data.deposit_candidates.0.id',$deposit)
+            ->assertJsonPath('data.deposit_candidates.0.amount_minor',12000);
         $this->createInvoice($job);
         $this->getJson($source)->assertJsonPath('data.available_minor',0);
+    }
+
+    public function test_invoice_allocates_only_whole_deposits_that_fit_and_refunds_remove_credit(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M17 Exact Deposit');
+        $large=(int)$this->postJson('/api/v1/deposits',[
+            'job_id'=>$job,'client_name'=>'Marie Dubois',
+            'amount'=>'120.00','deposit_date'=>'2026-11-05',
+            'payment_method'=>'cash',
+        ])->assertCreated()->json('data.deposit.id');
+        $small=(int)$this->postJson('/api/v1/deposits',[
+            'job_id'=>$job,'client_name'=>'Marie Dubois',
+            'amount'=>'20.00','deposit_date'=>'2026-11-05',
+            'payment_method'=>'cash',
+        ])->assertCreated()->json('data.deposit.id');
+        foreach([$large,$small] as $deposit){
+            $this->postJson('/api/v1/deposits/'.$deposit.'/receive',[
+                'confirm'=>true,'lock_version'=>1,
+            ])->assertOk();
+        }
+        $this->getJson('/api/v1/jobs/'.$job.'/invoice-deposits')
+            ->assertOk()->assertJsonPath('data.available_minor',14000)
+            ->assertJsonPath('data.deposit_candidates.0.amount_minor',12000)
+            ->assertJsonPath('data.deposit_candidates.1.amount_minor',2000);
+        $fields=$this->fields($job,'m17-exact-credit-2026');
+        $fields['vat_basis_points']=0;
+        $fields['items']=[[
+            'description'=>'One priced job item','quantity'=>1,
+            'unit_price_minor'=>10000,
+        ]];
+        $id=(int)$this->postJson('/api/v1/invoices',$fields)
+            ->assertCreated()
+            ->assertJsonPath('data.invoice.total_minor',10000)
+            ->assertJsonPath('data.invoice.deposit_paid_minor',2000)
+            ->assertJsonPath('data.invoice.amount_due_minor',8000)
+            ->json('data.invoice.id');
+        $this->assertDatabaseCount('service_invoice_deposit_allocations',1);
+        $this->assertDatabaseHas('service_invoice_deposit_allocations',[
+            'service_invoice_id'=>$id,'job_deposit_id'=>$small,
+            'amount_minor'=>2000,
+        ]);
+        $this->postJson('/api/v1/deposits/'.$small.'/refund',[
+            'confirm'=>true,'lock_version'=>2,
+            'reason'=>'The deposit was returned to the customer externally.',
+        ])->assertOk();
+        $this->getJson('/api/v1/invoices/'.$id)
+            ->assertOk()->assertJsonPath('data.invoice.deposit_paid_minor',0)
+            ->assertJsonPath('data.invoice.amount_due_minor',10000);
     }
 
     public function test_admin_manual_invoice_creation_and_approval_reuse_server_ledger(): void
