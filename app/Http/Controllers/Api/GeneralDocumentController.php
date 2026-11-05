@@ -87,6 +87,12 @@ final class GeneralDocumentController extends Controller
             $request,$this->company($request))]);
     }
 
+    public function transcribe(Request $request): JsonResponse
+    {
+        return $this->json($this->documents->transcribe(
+            $request,$this->company($request)));
+    }
+
     public function attachment(Request $request,int $document,int $attachment)
     {
         $file=$this->documents->attachmentBytes(

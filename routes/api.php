@@ -257,6 +257,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/general-documents/{document}/attachments', [\App\Http\Controllers\Api\GeneralDocumentController::class,'upload'])->whereNumber('document')->middleware('throttle:20,1');
             Route::delete('/general-documents/{document}/attachments/{attachment}', [\App\Http\Controllers\Api\GeneralDocumentController::class,'removeAttachment'])->whereNumber('document')->whereNumber('attachment');
             Route::post('/general-documents/ai/prepare', [\App\Http\Controllers\Api\GeneralDocumentController::class,'ai'])->middleware('throttle:6,1');
+            Route::post('/general-documents/voice/transcribe', [\App\Http\Controllers\Api\GeneralDocumentController::class,'transcribe'])->middleware('throttle:6,1');
         });
         // M17: invoice reads and explicit manual payment ledger, no gateway.
         Route::middleware(['company.access','company.permission:documents.read',

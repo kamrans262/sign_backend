@@ -476,4 +476,41 @@ final class GeneralDocumentService
             'blocks'=>$blocks,'source'=>'ai_draft','saved'=>false,
             'approved'=>false,'requires_user_review'=>true];
     }
+    /** User-opted-in M18 dictation; only a temporary, unapproved suggestion. */
+    public function transcribe(Request $request,Company $company): array
+    {
+        $this->actor($request,$company);
+        $data=$request->validate([
+            'file'=>['required','file','mimes:m4a,mp4,aac,wav','max:25600'],
+        ]);
+        $file=$data['file'];
+        $bytes=file_get_contents($file->getRealPath());
+        abort_unless(is_string($bytes)&&strlen($bytes)>=16
+            && strlen($bytes)<=25*1024*1024,422,'Recording size is invalid.');
+        $head=substr($bytes,0,16);
+        $mp4=substr($head,4,4)==='ftyp';
+        $wav=substr($head,0,4)==='RIFF'&&substr($head,8,4)==='WAVE';
+        $aac=ord($bytes[0])===255&&(ord($bytes[1])&240)===240;
+        abort_unless($mp4||$wav||$aac,422,'Unsupported voice recording.');
+        $key=trim((string)config('services.openai.key'));
+        abort_if($key==='',503,'Voice transcription is not configured. Manual document entry is available.');
+        try {
+            $response=Http::withToken($key)->timeout(90)
+                ->attach('file',$bytes,$mp4?'document.m4a':($wav?'document.wav':'document.aac'))
+                ->post('https://api.openai.com/v1/audio/transcriptions',[
+                    'model'=>'gpt-4o-mini-transcribe',
+                ]);
+        }catch(\Throwable $error){
+            report($error);abort(502,'Voice transcription is unavailable.');
+        }
+        abort_unless($response->successful(),$response->status()===429?503:502,
+            'Voice transcription is unavailable.');
+        $text=trim((string)$response->json('text'));
+        abort_unless($text!==''&&mb_strlen($text)<=20000,502,'Transcription has no usable text.');
+        AuditLogger::record('general_documents.voice_transcribed',
+            $request->user(),null,$company,['byte_size'=>strlen($bytes)],$request);
+        return ['transcript'=>$text,'saved'=>false,'approved'=>false];
+    }
+
+
 }
