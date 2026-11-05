@@ -107,6 +107,20 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/time-labour/{entry}/evidence/{evidence}', [\App\Http\Controllers\Admin\LabourController::class,'removeEvidence'])->whereNumber('entry')->whereNumber('evidence')->name('labour.evidence.remove');
         Route::post('/time-labour/timer/{company}/{worker}/stop', [\App\Http\Controllers\Admin\LabourController::class,'stopTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.stop');
         Route::post('/time-labour/timer/{company}/{worker}/recover', [\App\Http\Controllers\Admin\LabourController::class,'recoverTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.recover');
+        // M16: manual deposit management under existing platform administrator guard.
+        Route::get('/deposits', [\App\Http\Controllers\Admin\DepositController::class,'index'])->name('deposits.index');
+        Route::get('/deposits/export', [\App\Http\Controllers\Admin\DepositController::class,'export'])->name('deposits.export');
+        Route::get('/deposits/create', [\App\Http\Controllers\Admin\DepositController::class,'create'])->name('deposits.create');
+        Route::post('/deposits', [\App\Http\Controllers\Admin\DepositController::class,'store'])->name('deposits.store');
+        Route::post('/deposits/from-quote/{quote}', [\App\Http\Controllers\Admin\DepositController::class,'fromQuote'])->whereNumber('quote')->name('deposits.fromQuote');
+        Route::get('/deposits/{deposit}/edit', [\App\Http\Controllers\Admin\DepositController::class,'edit'])->whereNumber('deposit')->name('deposits.edit');
+        Route::patch('/deposits/{deposit}', [\App\Http\Controllers\Admin\DepositController::class,'update'])->whereNumber('deposit')->name('deposits.update');
+        Route::post('/deposits/{deposit}/receive', [\App\Http\Controllers\Admin\DepositController::class,'receive'])->whereNumber('deposit')->name('deposits.receive');
+        Route::post('/deposits/{deposit}/refund', [\App\Http\Controllers\Admin\DepositController::class,'refund'])->whereNumber('deposit')->name('deposits.refund');
+        Route::delete('/deposits/{deposit}', [\App\Http\Controllers\Admin\DepositController::class,'destroy'])->whereNumber('deposit')->name('deposits.destroy');
+        Route::post('/deposits/{deposit}/receipts', [\App\Http\Controllers\Admin\DepositController::class,'upload'])->whereNumber('deposit')->name('deposits.upload');
+        Route::get('/deposits/{deposit}/receipts/{receipt}', [\App\Http\Controllers\Admin\DepositController::class,'receipt'])->whereNumber('deposit')->whereNumber('receipt')->name('deposits.receipt');
+        Route::delete('/deposits/{deposit}/receipts/{receipt}', [\App\Http\Controllers\Admin\DepositController::class,'removeReceipt'])->whereNumber('deposit')->whereNumber('receipt')->name('deposits.removeReceipt');
         // M14: dedicated Expenses Management behind platform administrator authentication.
         Route::get('/expenses', [\App\Http\Controllers\Admin\ExpenseController::class,'index'])->name('expenses.index');
         Route::get('/expenses/create', [\App\Http\Controllers\Admin\ExpenseController::class,'create'])->name('expenses.create');
