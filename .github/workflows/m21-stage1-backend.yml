@@ -1,0 +1,28 @@
+name: M21 Stage 1 Backend Search
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, openssl, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: PHP syntax and Blade compilation
+        run: |
+          php -l app/Services/GlobalSearchService.php
+          php -l app/Http/Controllers/Api/GlobalSearchController.php
+          php -l app/Http/Controllers/Admin/GlobalSearchController.php
+          php -l tests/Feature/M21GlobalSearchTest.php
+          php artisan view:cache
+      - run: php artisan test tests/Feature/M21GlobalSearchTest.php tests/Feature/AdminUiConsistencyTest.php
