@@ -31,11 +31,11 @@
 @if($editing)
 <section class="panel"><div class="panel-header"><h2>Review & Reimbursement</h2></div>
 <div class="toolbar">
-@if($record['status']==='to_review')<form method="post" action="{{ route('admin.expenses.approve',$record['id']) }}" onsubmit="return confirm('Approve and lock this expense?')">@csrf<input type="hidden" name="confirm" value="1"><button class="btn btn-primary" type="submit">Approve Expense</button></form>@endif
+@if($record['status']==='to_review')<form method="post" action="{{ route('admin.expenses.approve',$record['id']) }}" data-confirm="Approve and lock this expense?">@csrf<input type="hidden" name="confirm" value="1"><button class="btn btn-primary" type="submit">Approve Expense</button></form>@endif
 @if($record['status']==='approved' && $record['reimbursement_requested_at']===null)
-<form method="post" action="{{ route('admin.expenses.requestReimbursement',$record['id']) }}" onsubmit="return confirm('Request reimbursement?')">@csrf<input type="hidden" name="confirm" value="1"><button class="btn btn-outline" type="submit">Request Reimbursement</button></form>@endif
+<form method="post" action="{{ route('admin.expenses.requestReimbursement',$record['id']) }}" data-confirm="Request reimbursement?">@csrf<input type="hidden" name="confirm" value="1"><button class="btn btn-outline" type="submit">Request Reimbursement</button></form>@endif
 @if($record['status']==='approved' && $record['reimbursement_requested_at']!==null)
-<form method="post" action="{{ route('admin.expenses.reimburse',$record['id']) }}" onsubmit="return confirm('Confirm this reimbursement was actually paid?')">@csrf<input type="hidden" name="confirm" value="1"><button class="btn btn-primary" type="submit">Mark Reimbursed</button></form>@endif
+<form method="post" action="{{ route('admin.expenses.reimburse',$record['id']) }}" data-confirm="Confirm this reimbursement was actually paid?">@csrf<input type="hidden" name="confirm" value="1"><button class="btn btn-primary" type="submit">Mark Reimbursed</button></form>@endif
 @if($record['status']==='reimbursed')<p>Reimbursed on {{ $record['reimbursed_at'] }}</p>@endif
 </div></section>
 <section class="panel"><div class="panel-header"><h2>Job Expense Totals</h2></div><div style="padding:20px">
@@ -53,7 +53,7 @@
 @forelse($receipts as $receipt)<tr><td>{{ $receipt['name'] }}</td><td>{{ number_format($receipt['byte_size']) }} bytes</td>
 <td><code>{{ $receipt['sha256'] }}</code></td>
 <td><a class="btn btn-small btn-outline" href="{{ route('admin.expenses.receipt',[$record['id'],$receipt['id']]) }}">Verified Original</a></td><td>
-@if($draft)<form method="post" action="{{ route('admin.expenses.removeReceipt',[$record['id'],$receipt['id']]) }}" onsubmit="return confirm('Remove this receipt from active view?')">@csrf @method('DELETE')<button class="btn btn-small btn-outline">Remove</button></form>@else Locked @endif
+@if($draft)<form method="post" action="{{ route('admin.expenses.removeReceipt',[$record['id'],$receipt['id']]) }}" data-confirm="Remove this receipt from active view?">@csrf @method('DELETE')<button class="btn btn-small btn-outline">Remove</button></form>@else Locked @endif
 </td></tr>@empty<tr><td colspan="5">No receipts attached.</td></tr>@endforelse
 </tbody></table></div></section>
 <section class="panel"><div class="panel-header"><h2>Expense History</h2></div>
