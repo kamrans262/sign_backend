@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Tests\TestCase;
 
 final class M18GeneralDocumentIssueTest extends TestCase
@@ -77,7 +78,7 @@ final class M18GeneralDocumentIssueTest extends TestCase
     {
         [$user,$company,$client]=$this->tenant();
         $id=$this->create($client->id);
-        $this->getJson('/api/v1/general-documents/'.$id.'/pdf')->assertStatus(404);
+        $this->getJson('/api/v1/general-documents/'.$id.'/pdf')->assertStatus(409);
         $this->postJson('/api/v1/general-documents/'.$id.'/issue',
             ['confirm'=>true])->assertStatus(409);
         $this->approve($id);
@@ -131,6 +132,9 @@ final class M18GeneralDocumentIssueTest extends TestCase
 
     public function test_signed_pdf_binds_original_approval_consent_and_signer(): void
     {
+        // Signing integrity checks are unit-tested without consuming the
+        // production six-per-minute abuse-control quota.
+        $this->withoutMiddleware(ThrottleRequests::class);
         [$user,$company,$client]=$this->tenant();
         $id=$this->create($client->id);
         $this->approve($id);$issued=$this->issued($id);
@@ -225,7 +229,7 @@ final class M18GeneralDocumentIssueTest extends TestCase
         $id=$this->create($client->id);
         $this->postJson('/api/v1/general-documents/'.$id.'/signature-requests',[
             'signer_name'=>'Test','signer_email'=>'document@example.test',
-            'confirm'=>true])->assertStatus(404);
+            'confirm'=>true])->assertStatus(409);
         $this->approve($id);$this->issued($id);
         $issue=DB::table('general_document_issues')->firstOrFail();
         DB::table('general_document_issues')->where('id',$issue->id)

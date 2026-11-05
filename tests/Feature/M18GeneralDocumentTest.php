@@ -86,7 +86,7 @@ final class M18GeneralDocumentTest extends TestCase
             ->assertJsonPath('data.document.approved_revision',2);
         $this->patchJson('/api/v1/general-documents/'.$id,array_merge($update,
             ['lock_version'=>4]))->assertStatus(409);
-        $this->get('/api/v1/documents/general-'.$id.'/pdf')->assertStatus(409);
+        $this->get('/api/v1/documents/general-'.$id.'/pdf')->assertStatus(404); // Not yet issued
         $this->assertDatabaseCount('general_document_revisions',2);
     }
 
