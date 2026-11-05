@@ -39,11 +39,11 @@
 <div><button class="btn btn-outline">Update Details</button></div>
 </form>
 <div class="form-grid" style="padding:20px">
-<form method="post" action="{{ route('admin.equipment.loan.extend',$record['id']) }}" onsubmit="return confirm('Extend the expected return date?')">
+<form method="post" action="{{ route('admin.equipment.loan.extend',$record['id']) }}" data-confirm="Extend the expected return date?">
 @csrf<input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}"><input type="hidden" name="confirm" value="1">
 <label>New Return Date<input class="input" type="date" name="expected_return_date" required min="{{ $record['expected_return_date'] }}"></label>
 <button type="submit" class="btn btn-outline">Extend Return Date</button></form>
-<form method="post" action="{{ route('admin.equipment.loan.return',$record['id']) }}" onsubmit="return confirm('Confirm this equipment was returned?')">
+<form method="post" action="{{ route('admin.equipment.loan.return',$record['id']) }}" data-confirm="Confirm this equipment was returned?">
 @csrf<input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}"><input type="hidden" name="confirm" value="1">
 <label>Actual Return Date<input class="input" type="date" name="actual_return_date" required min="{{ $record['loan_date'] }}" value="{{ date('Y-m-d') }}"></label>
 <button class="btn btn-primary" type="submit">Mark Returned</button></form>
@@ -77,7 +77,7 @@ value="{{ $reminderPreview['frequency_days'] }}" required></label>
 <p><strong>Equipment:</strong> {{ $reminderPreview['equipment_name'] }}</p>
 <p><strong>Due:</strong> {{ $reminderPreview['expected_return_date'] }}</p>
 <form method="post" action="{{ route('admin.equipment.loan.reminder.send',$record['id']) }}"
-onsubmit="return confirm('Submit this equipment return email to the displayed borrower?')">
+data-confirm="Submit this equipment return email to the displayed borrower?">
 @csrf
 <input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}">
 <input type="hidden" name="request_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}">
