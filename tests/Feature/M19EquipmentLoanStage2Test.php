@@ -42,6 +42,10 @@ final class M19EquipmentLoanStage2Test extends TestCase
         ]);
         $company->users()->attach($actor->id,['role'=>'owner','status'=>'active']);
         Sanctum::actingAs($actor);
+        // Numeric API throttling may use source IP, independently of user ID.
+        // Keep real middleware enabled but give each isolated test a distinct IP.
+        $this->withServerVariables(['REMOTE_ADDR'=>'198.51.100.'.
+            (string)(10+(self::$actorSequence%200))]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         $asset=$this->postJson('/api/v1/equipment',[
             'code'=>'EQ-M19-2','name'=>'Mini Excavator',
