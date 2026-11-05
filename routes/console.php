@@ -172,3 +172,17 @@ Artisan::command('sign:m20-events {--max=40}', function (
 
 \Illuminate\Support\Facades\Schedule::command('sign:m20-events --max=40')
     ->everyMinute()->withoutOverlapping();
+
+
+// A separate, safe scheduler always creates in-app events, regardless of FCM.
+// No external message is sent and no borrower emails are triggered here.
+Artisan::command('sign:m20-sync {--max=80}', function (
+    \App\Services\M20NotificationScheduler $scheduler
+): int {
+    $this->line(json_encode($scheduler->sync((int) $this->option('max')),
+        JSON_THROW_ON_ERROR));
+    return 0;
+})->purpose('Generate due in-app reminders and verified business events without external delivery');
+
+\Illuminate\Support\Facades\Schedule::command('sign:m20-sync --max=80')
+    ->everyMinute()->withoutOverlapping();
