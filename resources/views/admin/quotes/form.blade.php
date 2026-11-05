@@ -154,7 +154,7 @@
 <div class="panel-header"><div><h2>Quote Actions</h2><p class="panel-header-hint">Approval requires an explicit administrator action. Customer delivery is a separate step.</p></div></div>
 <div class="form-actions">
 @if($quote->status==='draft')
-<form method="post" enctype="multipart/form-data" action="{{ route('admin.quotes.approve',$quote) }}" onsubmit="return confirm('Approve this reviewed quote?')">@csrf
+<form method="post" enctype="multipart/form-data" action="{{ route('admin.quotes.approve',$quote) }}" data-confirm="Approve this reviewed quote?">@csrf
 <input type="hidden" name="expected_revision" value="{{ $quote->revision }}">
 <div class="field"><label for="approved_quote_file">Reviewed PDF (optional)</label>
 <input id="approved_quote_file" class="input" type="file" name="file" accept="application/pdf">
@@ -167,7 +167,7 @@
 @if($quote->status==='archived')
 <form method="post" action="{{ route('admin.quotes.restore',$quote) }}">@csrf<button class="btn btn-outline" type="submit">Restore Quote</button></form>
 @else
-<form method="post" action="{{ route('admin.quotes.archive',$quote) }}" onsubmit="return confirm('Archive quote?')">@csrf @method('delete')
+<form method="post" action="{{ route('admin.quotes.archive',$quote) }}" data-confirm="Archive quote?">@csrf @method('delete')
 <button class="btn btn-danger" type="submit">Archive Quote</button></form>
 @endif
 </div></section>
