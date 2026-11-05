@@ -1,0 +1,72 @@
+name: M19 Stage 1 Equipment and Loans Backend
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m19-stage1-backend
+  cancel-in-progress: true
+jobs:
+  sqlite-and-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: PHP lint, routes, Blade and fresh schema
+        run: |
+          for f in app/Services/EquipmentLoanService.php app/Http/Controllers/Api/EquipmentController.php app/Http/Controllers/Api/EquipmentLoanController.php app/Http/Controllers/Admin/EquipmentController.php database/migrations/2026_11_05_090000_create_equipment_assets_and_loans.php tests/Feature/M19EquipmentLoanStage1Test.php; do php -l "$f" || exit 1; done
+          php artisan migrate:fresh --force
+          php artisan view:cache
+          php artisan route:list --path=api/v1/equipment
+          php artisan route:list --path=admin/equipment
+      - name: M19 inventory and loan acceptance
+        run: php artisan test tests/Feature/M19EquipmentLoanStage1Test.php
+      - name: M17 and M18 downstream safety
+        run: php artisan test --filter='M(17InvoiceIssuance|18GeneralDocumentIssue)Test'
+  mysql-migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: m19_ci_only
+          MYSQL_DATABASE: sign2digital_m19_ci
+        ports: [3306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pm19_ci_only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sign2digital_m19_ci
+      DB_USERNAME: root
+      DB_PASSWORD: m19_ci_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Full fresh MySQL 8.4 migration
+        run: php artisan migrate:fresh --force
+      - name: MySQL foreign key and active-loan unique constraint checks
+        run: |
+          php artisan tinker --execute='$fk=\Illuminate\Support\Facades\DB::select("select count(*) as n from information_schema.REFERENTIAL_CONSTRAINTS where CONSTRAINT_SCHEMA=? and TABLE_NAME in (?,?,?,?,?,?,?)",["sign2digital_m19_ci","equipment_assets","equipment_asset_events","equipment_usage_entries","equipment_maintenance_entries","equipment_asset_photos","equipment_loans","equipment_loan_events"]);if($fk[0]->n<10)throw new \RuntimeException("Missing M19 MySQL FK");$u=\Illuminate\Support\Facades\DB::select("select count(*) as n from information_schema.STATISTICS where TABLE_SCHEMA=? and TABLE_NAME=? and INDEX_NAME=?",["sign2digital_m19_ci","equipment_loans","m19_loan_one_active"]);if($u[0]->n<3)throw new \RuntimeException("Missing M19 unique active loan slot");echo "M19_MYSQL_CONSTRAINTS_OK";'
+      - name: Laravel M19 acceptance on real MySQL
+        run: php artisan test tests/Feature/M19EquipmentLoanStage1Test.php

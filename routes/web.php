@@ -130,6 +130,26 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/time-labour/{entry}/evidence/{evidence}', [\App\Http\Controllers\Admin\LabourController::class,'removeEvidence'])->whereNumber('entry')->whereNumber('evidence')->name('labour.evidence.remove');
         Route::post('/time-labour/timer/{company}/{worker}/stop', [\App\Http\Controllers\Admin\LabourController::class,'stopTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.stop');
         Route::post('/time-labour/timer/{company}/{worker}/recover', [\App\Http\Controllers\Admin\LabourController::class,'recoverTimer'])->whereNumber('company')->whereNumber('worker')->name('labour.timer.recover');
+        // M19: equipment assets and individual lending ledger, one Admin module.
+        Route::get('/equipment',[\App\Http\Controllers\Admin\EquipmentController::class,'index'])->name('equipment.index');
+        Route::get('/equipment/create',[\App\Http\Controllers\Admin\EquipmentController::class,'create'])->name('equipment.create');
+        Route::post('/equipment',[\App\Http\Controllers\Admin\EquipmentController::class,'store'])->name('equipment.store');
+        Route::get('/equipment/{equipment}/edit',[\App\Http\Controllers\Admin\EquipmentController::class,'edit'])->whereNumber('equipment')->name('equipment.edit');
+        Route::patch('/equipment/{equipment}',[\App\Http\Controllers\Admin\EquipmentController::class,'update'])->whereNumber('equipment')->name('equipment.update');
+        Route::post('/equipment/{equipment}/archive',[\App\Http\Controllers\Admin\EquipmentController::class,'archive'])->whereNumber('equipment')->name('equipment.archive');
+        Route::post('/equipment/{equipment}/usage',[\App\Http\Controllers\Admin\EquipmentController::class,'usage'])->whereNumber('equipment')->name('equipment.usage');
+        Route::post('/equipment/{equipment}/maintenance',[\App\Http\Controllers\Admin\EquipmentController::class,'maintenance'])->whereNumber('equipment')->name('equipment.maintenance');
+        Route::post('/equipment/{equipment}/photos',[\App\Http\Controllers\Admin\EquipmentController::class,'upload'])->whereNumber('equipment')->name('equipment.photo.upload');
+        Route::get('/equipment/{equipment}/photos/{photo}',[\App\Http\Controllers\Admin\EquipmentController::class,'photo'])->whereNumber('equipment')->whereNumber('photo')->name('equipment.photo.file');
+        Route::delete('/equipment/{equipment}/photos/{photo}',[\App\Http\Controllers\Admin\EquipmentController::class,'removePhoto'])->whereNumber('equipment')->whereNumber('photo')->name('equipment.photo.remove');
+        Route::get('/equipment-loans',[\App\Http\Controllers\Admin\EquipmentController::class,'loans'])->name('equipment.loans');
+        Route::get('/equipment-loans/create',[\App\Http\Controllers\Admin\EquipmentController::class,'loanCreate'])->name('equipment.loan.create');
+        Route::post('/equipment-loans',[\App\Http\Controllers\Admin\EquipmentController::class,'loanStore'])->name('equipment.loan.store');
+        Route::get('/equipment-loans/{loan}/edit',[\App\Http\Controllers\Admin\EquipmentController::class,'loanEdit'])->whereNumber('loan')->name('equipment.loan.edit');
+        Route::patch('/equipment-loans/{loan}',[\App\Http\Controllers\Admin\EquipmentController::class,'loanUpdate'])->whereNumber('loan')->name('equipment.loan.update');
+        Route::post('/equipment-loans/{loan}/extend',[\App\Http\Controllers\Admin\EquipmentController::class,'loanExtend'])->whereNumber('loan')->name('equipment.loan.extend');
+        Route::post('/equipment-loans/{loan}/return',[\App\Http\Controllers\Admin\EquipmentController::class,'loanReturn'])->whereNumber('loan')->name('equipment.loan.return');
+
         // M18 General AI Documents: reuse existing Admin document navigation and UI.
         Route::get('/general-documents', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'index'])->name('general-documents.index');
         Route::get('/general-documents/create', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'create'])->name('general-documents.create');

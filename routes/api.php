@@ -410,6 +410,31 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 ->whereNumber('addendum')->whereNumber('signature')->middleware('throttle:10,1');
         });
 
+        // M19 — equipment inventory, secured loan lifecycle and private photos.
+        Route::middleware(['company.access','company.permission:equipment.read'])->group(function (): void {
+            Route::get('/equipment',[\App\Http\Controllers\Api\EquipmentController::class,'index']);
+            Route::get('/equipment/{equipment}',[\App\Http\Controllers\Api\EquipmentController::class,'show'])->whereNumber('equipment');
+            Route::get('/equipment/{equipment}/photos/{photo}',[\App\Http\Controllers\Api\EquipmentController::class,'photoBytes'])
+                ->whereNumber('equipment')->whereNumber('photo')->middleware('throttle:30,1');
+            Route::get('/equipment-loans',[\App\Http\Controllers\Api\EquipmentLoanController::class,'index']);
+            Route::get('/equipment-loans/{loan}',[\App\Http\Controllers\Api\EquipmentLoanController::class,'show'])->whereNumber('loan');
+            Route::get('/equipment-loans/{loan}/events',[\App\Http\Controllers\Api\EquipmentLoanController::class,'history'])->whereNumber('loan');
+        });
+        Route::middleware(['company.access','company.permission:equipment.write'])->group(function (): void {
+            Route::post('/equipment',[\App\Http\Controllers\Api\EquipmentController::class,'store'])->middleware('throttle:15,1');
+            Route::patch('/equipment/{equipment}',[\App\Http\Controllers\Api\EquipmentController::class,'update'])->whereNumber('equipment');
+            Route::post('/equipment/{equipment}/archive',[\App\Http\Controllers\Api\EquipmentController::class,'archive'])->whereNumber('equipment');
+            Route::post('/equipment/{equipment}/usage',[\App\Http\Controllers\Api\EquipmentController::class,'usage'])->whereNumber('equipment');
+            Route::post('/equipment/{equipment}/maintenance',[\App\Http\Controllers\Api\EquipmentController::class,'maintenance'])->whereNumber('equipment');
+            Route::post('/equipment/{equipment}/photos',[\App\Http\Controllers\Api\EquipmentController::class,'photo'])->whereNumber('equipment')->middleware('throttle:10,1');
+            Route::delete('/equipment/{equipment}/photos/{photo}',[\App\Http\Controllers\Api\EquipmentController::class,'removePhoto'])
+                ->whereNumber('equipment')->whereNumber('photo');
+            Route::post('/equipment-loans',[\App\Http\Controllers\Api\EquipmentLoanController::class,'store'])->middleware('throttle:12,1');
+            Route::patch('/equipment-loans/{loan}',[\App\Http\Controllers\Api\EquipmentLoanController::class,'update'])->whereNumber('loan');
+            Route::post('/equipment-loans/{loan}/extend',[\App\Http\Controllers\Api\EquipmentLoanController::class,'extend'])->whereNumber('loan')->middleware('throttle:12,1');
+            Route::post('/equipment-loans/{loan}/return',[\App\Http\Controllers\Api\EquipmentLoanController::class,'returnLoan'])->whereNumber('loan')->middleware('throttle:12,1');
+        });
+
         // M9: unified document catalog; M7 and M8 originals are read-only sources.
         Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
             Route::get('/documents', [\App\Http\Controllers\Api\DocumentController::class,'index']);
