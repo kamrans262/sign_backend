@@ -10,6 +10,7 @@ use App\Services\EquipmentLoanReminderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -27,6 +28,8 @@ final class M19EquipmentLoanStage2Test extends TestCase
     private function tenant(): array
     {
         Carbon::setTestNow('2026-11-05 12:00:00 UTC');
+        // Reset cross-test throttle keys, without disabling production rate limiting.
+        Cache::flush();
         $actor=User::factory()->create(['is_active'=>true,'email_verified_at'=>now()]);
         $company=Company::create([
             'owner_user_id'=>$actor->id,'name'=>'Lender Ltd',
@@ -318,4 +321,15 @@ final class M19EquipmentLoanStage2Test extends TestCase
         $this->get('/admin/equipment-loans/'.$loan['id'].'/edit')
             ->assertOk()->assertSee('automatic');
     }
+    public function test_manual_reminder_endpoint_rate_limits_repeated_submissions(): void
+    {
+        [,,$asset,$loan]=$this->tenant();
+        $this->mailReady();
+        $this->send($loan['id'])->assertOk();
+        $this->send($loan['id'])->assertOk();
+        $this->send($loan['id'])->assertOk();
+        $this->send($loan['id'])->assertStatus(429);
+        Mail::assertSent(EquipmentLoanReminderMail::class,1);
+    }
+
 }
