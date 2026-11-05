@@ -43,11 +43,11 @@
 <p><strong>Duration:</strong> {{ $record['duration_minutes'] }} minutes · <strong>Cost:</strong>
 {{ $record['cost_minor']===null?'Not available — hourly rate missing':'CHF '.number_format($record['cost_minor']/100,2) }}</p>
 @if($record['status']==='pending')
-<form action="{{ route('admin.labour.approve',$record['id']) }}" method="post" onsubmit="return confirm('Approve and lock the recorded labour?')">@csrf
+<form action="{{ route('admin.labour.approve',$record['id']) }}" method="post" data-confirm="Approve and lock the recorded labour?">@csrf
 <input type="hidden" name="confirm" value="1"><button class="btn btn-primary">Approve Labour Entry</button></form>
 @endif
 @if($record['status']!=='void')
-<form action="{{ route('admin.labour.void',$record['id']) }}" method="post" onsubmit="return confirm('Void this entry? The original remains in audit history.')">@csrf
+<form action="{{ route('admin.labour.void',$record['id']) }}" method="post" data-confirm="Void this entry? The original remains in audit history.">@csrf
 <input class="input" name="reason" minlength="5" maxlength="2000" placeholder="Correction reason (required)" required>
 <button class="btn btn-outline">Void with Reason</button></form>
 @else<p>Voided: {{ $record['void_reason'] }}</p>@endif</div></section>
@@ -64,7 +64,7 @@
 <button class="btn btn-primary">Attach Evidence</button></form>@endif
 <div class="table-wrap"><table><thead><tr><th>Name</th><th>Size</th><th>SHA-256</th><th>File</th><th>Action</th></tr></thead><tbody>
 @forelse($evidence as $file)<tr><td>{{ $file['name'] }}</td><td>{{ number_format($file['byte_size']) }} bytes</td><td><code>{{ $file['sha256'] }}</code></td><td><a class="btn btn-small btn-outline" href="{{ route('admin.labour.evidence.file',[$record['id'],$file['id']]) }}">Verified Original</a></td>
-<td>@if($pending)<form method="post" action="{{ route('admin.labour.evidence.remove',[$record['id'],$file['id']]) }}" onsubmit="return confirm('Hide this proof while preserving its audit?')">@csrf @method('DELETE')<button class="btn btn-small btn-outline">Remove</button></form>@else Locked @endif</td></tr>
+<td>@if($pending)<form method="post" action="{{ route('admin.labour.evidence.remove',[$record['id'],$file['id']]) }}" data-confirm="Hide this proof while preserving its audit?">@csrf @method('DELETE')<button class="btn btn-small btn-outline">Remove</button></form>@else Locked @endif</td></tr>
 @empty<tr><td colspan="5">No evidence uploaded.</td></tr>@endforelse</tbody></table></div>
 </section>
 <section class="panel"><div class="panel-header"><h2>Audit History</h2></div>
