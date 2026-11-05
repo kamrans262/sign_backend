@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -207,4 +208,56 @@ final class M16DepositManagementTest extends TestCase
             'confirm'=>true,'reason'=>'Wrongly attempted refund',
         ])->assertForbidden();
     }
+
+    public function test_deposit_voice_produces_uncommitted_draft_without_exposing_api_key(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M16 Voice Privacy');
+        config()->set('services.openai.key','m16-backend-only-test-key');
+        Http::fake([
+            'https://api.openai.com/v1/audio/transcriptions'=>Http::response([
+                'text'=>'Deposit one hundred francs for kitchen work by bank transfer.',
+            ],200),
+            'https://api.openai.com/v1/chat/completions'=>Http::response([
+                'choices'=>[['message'=>['content'=>json_encode([
+                    'jobReference'=>'Kitchen work','clientName'=>'Jean Dupont',
+                    'amount'=>100,'depositDate'=>'2026-02-30',
+                    'paymentMethod'=>'bank_transfer','referenceNumber'=>'BK-89',
+                    'notes'=>'Bank transfer recorded',
+                    'received'=>true,'saved'=>true,
+                ])]]],
+            ],200),
+        ]);
+        // A minimal valid PCM WAV header with no client-side API key.
+        $audio='RIFF'.pack('V',36).'WAVEfmt '.pack('V',16).
+            pack('v',1).pack('v',1).pack('V',8000).pack('V',8000).
+            pack('v',1).pack('v',8).'data'.pack('V',0);
+        $this->post('/api/v1/deposits/ai/voice',[
+            'file'=>UploadedFile::fake()->createWithContent('deposit.wav',$audio),
+        ],['Accept'=>'application/json'])->assertOk()
+            ->assertJsonPath('data.suggestion.amount',100)
+            ->assertJsonPath('data.suggestion.depositDate',null)
+            ->assertJsonPath('data.suggestion.saved',false)
+            ->assertJsonPath('data.suggestion.received',false)
+            ->assertJsonPath('data.suggestion.refunded',false);
+        $this->assertDatabaseCount('job_deposits',0);
+        Http::assertSentCount(2);
+        Http::assertSent(fn($request)=>
+            str_contains($request->url(),'api.openai.com') &&
+            $request->hasHeader('Authorization',
+                'Bearer m16-backend-only-test-key'));
+    }
+
+    public function test_deposit_voice_rejects_invalid_content_before_ai_request(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M16 Voice Validation');
+        config()->set('services.openai.key','m16-backend-only-test-key');
+        Http::fake();
+        $this->post('/api/v1/deposits/ai/voice',[
+            'file'=>UploadedFile::fake()->createWithContent(
+                'deposit.wav',str_repeat('not real WAV data',4)),
+        ],['Accept'=>'application/json'])->assertUnprocessable();
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('job_deposits',0);
+    }
+
 }
