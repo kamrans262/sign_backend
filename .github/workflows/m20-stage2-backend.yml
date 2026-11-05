@@ -1,0 +1,69 @@
+name: M20 Stage 2 Firebase Push Delivery and Safety
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m20-stage2-backend
+  cancel-in-progress: true
+jobs:
+  sqlite-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, openssl, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: M20 PHP syntax and migrations
+        run: |
+          for f in app/Services/M20PushDispatcher.php app/Services/M20FcmClient.php app/Services/M20DueReminders.php app/Http/Controllers/Api/M20PushDeviceController.php app/Http/Controllers/Api/M20NotificationPreferencesController.php database/migrations/2026_11_05_130000_create_m20_push_delivery.php tests/Feature/M20Stage2PushDeliveryTest.php; do php -l "$f" || exit 1; done
+          php artisan migrate:fresh --force
+          php artisan view:cache
+          php artisan route:list --path=api/v1/push-devices
+          php artisan route:list --path=api/v1/notification-preferences
+          php artisan list | grep 'sign:m20-dispatch'
+      - name: M20 Push + Stage 1 acceptance
+        run: php artisan test tests/Feature/M20Stage2PushDeliveryTest.php tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M20Stage1AdminPreferencesTest.php
+      - name: M19 send safety, M17 M18 regressions
+        run: php artisan test tests/Feature/M19EquipmentLoanStage2Test.php tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php
+  mysql-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: m20_stage2_ci
+          MYSQL_DATABASE: sign2digital_m20s2
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pm20_stage2_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sign2digital_m20s2
+      DB_USERNAME: root
+      DB_PASSWORD: m20_stage2_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, openssl, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan migrate:fresh --force
+      - run: php artisan test tests/Feature/M20Stage2PushDeliveryTest.php tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M20Stage1AdminPreferencesTest.php

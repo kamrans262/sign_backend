@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\M20FcmClient;
 
 final class M20NotificationPreferencesController extends Controller
 {
@@ -21,8 +22,8 @@ final class M20NotificationPreferencesController extends Controller
         $row = $this->scope($request)->first();
         return [
             'in_app_enabled' => $row ? (bool) $row->in_app_enabled : true,
-            'push_enabled' => false,
-            'push_available' => false,
+            'push_enabled' => $row ? (bool) $row->push_enabled : false,
+            'push_available' => app(M20FcmClient::class)->available(),
             'locale' => $row?->locale ?? 'en',
             'timezone' => $row?->timezone ?? 'UTC',
         ];
@@ -46,11 +47,17 @@ final class M20NotificationPreferencesController extends Controller
             'in_app_enabled' => ['required', 'boolean'],
             'locale' => ['required', 'in:en,fr'],
             'timezone' => ['required', 'timezone'],
+            'push_enabled' => ['sometimes', 'boolean'],
         ]);
+        if (($fields['push_enabled'] ?? false) && !app(M20FcmClient::class)->available()) {
+            abort(422, 'Push delivery is not configured.');
+        }
+        $existing = $this->scope($request)->first();
+        $fields['push_enabled'] = $fields['push_enabled'] ?? (bool) ($existing?->push_enabled ?? false);
         DB::table('m20_notification_preferences')->updateOrInsert([
             'company_id' => $request->attributes->get('company')->id,
             'user_id' => $request->user()->id,
-        ], $fields + ['push_enabled' => false, 'updated_at' => now()]);
+        ], $fields + ['updated_at' => now()]);
         return $this->response($this->current($request));
     }
 }

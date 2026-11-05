@@ -28,6 +28,14 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'm20_fcm' => [
+        // Stage 2 is opt-in and fails closed until a PRIVATE credentials file
+        // is configured on the server. Never commit service-account JSON.
+        'enabled' => (bool) env('M20_FCM_ENABLED', false),
+        'project_id' => env('M20_FCM_PROJECT_ID', 'sign-kamran'),
+        'credentials_path' => env('M20_FCM_CREDENTIALS_PATH', ''),
+    ],
+
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
         'quote_model' => env('OPENAI_QUOTE_MODEL', 'gpt-4o-mini'),

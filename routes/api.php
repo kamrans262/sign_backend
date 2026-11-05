@@ -453,6 +453,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/reminders/{reminder}', [\App\Http\Controllers\Api\M20ReminderController::class,'show'])->whereNumber('reminder');
             Route::patch('/reminders/{reminder}', [\App\Http\Controllers\Api\M20ReminderController::class,'update'])->whereNumber('reminder');
             Route::post('/reminders/{reminder}/status', [\App\Http\Controllers\Api\M20ReminderController::class,'status'])->whereNumber('reminder');
+            Route::post('/push-devices', [\App\Http\Controllers\Api\M20PushDeviceController::class,'register'])->middleware('throttle:20,1');
             Route::get('/notification-preferences', [\App\Http\Controllers\Api\M20NotificationPreferencesController::class,'show']);
             Route::put('/notification-preferences', [\App\Http\Controllers\Api\M20NotificationPreferencesController::class,'update']);
             Route::get('/notifications', [\App\Http\Controllers\Api\M20NotificationController::class,'index']);
@@ -460,6 +461,10 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/notifications/{notification}/read', [\App\Http\Controllers\Api\M20NotificationController::class,'markRead'])->whereNumber('notification');
             Route::delete('/notifications/{notification}', [\App\Http\Controllers\Api\M20NotificationController::class,'dismiss'])->whereNumber('notification');
         });
+
+        // Device removal on logout must cover all of this user's companies.
+        Route::delete('/push-devices', [\App\Http\Controllers\Api\M20PushDeviceController::class,'revoke'])
+            ->middleware('throttle:30,1');
 
         // M9: unified document catalog; M7 and M8 originals are read-only sources.
         Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {

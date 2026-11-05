@@ -9,14 +9,14 @@ final class M20DueReminders
     public function __construct(private readonly M20NotificationTemplates $templates) {}
 
     /**
-     * Bounded on-demand in-app delivery. No worker, SMTP or Firebase is run
+     * Bounded in-app/outbox event creation. No SMTP or Firebase is run
      * here. A row lock and unique event key prevent duplicate inbox entries.
      */
     public function syncForUser(int $companyId, int $userId): int
     {
         $prefs = DB::table('m20_notification_preferences')
             ->where('company_id', $companyId)->where('user_id', $userId)->first();
-        if ($prefs && !$prefs->in_app_enabled) return 0;
+        if ($prefs && !$prefs->in_app_enabled && !$prefs->push_enabled) return 0;
         $locale = $prefs?->locale ?? 'en';
         $created = 0;
         foreach ([

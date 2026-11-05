@@ -143,3 +143,19 @@ Artisan::command('sign:equipment-overdue-check {--send} {--max=40}',
         $this->line(json_encode($result,JSON_THROW_ON_ERROR));
         return 0;
     })->purpose('Inspect opted-in overdue equipment loans; explicitly dispatch only if configured');
+
+
+// Stage 2 is read-only by default. A cron invocation requires --send, the
+// feature gate, a private credential file, and each recipient's push opt-in.
+Artisan::command('sign:m20-dispatch {--send} {--max=40}', function (
+    \App\Services\M20PushDispatcher $dispatcher
+): int {
+    $this->line(json_encode($dispatcher->process((int) $this->option('max'),
+        (bool) $this->option('send')), JSON_THROW_ON_ERROR));
+    return 0;
+})->purpose('Preview or explicitly dispatch opted-in M20 Firebase notifications');
+
+// No deployment or cron installation is performed by adding this definition.
+// When host cron invokes schedule:run, the feature gate still defaults false.
+\Illuminate\Support\Facades\Schedule::command('sign:m20-dispatch --send --max=40')
+    ->everyMinute()->withoutOverlapping();
