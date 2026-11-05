@@ -280,4 +280,91 @@ final class M17InvoiceManagementTest extends TestCase
         $this->postJson('/api/v1/invoices',$p)
             ->assertCreated()->assertJsonPath('data.invoice.quote_id',$quote);
     }
+
+    public function test_job_sources_include_only_approved_priced_quotes_and_unpriced_work_remains_unpriced(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M17 Verified Sources');
+        $query='/api/v1/jobs/'.$job.'/invoice-sources';
+        $this->getJson($query)->assertOk()->assertJsonPath('data.job_id',$job)
+            ->assertJsonCount(0,'data.quotes')
+            ->assertJsonCount(0,'data.addenda');
+        $quote=DB::table('service_quotes')->insertGetId([
+            'company_id'=>$company->id,'client_id'=>$client->id,
+            'service_job_id'=>$job,'reference_number'=>'Q-M17-SRC',
+            'client_name'=>$client->full_name,
+            'quote_date'=>'2026-11-05','currency'=>'CHF',
+            'status'=>'draft','source_method'=>'manual','revision'=>1,
+            'vat_basis_points'=>810,'subtotal_minor'=>20000,'vat_minor'=>1620,
+            'total_minor'=>21620,'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        DB::table('service_quote_items')->insert([
+            'service_quote_id'=>$quote,'position'=>1,
+            'title'=>'Actual signed work','description'=>'Supply one part',
+            'quantity'=>1,'unit_price_minor'=>20000,
+        ]);
+        $this->getJson($query)->assertJsonCount(0,'data.quotes');
+        DB::table('service_quotes')->where('id',$quote)->update([
+            'status'=>'approved','approved_at'=>now(),
+        ]);
+        $this->getJson($query)->assertOk()
+            ->assertJsonCount(1,'data.quotes')
+            ->assertJsonPath('data.quotes.0.id',$quote)
+            ->assertJsonPath('data.quotes.0.items.0.quantity',1)
+            ->assertJsonPath('data.quotes.0.items.0.unit_price_minor',20000)
+            ->assertJsonPath('data.quotes.0.items.0.priced',true);
+    }
+
+    public function test_available_deposit_credit_excludes_already_allocated_and_refunded_money(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M17 Available Deposits');
+        $source='/api/v1/jobs/'.$job.'/invoice-deposits';
+        $this->getJson($source)->assertOk()
+            ->assertJsonPath('data.available_minor',0);
+        $deposit=(int)$this->postJson('/api/v1/deposits',[
+            'job_id'=>$job,'client_name'=>'Marie Dubois',
+            'amount'=>'120.00','deposit_date'=>'2026-11-05',
+            'payment_method'=>'bank_transfer',
+        ])->assertCreated()->json('data.deposit.id');
+        $this->getJson($source)->assertJsonPath('data.available_minor',0);
+        $this->postJson('/api/v1/deposits/'.$deposit.'/receive',[
+            'confirm'=>true,'lock_version'=>1,
+        ])->assertOk();
+        $this->getJson($source)->assertJsonPath('data.available_minor',12000);
+        $this->createInvoice($job);
+        $this->getJson($source)->assertJsonPath('data.available_minor',0);
+    }
+
+    public function test_admin_manual_invoice_creation_and_approval_reuse_server_ledger(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M17 Admin Invoice');
+        $admin=User::factory()->create(['is_platform_admin'=>true,'is_active'=>true]);
+        $this->actingAs($admin);
+        $this->get('/admin/invoices/create')->assertOk()
+            ->assertSee('Invoice Items')->assertSee('Signed Addenda');
+        $payload=array_merge($this->fields($job),[
+            'company_id'=>$company->id,'request_key'=>'admin-invoice-20261105',
+            'items'=>[
+                ['description'=>'Labour','quantity'=>2,'unit_price_minor'=>12500],
+                ['description'=>'','quantity'=>1,'unit_price_minor'=>''],
+            ],
+        ]);
+        $this->post('/admin/invoices',$payload)->assertRedirect();
+        $this->post('/admin/invoices',$payload)->assertRedirect();
+        $id=(int)DB::table('service_invoices')->where('company_id',$company->id)
+            ->value('id');
+        $this->assertSame(1,DB::table('service_invoices')->count());
+        $this->get('/admin/invoices/'.$id.'/edit')->assertOk()
+            ->assertSee('Approve Invoice');
+        $this->post('/admin/invoices/'.$id.'/approve',[
+            'confirm'=>true,'lock_version'=>1,
+        ])->assertRedirect();
+        $this->post('/admin/invoices/'.$id.'/payments',[
+            'confirm'=>true,'amount'=>'50.00','payment_date'=>'2026-11-05',
+            'method'=>'cash','request_key'=>'admin-invoice-payment-5000',
+        ])->assertRedirect();
+        $this->get('/admin/invoices/'.$id.'/edit')->assertOk()
+            ->assertSee('Payment History');
+        $this->assertDatabaseCount('service_invoice_payments',1);
+    }
+
 }
