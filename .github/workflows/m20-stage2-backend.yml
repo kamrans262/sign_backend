@@ -30,7 +30,7 @@ jobs:
           php artisan route:list --path=api/v1/notification-preferences
           php artisan list | grep 'sign:m20-'
       - name: M20 Push + Stage 1 acceptance
-        run: php artisan test tests/Feature/M20Stage2PushDeliveryTest.php tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M20Stage1AdminPreferencesTest.php
+        run: php artisan test tests/Feature/M20BusinessNotificationsTest.php tests/Feature/M20Stage2PushDeliveryTest.php tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M20Stage1AdminPreferencesTest.php
       - name: M19 send safety, M17 M18 regressions
         run: php artisan test tests/Feature/M19EquipmentLoanStage2Test.php tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php
   mysql-push:
@@ -66,4 +66,4 @@ jobs:
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
       - run: php artisan migrate:fresh --force
-      - run: php artisan test tests/Feature/M20Stage2PushDeliveryTest.php tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M20Stage1AdminPreferencesTest.php
+      - run: php artisan test tests/Feature/M20BusinessNotificationsTest.php tests/Feature/M20Stage2PushDeliveryTest.php tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M20Stage1AdminPreferencesTest.php
