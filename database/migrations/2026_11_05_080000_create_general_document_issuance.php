@@ -26,7 +26,8 @@ return new class extends Migration {
         Schema::create('general_document_customer_links',function(Blueprint $t):void {
             $t->id();
             $t->foreignId('company_id')->constrained()->restrictOnDelete();
-            $t->foreignId('general_document_issue_id')->constrained('general_document_issues','m18_link_issue_fk')->restrictOnDelete();
+            $t->foreignId('general_document_issue_id');
+            $t->foreign('general_document_issue_id','m18_link_issue_fk')->references('id')->on('general_document_issues')->restrictOnDelete();
             $t->char('token_sha256',64)->unique();
             $t->timestamp('expires_at');
             $t->timestamp('revoked_at')->nullable();
@@ -36,7 +37,8 @@ return new class extends Migration {
         Schema::create('general_document_signature_requests',function(Blueprint $t):void {
             $t->id();
             $t->foreignId('company_id')->constrained()->restrictOnDelete();
-            $t->foreignId('general_document_issue_id')->constrained('general_document_issues','m18_sign_issue_fk')->restrictOnDelete();
+            $t->foreignId('general_document_issue_id');
+            $t->foreign('general_document_issue_id','m18_sign_issue_fk')->references('id')->on('general_document_issues')->restrictOnDelete();
             $t->char('token_sha256',64)->unique();
             $t->uuid('request_uuid')->unique();
             $t->uuid('document_uuid');
@@ -59,9 +61,12 @@ return new class extends Migration {
         Schema::create('general_document_deliveries',function(Blueprint $t):void {
             $t->id();
             $t->foreignId('company_id')->constrained()->restrictOnDelete();
-            $t->foreignId('general_document_issue_id')->constrained('general_document_issues','m18_delivery_issue_fk')->restrictOnDelete();
-            $t->foreignId('general_document_customer_link_id')->nullable()->constrained('general_document_customer_links','m18_delivery_link_fk')->restrictOnDelete();
-            $t->foreignId('general_document_signature_request_id')->nullable()->constrained('general_document_signature_requests','m18_delivery_sign_fk')->restrictOnDelete();
+            $t->foreignId('general_document_issue_id');
+            $t->foreign('general_document_issue_id','m18_delivery_issue_fk')->references('id')->on('general_document_issues')->restrictOnDelete();
+            $t->foreignId('general_document_customer_link_id')->nullable();
+            $t->foreign('general_document_customer_link_id','m18_delivery_link_fk')->references('id')->on('general_document_customer_links')->restrictOnDelete();
+            $t->foreignId('general_document_signature_request_id')->nullable();
+            $t->foreign('general_document_signature_request_id','m18_delivery_sign_fk')->references('id')->on('general_document_signature_requests')->restrictOnDelete();
             $t->foreignId('actor_user_id')->nullable()->constrained('users')->nullOnDelete();
             $t->string('recipient_email',255);
             $t->string('mode',20);
