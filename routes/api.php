@@ -252,6 +252,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         Route::middleware(['company.access','company.permission:documents.write',
             'company.permission:jobs.read'])->group(function (): void {
             Route::post('/deposits', [\App\Http\Controllers\Api\DepositController::class,'store'])->middleware('throttle:20,1');
+            Route::post('/deposits/ai/voice', [\App\Http\Controllers\Api\DepositAiController::class,'voice'])->middleware('throttle:6,1');
             Route::post('/deposits/from-quote/{quote}', [\App\Http\Controllers\Api\DepositController::class,'fromQuote'])->whereNumber('quote')->middleware('throttle:10,1');
             Route::patch('/deposits/{deposit}', [\App\Http\Controllers\Api\DepositController::class,'update'])->whereNumber('deposit');
             Route::post('/deposits/{deposit}/receive', [\App\Http\Controllers\Api\DepositController::class,'receive'])->whereNumber('deposit')->middleware('throttle:10,1');
