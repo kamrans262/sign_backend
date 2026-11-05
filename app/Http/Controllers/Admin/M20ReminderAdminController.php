@@ -184,6 +184,7 @@ final class M20ReminderAdminController extends Controller
         $filters = $request->validate([
             'company_id' => ['nullable', 'integer', 'min:1'],
             'category' => ['nullable', 'string', 'max:30'],
+            'delivery_status' => ['nullable', 'in:pending,retry,sending,submitted,failed,unknown,invalid,revoked'],
         ]);
         $query = DB::table('m20_notifications as n')
             ->join('companies as c', 'c.id', '=', 'n.company_id')
@@ -193,10 +194,29 @@ final class M20ReminderAdminController extends Controller
                 'n.read_at', 'n.dismissed_at', 'n.created_at', 'n.event_key');
         if (isset($filters['company_id'])) $query->where('n.company_id', $filters['company_id']);
         if (isset($filters['category'])) $query->where('n.category', $filters['category']);
+        $push = DB::table('m20_push_deliveries as pd')
+            ->join('m20_notifications as n', 'n.id', '=', 'pd.notification_id')
+            ->join('companies as c', 'c.id', '=', 'n.company_id')
+            ->join('users as u', 'u.id', '=', 'n.recipient_user_id')
+            ->join('m20_push_devices as d', 'd.id', '=', 'pd.device_id')
+            ->select('pd.id', 'pd.status', 'pd.attempts', 'pd.failure_code',
+                'pd.provider_reference', 'pd.template_revision_id',
+                'pd.created_at', 'pd.attempted_at', 'n.event_key', 'n.category',
+                'c.name as company_name', 'u.name as recipient_name',
+                'd.platform', 'd.enabled as device_active');
+        if (isset($filters['company_id'])) $push->where('n.company_id', $filters['company_id']);
+        if (isset($filters['category'])) $push->where('n.category', $filters['category']);
+        if (isset($filters['delivery_status'])) $push->where('pd.status', $filters['delivery_status']);
+        $pushStats = DB::table('m20_push_deliveries')->select('status')
+            ->selectRaw('count(*) as count')->groupBy('status')->pluck('count', 'status');
         return view('admin.notifications.inbox', array_merge($this->companies(), [
-            'filters' => $filters, 'notifications' => $query->orderByDesc('n.id')->paginate(40)->withQueryString(),
+            'filters' => $filters,
+            'notifications' => $query->orderByDesc('n.id')->paginate(40)->withQueryString(),
             'deliveryStats' => DB::table('m20_notification_deliveries')->select('status')
                 ->selectRaw('count(*) as count')->groupBy('status')->pluck('count', 'status'),
+            'pushStats' => $pushStats,
+            'pushDeliveries' => $push->orderByDesc('pd.id')->paginate(30, ['*'], 'push_page')
+                ->withQueryString(),
         ]));
     }
 }

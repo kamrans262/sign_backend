@@ -159,3 +159,16 @@ Artisan::command('sign:m20-dispatch {--send} {--max=40}', function (
 // When host cron invokes schedule:run, the feature gate still defaults false.
 \Illuminate\Support\Facades\Schedule::command('sign:m20-dispatch --send --max=40')
     ->everyMinute()->withoutOverlapping();
+
+
+// Verified, internal-only business notifications; never sends customer email.
+Artisan::command('sign:m20-events {--max=40}', function (
+    \App\Services\M20BusinessNotifications $events
+): int {
+    $this->line(json_encode($events->sync((int) $this->option('max')),
+        JSON_THROW_ON_ERROR));
+    return 0;
+})->purpose('Synchronize verified invoicing, equipment and signing events to in-app inbox');
+
+\Illuminate\Support\Facades\Schedule::command('sign:m20-events --max=40')
+    ->everyMinute()->withoutOverlapping();

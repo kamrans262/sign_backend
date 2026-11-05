@@ -23,12 +23,12 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - name: M20 PHP syntax and migrations
         run: |
-          for f in app/Services/M20PushDispatcher.php app/Services/M20FcmClient.php app/Services/M20DueReminders.php app/Http/Controllers/Api/M20PushDeviceController.php app/Http/Controllers/Api/M20NotificationPreferencesController.php database/migrations/2026_11_05_130000_create_m20_push_delivery.php tests/Feature/M20Stage2PushDeliveryTest.php; do php -l "$f" || exit 1; done
+          for f in app/Services/M20BusinessNotifications.php app/Services/M20PushDispatcher.php app/Services/M20FcmClient.php app/Services/M20DueReminders.php app/Http/Controllers/Api/M20PushDeviceController.php app/Http/Controllers/Api/M20NotificationPreferencesController.php database/migrations/2026_11_05_130000_create_m20_push_delivery.php tests/Feature/M20BusinessNotificationsTest.php tests/Feature/M20Stage2PushDeliveryTest.php; do php -l "$f" || exit 1; done
           php artisan migrate:fresh --force
           php artisan view:cache
           php artisan route:list --path=api/v1/push-devices
           php artisan route:list --path=api/v1/notification-preferences
-          php artisan list | grep 'sign:m20-dispatch'
+          php artisan list | grep 'sign:m20-'
       - name: M20 Push + Stage 1 acceptance
         run: php artisan test tests/Feature/M20Stage2PushDeliveryTest.php tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M20Stage1AdminPreferencesTest.php
       - name: M19 send safety, M17 M18 regressions

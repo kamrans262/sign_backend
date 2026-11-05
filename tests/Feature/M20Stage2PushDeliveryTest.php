@@ -218,4 +218,35 @@ final class M20Stage2PushDeliveryTest extends TestCase
         $this->assertSame(1, DB::table('m20_push_deliveries')->first()->attempts);
     }
 
+    public function test_admin_audits_push_without_exposing_device_identifiers(): void
+    {
+        $this->ready(true);
+        [$user, $company] = $this->tenant();
+        $this->register();
+        $this->putJson('/api/v1/notification-preferences', [
+            'in_app_enabled' => true, 'push_enabled' => true,
+            'locale' => 'en', 'timezone' => 'UTC',
+        ])->assertOk();
+        $this->postJson('/api/v1/reminders', [
+            'title' => 'Admin audit', 'type' => 'other',
+            'due_at' => now()->subHour()->toIso8601String(),
+            'send_notification' => true,
+        ])->assertCreated();
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response([
+                'access_token' => 'fake-m20-audit', 'expires_in' => 3600,
+            ]),
+            'https://fcm.googleapis.com/v1/projects/sign-kamran/messages:send' =>
+                Http::response(['name' => 'projects/sign-kamran/messages/audit'], 200),
+        ]);
+        $this->assertSame(1, app(M20PushDispatcher::class)->process(10, true)['sent']);
+        $admin = User::factory()->create(['is_active' => true, 'is_platform_admin' => true]);
+        $this->actingAs($admin);
+        $this->get('/admin/notification-inbox')->assertOk()
+            ->assertSee('Firebase Push Delivery Audit')
+            ->assertSee('Accepted by provider')
+            ->assertSee('projects/sign-kamran/messages/audit')
+            ->assertDontSee(str_repeat('fcm-token-', 12));
+    }
+
 }

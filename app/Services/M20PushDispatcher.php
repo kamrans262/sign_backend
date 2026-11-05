@@ -12,6 +12,7 @@ final class M20PushDispatcher
         private readonly M20FcmClient $fcm,
         private readonly M20NotificationTemplates $templates,
         private readonly M20DueReminders $due,
+        private readonly M20BusinessNotifications $business,
     ) {}
 
     /** Finite company/user buckets. A scheduler is not allowed to send unless enabled. */
@@ -120,10 +121,12 @@ final class M20PushDispatcher
                     || $reminder->owner_user_id !== $notification->recipient_user_id
                     || (int) ($parts[3] ?? 0) !== (int) $reminder->lock_version
                     || !$when || $when > now()->toDateTimeString());
+                $staleBusiness = $notification && !$notification->reminder_id
+                    && !$this->business->actionable($notification);
                 if (!$notification || !$device || !$device->enabled || !$pref || !$pref->push_enabled
                     || $device->company_id !== $notification->company_id
                     || $device->user_id !== $notification->recipient_user_id
-                    || $staleReminder) {
+                    || $staleReminder || $staleBusiness) {
                     DB::table('m20_push_deliveries')->where('id', $id)->update([
                         'status' => 'revoked', 'locked_until' => null, 'updated_at' => now(),
                     ]);
