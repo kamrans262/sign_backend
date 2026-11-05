@@ -56,6 +56,11 @@ final class M20PushDispatcher
                     ->on('n.recipient_user_id', '=', 'p.user_id');
             })
             ->where('p.push_enabled', true)
+            ->whereNotExists(function ($q): void {
+                $q->selectRaw('1')->from('m22_user_preferences as global')
+                    ->whereColumn('global.user_id', 'n.recipient_user_id')
+                    ->where('global.push_notifications', false);
+            })
             ->whereExists(function ($q): void {
                 $q->selectRaw('1')->from('company_user as cu')
                     ->join('companies as c', 'c.id', '=', 'cu.company_id')
@@ -152,7 +157,10 @@ final class M20PushDispatcher
                     ->where('cu.status', 'active')
                     ->where('c.status', 'active')
                     ->where('u.is_active', true)->exists();
-                if (!$authorized || !$notification || !$device || !$device->enabled || !$pref || !$pref->push_enabled
+                $globalOptOut = $notification && DB::table('m22_user_preferences')
+                    ->where('user_id', $notification->recipient_user_id)
+                    ->where('push_notifications', false)->exists();
+                if (!$authorized || $globalOptOut || !$notification || !$device || !$device->enabled || !$pref || !$pref->push_enabled
                     || $device->company_id !== $notification->company_id
                     || $device->user_id !== $notification->recipient_user_id
                     || $staleReminder || $staleBusiness) {

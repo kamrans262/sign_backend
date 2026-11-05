@@ -49,6 +49,11 @@ final class M20NotificationPreferencesController extends Controller
             'timezone' => ['required', 'timezone'],
             'push_enabled' => ['sometimes', 'boolean'],
         ]);
+        if (($fields['push_enabled'] ?? false) &&
+            DB::table('m22_user_preferences')->where('user_id', $request->user()->id)
+                ->where('push_notifications', false)->exists()) {
+            abort(422, 'Enable account-wide push notifications before opting in.');
+        }
         if (($fields['push_enabled'] ?? false) && !app(M20FcmClient::class)->available()) {
             abort(422, 'Push delivery is not configured.');
         }

@@ -155,6 +155,20 @@ final class M22AccountController extends Controller
                 // updateOrInsert on an existing row preserves original timestamp.
             ]
         );
+        // M22 is a global consent ceiling above M20 per-company opt-in.
+        // Disabling push immediately cancels all registered device deliveries.
+        $locale = $data['language'] === 'French' ? 'fr' : 'en';
+        DB::table('m20_notification_preferences')->where('user_id', $user->id)
+            ->update(['locale' => $locale, 'timezone' => $data['timeZone'],
+                'updated_at' => now()]);
+        if (!$data['pushNotifications']) {
+            DB::table('m20_notification_preferences')->where('user_id', $user->id)
+                ->update(['push_enabled' => false, 'updated_at' => now()]);
+            DB::table('m20_push_devices')->where('user_id', $user->id)
+                ->where('enabled', true)->update([
+                    'enabled' => false, 'revoked_at' => now(), 'updated_at' => now(),
+                ]);
+        }
         AuditLogger::record('mobile.account.preferences_updated', $user, $user, request: $request);
         return $this->preferences($request);
     }
