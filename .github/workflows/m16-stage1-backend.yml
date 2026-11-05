@@ -23,7 +23,7 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - name: Lint M16 source and compile existing-style Admin pages
         run: |
-          for file in database/migrations/2026_11_05_030000_create_deposit_tracking_tables.php app/Services/DepositService.php app/Http/Controllers/Api/DepositController.php app/Http/Controllers/Admin/DepositController.php tests/Feature/M16DepositManagementTest.php; do php -l "$file" || exit 1; done
+          for file in database/migrations/2026_11_05_030000_create_deposit_tracking_tables.php app/Services/DepositService.php app/Http/Controllers/Api/DepositController.php app/Http/Controllers/Api/DepositAiController.php app/Http/Controllers/Admin/DepositController.php tests/Feature/M16DepositManagementTest.php; do php -l "$file" || exit 1; done
           php artisan view:cache
           php artisan route:list --path=api/v1/deposits
           php artisan route:list --path=admin/deposits
