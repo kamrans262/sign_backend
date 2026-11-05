@@ -1,0 +1,38 @@
+name: M16 Stage 2 Deposit Release Safety
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m16-stage2-backend
+  cancel-in-progress: true
+jobs:
+  deposit-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint M16 additive schema, service and read-only preflight
+        run: |
+          for file in database/migrations/2026_11_05_030000_create_deposit_tracking_tables.php database/migrations/2026_11_05_040000_add_deposit_idempotency_columns.php app/Services/DepositService.php app/Http/Controllers/Api/DepositController.php app/Http/Controllers/Admin/DepositController.php scripts/m16_release_preflight.php tests/Feature/M16DepositManagementTest.php; do php -l "$file" || exit 1; done
+          php artisan view:cache
+          php scripts/m16_release_preflight.php
+      - name: Exercise additive migrations and release readback on isolated SQLite
+        run: |
+          export DB_CONNECTION=sqlite
+          export DB_DATABASE="$RUNNER_TEMP/sign2digital-m16-preflight.sqlite"
+          touch "$DB_DATABASE"
+          php artisan migrate --force --no-interaction
+          php scripts/m16_release_preflight.php --require-migrated
+      - name: Payment retry and historical M12-M16 regressions
+        run: |
+          php artisan test --filter='M(16DepositManagement|15LabourTracking|14ExpenseTracking|13WorkAcceptance|12ReportsManagement)Test'
