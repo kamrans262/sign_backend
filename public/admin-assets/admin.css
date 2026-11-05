@@ -489,3 +489,45 @@ td .strong { font-size:13px; }
 @media(prefers-reduced-motion:reduce) {
  .hope-ui-adapt .hope-metric { transition:none; }
 }
+
+
+/* M20 Admin cohesion: scoped Time & Labour filters; other module toolbars unchanged. */
+.hope-ui-adapt .admin-labour-filters { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); align-items:center; gap:10px; width:100%; }
+.hope-ui-adapt .admin-labour-filters > input[name="q"] { grid-column:span 4; max-width:none; min-width:0; }
+.hope-ui-adapt .admin-labour-filters > select[name="company_id"],
+.hope-ui-adapt .admin-labour-filters > select[name="job_id"],
+.hope-ui-adapt .admin-labour-filters > select[name="worker_id"],
+.hope-ui-adapt .admin-labour-filters > select[name="kind"] { grid-column:span 2; width:100%; max-width:none; min-width:0; }
+.hope-ui-adapt .admin-labour-filters > select[name="status"],
+.hope-ui-adapt .admin-labour-filters > input[type="date"] { grid-column:span 3; min-width:0; width:100%; max-width:none; }
+.hope-ui-adapt .admin-labour-filter-actions { grid-column:span 3; display:flex; gap:10px; min-width:0; }
+.hope-ui-adapt .admin-labour-filter-actions .btn { flex:1; min-width:0; }
+@media(max-width:1400px) {
+  .hope-ui-adapt .admin-labour-filters { grid-template-columns:repeat(6,minmax(0,1fr)); }
+  .hope-ui-adapt .admin-labour-filters > input[name="q"] { grid-column:span 6; }
+  .hope-ui-adapt .admin-labour-filters > select[name="company_id"],
+  .hope-ui-adapt .admin-labour-filters > select[name="job_id"],
+  .hope-ui-adapt .admin-labour-filters > select[name="worker_id"],
+  .hope-ui-adapt .admin-labour-filters > select[name="kind"] { grid-column:span 3; }
+}
+@media(max-width:700px) {
+  .hope-ui-adapt .admin-labour-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .hope-ui-adapt .admin-labour-filters > input[name="q"],
+  .hope-ui-adapt .admin-labour-filters > select[name="company_id"],
+  .hope-ui-adapt .admin-labour-filters > select[name="job_id"],
+  .hope-ui-adapt .admin-labour-filters > select[name="worker_id"],
+  .hope-ui-adapt .admin-labour-filters > select[name="kind"],
+  .hope-ui-adapt .admin-labour-filters > select[name="status"],
+  .hope-ui-adapt .admin-labour-filters > input[type="date"],
+  .hope-ui-adapt .admin-labour-filter-actions { grid-column:span 2; }
+}
+
+/* Shared accessible confirmation dialog, matching existing Sign2Digital controls. */
+.admin-confirm-dialog { width:min(460px,calc(100% - 32px)); max-height:calc(100vh - 40px); overflow:auto; border:1px solid var(--border-light); border-radius:var(--panel-radius); background:var(--surface); color:var(--ink); box-shadow:0 20px 60px rgba(18,37,54,.2); padding:0; }
+.admin-confirm-dialog::backdrop { background:rgba(18,37,54,.46); }
+.admin-confirm-inner { padding:26px; }
+.admin-confirm-icon { display:grid; place-items:center; width:42px; height:42px; margin-bottom:16px; border-radius:var(--radius); background:var(--icon-bg); color:var(--primary); }
+.admin-confirm-dialog h2 { margin:0; font-size:20px; line-height:1.35; font-weight:700; }
+.admin-confirm-dialog p { margin:10px 0 24px; color:var(--muted); font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
+.admin-confirm-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:10px; }
+@media(max-width:440px) { .admin-confirm-inner { padding:20px; } .admin-confirm-actions .btn { flex:1; } }
