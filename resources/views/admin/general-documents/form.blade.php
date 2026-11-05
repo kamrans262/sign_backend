@@ -31,7 +31,7 @@ $plain=implode("\n\n",array_column($blocks,'text'));
 <div><button class="btn btn-primary">Save {{ $editing?'Revision':'Draft' }}</button></div></form>
 @else
 <div style="padding:20px">
-<p>This document is {{ $document['status'] }} and immutable. The signed customer workflow and official PDF are Stage 2 actions.</p>
+<p>This document is {{ $document['status'] }} and immutable. The original approved revision is immutable. Official PDF and signing actions are below.</p>
 @foreach($blocks as $block)<p style="white-space:pre-wrap">{{ $block['text'] }}</p>@endforeach
 </div>
 @endif
@@ -49,6 +49,80 @@ $plain=implode("\n\n",array_column($blocks,'text'));
 <form method="post" action="{{ route('admin.general-documents.transition',[$document['id'],'archive']) }}" onsubmit="return confirm('Archive this draft?')">@csrf
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $document['lock_version'] }}"><button class="btn btn-outline">Archive</button></form>
 @endif</div></section>
+
+@if($document['status']==='approved')
+<section class="panel">
+<div class="panel-header"><h2>Official PDF &amp; Customer Delivery</h2></div>
+<div style="padding:20px">
+@if(!$issued)
+<p>Issue the approved revision before making any customer links or signature requests.</p>
+<form method="post" action="{{ route('admin.general-documents.issue',$document['id']) }}" onsubmit="return confirm('Issue the exact approved document PDF?')">
+@csrf <input type="hidden" name="confirm" value="1">
+<button class="btn btn-primary" type="submit">Issue Official PDF</button></form>
+@else
+<p>Revision {{ $issued['issue']['revision'] }} · SHA-256: <code>{{ $issued['issue']['sha256'] }}</code></p>
+<a class="btn btn-outline" href="{{ route('admin.general-documents.issuedPdf',$document['id']) }}">Download Verified PDF</a>
+<form method="post" class="toolbar" action="{{ route('admin.general-documents.customerLink',$document['id']) }}">@csrf
+<button class="btn btn-outline" type="submit">Create Private Customer Link</button></form>
+@if(session('new_general_customer_link'))
+<p>New link — copy for the intended recipient (not sent automatically):</p>
+<input class="input" readonly onclick="this.select()" style="width:100%" value="{{ session('new_general_customer_link') }}">
+@endif
+<hr style="margin:20px 0;border:0;border-top:1px solid #d9e2ea">
+<h3>Customer Signature Request</h3>
+<p>Electronic signature evidence only; power-of-attorney documents may require further legal formalities.</p>
+<form class="form-grid" method="post" action="{{ route('admin.general-documents.signature',$document['id']) }}">@csrf
+<label>Signer Name <input class="input" name="signer_name" maxlength="255" required></label>
+<label>Signer Email <input class="input" name="signer_email" type="email" maxlength="255" required></label>
+<div><button class="btn btn-primary" type="submit">Create Signing Link</button></div></form>
+@if(session('new_general_signature_link'))
+<p>Copy the new signing link now. Only its hash is stored:</p>
+<input class="input" readonly onclick="this.select()" style="width:100%" value="{{ session('new_general_signature_link') }}">
+@endif
+<hr style="margin:20px 0;border:0;border-top:1px solid #d9e2ea">
+<h3>Email Customer</h3>
+<form class="form-grid" method="post" action="{{ route('admin.general-documents.send',$document['id']) }}">@csrf
+<label>Recipient Email <input class="input" name="recipient_email" type="email" maxlength="255" required></label>
+<label>Mode <select class="input" name="mode"><option value="link">Secure Link</option><option value="pdf">Attach Approved PDF</option><option value="signature">Signature Invitation</option></select></label>
+<label>Signature Request ID (signature mode) <input class="input" name="signature_request_id" type="number" min="1"></label>
+<label>Signature Link (signature mode) <input class="input" name="signature_link" maxlength="2048" placeholder="Paste saved invitation URL"></label>
+<label style="grid-column:1/-1">Optional Message <textarea class="input" name="message" maxlength="2000" rows="3"></textarea></label>
+<div><button class="btn btn-primary" type="submit">Submit Email</button></div></form>
+<p class="muted">Transport submission is not proof that a recipient received the email.</p>
+@endif
+</div></section>
+@if($issued)
+<section class="panel"><div class="panel-header"><h2>Signature Request History</h2></div>
+<div class="table-wrap"><table><thead><tr><th>Signer</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead><tbody>
+@forelse($issued['signatures'] as $signature)
+<tr><td>{{ $signature['signer_name'] }} ({{ $signature['signer_email'] }})</td>
+<td>{{ $signature['status'] }}</td><td>{{ $signature['expires_at'] }}</td><td>
+@if($signature['status']==='signed')
+<a class="btn btn-small btn-outline" href="{{ route('admin.general-documents.signedPdf',[$document['id'],$signature['id']]) }}">Signed PDF</a>
+@elseif(in_array($signature['status'],['ready','viewed']))
+<form method="post" action="{{ route('admin.general-documents.revokeSignature',[$document['id'],$signature['id']]) }}">@csrf
+<button class="btn btn-small btn-outline" type="submit">Revoke</button></form>
+@endif</td></tr>
+@empty<tr><td colspan="4">No signature requests.</td></tr>@endforelse
+</tbody></table></div></section>
+<section class="panel"><div class="panel-header"><h2>Private Customer Links</h2></div>
+<div class="table-wrap"><table><thead><tr><th>ID</th><th>Expiry</th><th>Revoked</th><th>Action</th></tr></thead><tbody>
+@forelse($issued['links'] as $link)
+<tr><td>#{{ $link['id'] }}</td><td>{{ $link['expires_at'] }}</td><td>{{ $link['revoked_at']??'Active' }}</td><td>
+@if(!$link['revoked_at'])<form method="post" action="{{ route('admin.general-documents.revokeLink',[$document['id'],$link['id']]) }}">@csrf
+<button class="btn btn-small btn-outline" type="submit">Revoke</button></form>@endif</td></tr>
+@empty<tr><td colspan="4">No private customer links.</td></tr>@endforelse
+</tbody></table></div></section>
+<section class="panel"><div class="panel-header"><h2>Email Delivery Audit</h2></div>
+<div class="table-wrap"><table><thead><tr><th>Recipient</th><th>Mode</th><th>Status</th><th>Submitted</th></tr></thead><tbody>
+@forelse($issued['deliveries'] as $delivery)
+<tr><td>{{ $delivery['recipient_email'] }}</td><td>{{ $delivery['mode'] }}</td>
+<td>{{ $delivery['status'] }}</td><td>{{ $delivery['sent_at']??'Not submitted' }}</td></tr>
+@empty<tr><td colspan="4">No delivery attempts.</td></tr>@endforelse
+</tbody></table></div></section>
+@endif
+@endif
+
 <section class="panel"><div class="panel-header"><h2>Private Attachments</h2></div>
 @if($draft)<form class="toolbar" method="post" enctype="multipart/form-data" action="{{ route('admin.general-documents.upload',$document['id']) }}">@csrf
 <input class="input" type="file" name="file" accept=".pdf,.png,.jpg,.jpeg" required><button class="btn btn-primary">Attach File</button></form>@endif

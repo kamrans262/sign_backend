@@ -1,0 +1,35 @@
+name: M18 Stage 2 Immutable General Documents
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m18-stage2-backend
+  cancel-in-progress: true
+jobs:
+  general-document-issuance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: PHP lint, migration and route/view compilers
+        run: |
+          for f in app/Services/GeneralDocumentIssueService.php app/Http/Controllers/Api/GeneralDocumentIssueController.php app/Http/Controllers/Api/PublicGeneralDocumentController.php app/Http/Controllers/Admin/GeneralDocumentController.php app/Services/DocumentCatalogService.php database/migrations/2026_11_05_080000_create_general_document_issuance.php tests/Feature/M18GeneralDocumentIssueTest.php; do php -l "$f" || exit 1; done
+          php artisan migrate --force
+          php artisan view:cache
+          php artisan route:list --path=general-document
+          php artisan route:list --path=general-sign
+          php artisan route:list --path=api/v1/general-documents
+      - name: M18 approved PDF and signed artifact acceptance
+        run: php artisan test --filter='M18GeneralDocument(Issue)?Test'
+      - name: Financial, catalog and signature regression
+        run: php artisan test --filter='M(17InvoiceIssuance|9DocumentManagement|8SignatureRequestFoundation|13WorkAcceptance)Test'

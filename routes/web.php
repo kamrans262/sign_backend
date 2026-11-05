@@ -34,6 +34,22 @@ Route::get('/invoice-view/{token}', [\App\Http\Controllers\Api\PublicInvoiceCont
 Route::get('/invoice-view/{token}/pdf', [\App\Http\Controllers\Api\PublicInvoiceController::class,'pdf'])
     ->where('token','[a-f0-9]{64}')->middleware('throttle:15,1')->name('invoices.customer.pdf');
 
+// M18: independent public document and signing capabilities; never quote IDs.
+Route::get('/general-document/{token}', [\App\Http\Controllers\Api\PublicGeneralDocumentController::class,'show'])
+    ->where('token','[a-f0-9]{64}')->middleware('throttle:30,1')->name('general-document.public.show');
+Route::get('/general-document/{token}/pdf', [\App\Http\Controllers\Api\PublicGeneralDocumentController::class,'pdf'])
+    ->where('token','[a-f0-9]{64}')->middleware('throttle:15,1')->name('general-document.public.pdf');
+Route::get('/general-sign/{token}', [\App\Http\Controllers\Api\PublicGeneralDocumentController::class,'signing'])
+    ->where('token','[a-f0-9]{64}')->middleware('throttle:30,1')->name('general-document.sign.show');
+Route::get('/general-sign/{token}/pdf', [\App\Http\Controllers\Api\PublicGeneralDocumentController::class,'signingPdf'])
+    ->where('token','[a-f0-9]{64}')->middleware('throttle:15,1')->name('general-document.sign.pdf');
+Route::post('/general-sign/{token}/submit', [\App\Http\Controllers\Api\PublicGeneralDocumentController::class,'submit'])
+    ->where('token','[a-f0-9]{64}')->middleware('throttle:6,1')->name('general-document.sign.submit');
+Route::get('/general-sign/{token}/receipt', [\App\Http\Controllers\Api\PublicGeneralDocumentController::class,'receipt'])
+    ->where('token','[a-f0-9]{64}')->middleware('throttle:30,1')->name('general-document.sign.receipt');
+Route::get('/general-sign/{token}/signed-pdf', [\App\Http\Controllers\Api\PublicGeneralDocumentController::class,'signedPdf'])
+    ->where('token','[a-f0-9]{64}')->middleware('throttle:12,1')->name('general-document.sign.signedPdf');
+
 // Customer quote view: time-limited, tamper-evident signed URLs only.
 Route::get('/quote-view/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class, 'publicShow'])
     ->middleware('signed')->whereNumber('quote')->name('quotes.public');
@@ -124,6 +140,14 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/general-documents/{document}/attachments', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'upload'])->whereNumber('document')->name('general-documents.upload');
         Route::get('/general-documents/{document}/attachments/{attachment}', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'attachment'])->whereNumber('document')->whereNumber('attachment')->name('general-documents.attachment');
         Route::delete('/general-documents/{document}/attachments/{attachment}', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'removeAttachment'])->whereNumber('document')->whereNumber('attachment')->name('general-documents.removeAttachment');
+        Route::post('/general-documents/{document}/issue', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'issue'])->whereNumber('document')->name('general-documents.issue');
+        Route::get('/general-documents/{document}/issued-pdf', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'issuedPdf'])->whereNumber('document')->name('general-documents.issuedPdf');
+        Route::post('/general-documents/{document}/customer-link', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'customerLink'])->whereNumber('document')->name('general-documents.customerLink');
+        Route::post('/general-documents/{document}/signatures', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'signature'])->whereNumber('document')->name('general-documents.signature');
+        Route::get('/general-documents/{document}/signatures/{signature}/pdf', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'signedPdf'])->whereNumber('document')->whereNumber('signature')->name('general-documents.signedPdf');
+        Route::post('/general-documents/{document}/signature-requests/{signature}/revoke', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'revokeSignature'])->whereNumber('document')->whereNumber('signature')->name('general-documents.revokeSignature');
+        Route::post('/general-documents/{document}/customer-links/{link}/revoke', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'revokeLink'])->whereNumber('document')->whereNumber('link')->name('general-documents.revokeLink');
+        Route::post('/general-documents/{document}/send', [\App\Http\Controllers\Admin\GeneralDocumentController::class,'send'])->whereNumber('document')->name('general-documents.send');
         // M17: Admin invoice ledger and manual reconciliation.
         Route::get('/invoices', [\App\Http\Controllers\Admin\InvoiceController::class,'index'])->name('invoices.index');
         Route::get('/invoices/export', [\App\Http\Controllers\Admin\InvoiceController::class,'export'])->name('invoices.export');

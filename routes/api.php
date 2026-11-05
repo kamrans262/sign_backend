@@ -259,6 +259,20 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/general-documents/ai/prepare', [\App\Http\Controllers\Api\GeneralDocumentController::class,'ai'])->middleware('throttle:6,1');
             Route::post('/general-documents/voice/transcribe', [\App\Http\Controllers\Api\GeneralDocumentController::class,'transcribe'])->middleware('throttle:6,1');
         });
+        // M18.2: issue, immutable PDF, secure links, signature requests and email.
+        Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
+            Route::get('/general-documents/{document}/issued', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'show'])->whereNumber('document');
+            Route::get('/general-documents/{document}/pdf', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'pdfView'])->whereNumber('document')->middleware('throttle:30,1');
+            Route::get('/general-documents/{document}/signatures/{signature}/signed-pdf', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'signedPdf'])->whereNumber('document')->whereNumber('signature')->middleware('throttle:20,1');
+        });
+        Route::middleware(['company.access','company.permission:documents.write'])->group(function (): void {
+            Route::post('/general-documents/{document}/issue', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'issue'])->whereNumber('document')->middleware('throttle:10,1');
+            Route::post('/general-documents/{document}/customer-link', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'customerLink'])->whereNumber('document')->middleware('throttle:10,1');
+            Route::delete('/general-documents/{document}/customer-links/{link}', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'revokeLink'])->whereNumber('document')->whereNumber('link');
+            Route::post('/general-documents/{document}/signature-requests', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'signature'])->whereNumber('document')->middleware('throttle:10,1');
+            Route::delete('/general-documents/{document}/signature-requests/{signature}', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'revokeSignature'])->whereNumber('document')->whereNumber('signature');
+            Route::post('/general-documents/{document}/send', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'send'])->whereNumber('document')->middleware('throttle:6,1');
+        });
         // M17: invoice reads and explicit manual payment ledger, no gateway.
         Route::middleware(['company.access','company.permission:documents.read',
             'company.permission:jobs.read'])->group(function (): void {

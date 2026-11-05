@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Services\GeneralDocumentService;
+use App\Services\GeneralDocumentIssueService;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -12,7 +14,8 @@ use Illuminate\View\View;
 
 final class GeneralDocumentController extends Controller
 {
-    public function __construct(private readonly GeneralDocumentService $documents) {}
+    public function __construct(private readonly GeneralDocumentService $documents,
+        private readonly GeneralDocumentIssueService $issues) {}
 
     private function company(int $id): Company
     {
@@ -60,8 +63,12 @@ final class GeneralDocumentController extends Controller
     public function edit(int $document): View
     {
         $row=$this->record($document);
+        $issued=DB::table('general_document_issues')
+            ->where('company_id',$row->company_id)
+            ->where('general_document_id',$document)->exists();
         return view('admin.general-documents.form',array_merge($this->choices(),[
             'record'=>$this->documents->detail($row->company_id,$document),
+            'issued'=>$issued?$this->issues->metadata($row->company_id,$document):null,
         ]));
     }
 
@@ -138,4 +145,84 @@ final class GeneralDocumentController extends Controller
             'Cache-Control'=>'private, no-store','X-Content-Type-Options'=>'nosniff',
         ]);
     }
+    public function issue(Request $request,int $document)
+    {
+        $row=$this->record($document);
+        $this->issues->issue($request,$this->company($row->company_id),$document);
+        return redirect()->route('admin.general-documents.edit',$document)
+            ->with('success','Official document issued and verified.');
+    }
+
+    public function issuedPdf(int $document)
+    {
+        $row=$this->record($document);
+        $bytes=$this->issues->issuedPdf($row->company_id,$document);
+        return response($bytes,200,[
+            'Content-Type'=>'application/pdf',
+            'Content-Disposition'=>'attachment; filename="Sign2Digital_General_Document_'.
+                $document.'.pdf"',
+            'Cache-Control'=>'private, no-store','X-Content-Type-Options'=>'nosniff',
+        ]);
+    }
+
+    public function customerLink(Request $request,int $document)
+    {
+        $row=$this->record($document);
+        $result=$this->issues->link($request,$this->company($row->company_id),$document);
+        return redirect()->route('admin.general-documents.edit',$document)
+            ->with('success','Private customer link created. Not emailed.')
+            ->with('new_general_customer_link',$result['secure_link']);
+    }
+
+    public function signature(Request $request,int $document)
+    {
+        $row=$this->record($document);
+        $request->merge(['confirm'=>true]);
+        $result=$this->issues->requestSignature($request,
+            $this->company($row->company_id),$document);
+        return redirect()->route('admin.general-documents.edit',$document)
+            ->with('success','Signature invitation created. Not emailed.')
+            ->with('new_general_signature_link',$result['signature_link']);
+    }
+
+    public function revokeLink(Request $request,int $document,int $link)
+    {
+        $row=$this->record($document);
+        $this->issues->revokeLink($request,$this->company($row->company_id),$document,$link);
+        return redirect()->route('admin.general-documents.edit',$document)
+            ->with('success','Private link revoked.');
+    }
+
+    public function revokeSignature(Request $request,int $document,int $signature)
+    {
+        $row=$this->record($document);
+        $this->issues->revokeSignature($request,$this->company($row->company_id),
+            $document,$signature);
+        return redirect()->route('admin.general-documents.edit',$document)
+            ->with('success','Pending signature request revoked.');
+    }
+
+    public function signedPdf(int $document,int $signature)
+    {
+        $row=$this->record($document);
+        $bytes=$this->issues->signedForBusiness($row->company_id,$document,$signature);
+        return response($bytes,200,[
+            'Content-Type'=>'application/pdf',
+            'Content-Disposition'=>'attachment; filename="Sign2Digital_Signed_General_Document_'.
+                $document.'.pdf"',
+            'Cache-Control'=>'private, no-store','X-Content-Type-Options'=>'nosniff',
+        ]);
+    }
+
+    public function send(Request $request,int $document)
+    {
+        $row=$this->record($document);
+        if(!$request->filled('request_key'))$request->merge([
+            'request_key'=>'general-mail-'.(string)Str::uuid(),
+        ]);
+        $this->issues->send($request,$this->company($row->company_id),$document);
+        return redirect()->route('admin.general-documents.edit',$document)
+            ->with('success','Email submitted to configured transport; inbox delivery not guaranteed.');
+    }
+
 }

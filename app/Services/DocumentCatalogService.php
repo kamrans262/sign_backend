@@ -38,7 +38,12 @@ final class DocumentCatalogService
         $general = DB::table('general_documents as g')
             ->leftJoin('service_jobs as j','j.id','=','g.service_job_id')
             ->leftJoin('clients as c','c.id','=','g.client_id')
-            ->selectRaw("'general' as kind, g.id as entity_id, g.company_id, g.client_id, g.service_job_id as job_id, 'other' as category, g.number, COALESCE(j.title,'') as project, COALESCE(c.full_name,'') as customer, g.title as managed_title, g.status, g.current_revision as version, NULL as sha256, g.created_at as occurred_at, g.updated_at");
+            ->leftJoin('general_document_issues as gi',function($join):void{
+                $join->on('gi.general_document_id','=','g.id')
+                    ->on('gi.approved_revision','=','g.approved_revision')
+                    ->on('gi.company_id','=','g.company_id');
+            })
+            ->selectRaw("'general' as kind, g.id as entity_id, g.company_id, g.client_id, g.service_job_id as job_id, 'other' as category, g.number, COALESCE(j.title,'') as project, COALESCE(c.full_name,'') as customer, g.title as managed_title, g.status, g.current_revision as version, gi.pdf_sha256 as sha256, g.created_at as occurred_at, g.updated_at");
         return DB::query()->fromSub($quotes->unionAll($signed)->unionAll($managed)
             ->unionAll($addenda)->unionAll($general), 'documents');
     }
@@ -282,7 +287,7 @@ final class DocumentCatalogService
         $item=$this->resolve($companyId,$key);
         $id=$item['entity_id'];
         if ($item['kind'] === 'general') {
-            abort(409,'General documents cannot be downloaded as official PDFs until issued in Stage 2.');
+            return app(GeneralDocumentIssueService::class)->issuedPdf($companyId,$id);
         }
         if ($item['kind'] === 'signed') {
             $artifact=SignedDocumentArtifact::query()->where('company_id',$companyId)->findOrFail($id);
