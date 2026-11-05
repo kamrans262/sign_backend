@@ -218,6 +218,9 @@ final class InvoiceService
         return ['job_id'=>$job,'currency'=>'CHF',
             'available_minor'=>(int)$rows->sum('amount_minor'),
             'deposit_ids'=>$rows->pluck('id')->map(fn($n)=>(int)$n)->all(),
+            'deposit_candidates'=>$rows->map(fn($r)=>[
+                'id'=>(int)$r->id,'amount_minor'=>(int)$r->amount_minor,
+            ])->all(),
             'allocation_policy'=>'whole_deposits_once'];
     }
 
