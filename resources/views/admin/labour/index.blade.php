@@ -54,10 +54,10 @@
 <td>#{{ $timer['company_id'] }}</td><td>{{ $timer['worker_name'] }}</td>
 <td>{{ $timer['job'] }}</td><td>{{ ucfirst($timer['status']) }}</td>
 <td>{{ intdiv($timer['elapsed_seconds'],3600) }}h {{ intdiv($timer['elapsed_seconds']%3600,60) }}m</td>
-<td><form action="{{ route('admin.labour.timer.stop',[$timer['company_id'],$timer['worker_id']]) }}" method="post" onsubmit="return confirm('Stop this worker timer and create a pending time entry?')">
+<td><form action="{{ route('admin.labour.timer.stop',[$timer['company_id'],$timer['worker_id']]) }}" method="post" data-confirm="Stop this worker timer and create a pending time entry?">
 @csrf<input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}">
 <button class="btn btn-small btn-outline">Stop Timer</button></form>
-<form action="{{ route('admin.labour.timer.recover',[$timer['company_id'],$timer['worker_id']]) }}" method="post" onsubmit="return confirm('Recover timer without billing any hours? You must add corrected time manually.')">
+<form action="{{ route('admin.labour.timer.recover',[$timer['company_id'],$timer['worker_id']]) }}" method="post" data-confirm="Recover timer without billing any hours? You must add corrected time manually.">
 @csrf
 <input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}">
 <input type="hidden" name="confirm" value="1">
