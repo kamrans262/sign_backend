@@ -222,14 +222,32 @@ final class InvoiceDocumentService
         return $this->issuePayload($issue);
     }
 
+
+    /** Verify the exact frozen source, independently of the PDF checksum. */
+    private function verifiedSnapshot(object $issue): array
+    {
+        $canonical=(string)$issue->snapshot;
+        abort_unless(hash_equals((string)$issue->snapshot_sha256,
+            hash('sha256',$canonical)),409,'Issued invoice snapshot checksum mismatch.');
+        $data=json_decode($canonical,true,512,JSON_THROW_ON_ERROR);
+        abort_unless(is_array($data)
+            && (int)($data['invoice_id']??0)===(int)$issue->service_invoice_id
+            && (int)($data['company_id']??0)===(int)$issue->company_id
+            && (int)($data['revision']??0)===(int)$issue->revision,
+            409,'Issued invoice snapshot identity mismatch.');
+        return $data;
+    }
+
     private function issueRow(int $company, int $invoice): object
     {
         $row=$this->invoices->find($company,$invoice);
         abort_unless(in_array($row->status,['approved','sent'],true),409,
             'Invoice has not been approved.');
-        return DB::table('service_invoice_issues')->where('company_id',$company)
+        $issue=DB::table('service_invoice_issues')->where('company_id',$company)
             ->where('service_invoice_id',$invoice)->where('revision',$row->revision)
             ->firstOrFail();
+        $this->verifiedSnapshot($issue);
+        return $issue;
     }
 
     private function issuePayload(object $row): array
@@ -303,6 +321,7 @@ final class InvoiceDocumentService
             ->whereIn('i.status',['approved','sent'])
             ->select('d.*','i.invoice_number')->first();
         abort_unless($row!==null,404);
+        $this->verifiedSnapshot($row);
         return $row;
     }
 
@@ -310,7 +329,7 @@ final class InvoiceDocumentService
     public function publicSummary(string $token): array
     {
         $issue=$this->customerIssue($token);
-        $s=json_decode($issue->snapshot,true,512,JSON_THROW_ON_ERROR);
+        $s=$this->verifiedSnapshot($issue);
         return ['number'=>$s['number'],'company_name'=>$s['company_name'],
             'client_name'=>$s['client_name'],'invoice_date'=>$s['invoice_date'],
             'due_date'=>$s['due_date'],'total_minor'=>$s['total_minor'],
@@ -364,7 +383,7 @@ final class InvoiceDocumentService
                 ->update(['revoked_at'=>now()]);
             throw $e;
         }
-        $snapshot=json_decode($issue->snapshot,true,512,JSON_THROW_ON_ERROR);
+        $snapshot=$this->verifiedSnapshot($issue);
         $number=$snapshot['number'];
         $filename='Sign2Digital_Invoice_'.preg_replace('/[^A-Za-z0-9_-]/','_',$number).'.pdf';
         try{
@@ -420,7 +439,7 @@ final class InvoiceDocumentService
             'payments_minor'=>$paid,'outstanding_minor'=>$balance,
             'issued_pdf_sha256'=>$issue?->pdf_sha256,
             'snapshot_outstanding_minor'=>$issue?
-                (int)(json_decode($issue->snapshot,true)['amount_due_at_issue_minor']):null,
+                (int)($this->verifiedSnapshot($issue)['amount_due_at_issue_minor']):null,
             'status'=>$record['status']];
     }
 }

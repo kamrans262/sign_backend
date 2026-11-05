@@ -16,7 +16,7 @@ return new class extends Migration {
             $t->char('pdf_sha256', 64);
             $t->char('snapshot_sha256', 64);
             $t->unsignedBigInteger('byte_size');
-            $t->json('snapshot');
+            $t->longText('snapshot'); // Retain byte-identical canonical JSON for SHA verification.
             $t->foreignId('issued_by')->nullable()->constrained('users')->nullOnDelete();
             $t->timestamp('created_at')->useCurrent();
             $t->unique(['service_invoice_id', 'revision'], 'm17_issue_revision_once');

@@ -138,6 +138,24 @@ final class M17InvoiceIssuanceTest extends TestCase
             ->assertJsonPath('data.outstanding_minor',25944);
     }
 
+
+    public function test_frozen_invoice_snapshot_fails_closed_if_audited_fields_change(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$id]=$this->readyInvoice();
+        $url='/api/v1/invoices/'.$id;
+        $this->postJson($url.'/issue',['confirm'=>true])->assertOk();
+        $issue=DB::table('service_invoice_issues')->where('service_invoice_id',$id)
+            ->firstOrFail();
+        $snapshot=json_decode($issue->snapshot,true,512,JSON_THROW_ON_ERROR);
+        $snapshot['total_minor']=1;
+        DB::table('service_invoice_issues')->where('id',$issue->id)->update([
+            'snapshot'=>json_encode($snapshot,JSON_THROW_ON_ERROR),
+        ]);
+        $this->get($url.'/pdf')->assertStatus(409);
+        $this->postJson($url.'/customer-link')->assertStatus(409);
+    }
+
     public function test_manual_payment_changes_live_ledger_but_not_issued_pdf(): void
     {
         Storage::fake('local');
