@@ -36,6 +36,7 @@ final class DepositController extends Controller
                     'id','company_id','reference_number','title']),
             'quotes'=>ServiceQuote::query()->whereIn('status',['approved','sent'])
                 ->whereNotNull('service_job_id')->whereNotNull('deposit_minor')
+                ->whereNotNull('approved_at')->where('currency','CHF')
                 ->where('deposit_minor','>',0)->orderByDesc('id')->limit(500)
                 ->get(['id','company_id','service_job_id','reference_number','deposit_minor']),
         ];
@@ -162,18 +163,20 @@ final class DepositController extends Controller
         $filters=$request->validate([
             'company_id'=>['nullable','integer','exists:companies,id'],
             'job_id'=>['nullable','integer','min:1'],
+            'quote_id'=>['nullable','integer','min:1'],
             'status'=>['nullable',Rule::in(['pending','received','refunded','void'])],
             'q'=>['nullable','string','max:255'],
         ]);
         $safe=static function(mixed $raw): string {
             $s=str_replace(["\r","\n"],' ',(string)($raw??''));
-            return preg_match('/^[=+@-]/',$s)?"'".$s:$s;
+            return preg_match('/^[\\s=+@-]*[=+@-]/u',$s)?"'".$s:$s;
         };
         return response()->streamDownload(function()use($filters,$safe):void {
             $out=fopen('php://output','w');
             fputcsv($out,['ID','Company','Job','Quote','Client','CHF','Date',
                 'Method','Reference','Status','Received At','Refunded At']);
-            for($page=1;$page<=100;$page++) {
+            // Export every matching page; never silently truncate at 10,000 rows.
+            for($page=1;;$page++) {
                 $filters['page']=$page;$filters['per_page']=100;
                 $set=$this->service->listing(null,$filters);
                 foreach($set['records'] as $r)fputcsv($out,[
