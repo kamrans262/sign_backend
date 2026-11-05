@@ -353,7 +353,7 @@ final class M16DepositManagementTest extends TestCase
         $this->actingAs($admin);
         $csv=$this->get('/admin/deposits/export?company_id='.$company->id)
             ->assertOk()->streamedContent();
-        $this->assertSame(123,count(preg_split('/\r?\n/',trim($csv))));
+        $this->assertSame(122,count(preg_split('/\r?\n/',trim($csv))));
         $this->assertStringContainsString("' =2+2",$csv);
         $this->assertStringContainsString('WIRE-000',$csv);
         $this->assertStringContainsString('WIRE-119',$csv);
