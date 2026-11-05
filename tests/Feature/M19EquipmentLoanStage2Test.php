@@ -22,6 +22,7 @@ final class M19EquipmentLoanStage2Test extends TestCase
     // RefreshDatabase restores ID 1 between tests, but Laravel's separate
     // throttle cache is not rolled back. Unique actors preserve real limits.
     private static int $actorSequence=10000;
+    private bool $checkingThrottle=false;
 
     protected function tearDown(): void
     {
@@ -31,6 +32,10 @@ final class M19EquipmentLoanStage2Test extends TestCase
 
     private function tenant(): array
     {
+        // Isolate business-contract acceptance from API request-rate tests.
+        // The dedicated rate-limit test below retains actual throttle middleware.
+        if(!$this->checkingThrottle)
+            $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Carbon::setTestNow('2026-11-05 12:00:00 UTC');
         // Reset cross-test throttle keys, without disabling production rate limiting.
         Cache::flush();
@@ -332,6 +337,7 @@ final class M19EquipmentLoanStage2Test extends TestCase
     }
     public function test_manual_reminder_endpoint_rate_limits_repeated_submissions(): void
     {
+        $this->checkingThrottle=true;
         [,,$asset,$loan]=$this->tenant();
         $this->mailReady();
         $this->send($loan['id'])->assertOk();
