@@ -1,0 +1,34 @@
+name: M17 Stage 2 Immutable Invoice PDFs
+on:
+  push:
+    branches: [feature/m12-site-reports-meeting-minutes-2026-11-04]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m17-stage2-backend
+  cancel-in-progress: true
+jobs:
+  verify-invoice-issuance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Syntax, migrations, views and routes
+        run: |
+          for f in app/Services/InvoiceDocumentService.php app/Services/InvoiceService.php app/Http/Controllers/Api/InvoiceController.php app/Http/Controllers/Api/PublicInvoiceController.php app/Http/Controllers/Admin/InvoiceController.php database/migrations/2026_11_05_060000_create_invoice_issuance_tables.php tests/Feature/M17InvoiceIssuanceTest.php; do php -l "$f" || exit 1; done
+          php artisan view:cache
+          php artisan migrate --force
+          php artisan route:list --path=api/v1/invoices
+          php artisan route:list --path=invoice-view
+      - name: M17 Stage 1 and Stage 2 regressions
+        run: php artisan test --filter='M17Invoice(Issuance|Management)Test'
+      - name: Downstream financial safeguards
+        run: php artisan test --filter='M(16DepositManagement|15LabourTracking|14ExpenseTracking)Test'

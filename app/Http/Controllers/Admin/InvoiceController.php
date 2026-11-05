@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\ServiceJob;
 use App\Models\ServiceQuote;
 use App\Services\InvoiceService;
+use App\Services\InvoiceDocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,8 @@ use Illuminate\View\View;
 
 final class InvoiceController extends Controller
 {
-    public function __construct(private readonly InvoiceService $invoices) {}
+    public function __construct(private readonly InvoiceService $invoices,
+        private readonly InvoiceDocumentService $documents) {}
 
     private function company(int $company): Company
     {
@@ -72,6 +74,10 @@ final class InvoiceController extends Controller
         $row=$this->record($invoice);
         return view('admin.invoices.form',array_merge($this->choices(),[
             'record'=>$this->invoices->detail($row->company_id,$invoice),
+            'issuedDocument'=>DB::table('service_invoice_issues')->where('company_id',$row->company_id)
+                ->where('service_invoice_id',$invoice)->orderByDesc('revision')->first(),
+            'deliveries'=>DB::table('service_invoice_deliveries')->where('company_id',$row->company_id)
+                ->where('service_invoice_id',$invoice)->orderByDesc('id')->limit(30)->get(),
         ]));
     }
 
@@ -172,6 +178,36 @@ final class InvoiceController extends Controller
                     ($file['mime']==='image/png'?'.png':'.jpg')).'"',
             'Cache-Control'=>'private, no-store','X-Content-Type-Options'=>'nosniff',
         ]);
+    }
+
+
+    public function issue(Request $request,int $invoice)
+    {
+        $row=$this->record($invoice);
+        $this->documents->issue($request,$this->company($row->company_id),$invoice);
+        return redirect()->route('admin.invoices.edit',$invoice)
+            ->with('success','Original invoice PDF issued and locked with SHA-256.');
+    }
+
+    public function issuedPdf(int $invoice)
+    {
+        $row=$this->record($invoice);
+        $meta=$this->documents->document($row->company_id,$invoice);
+        $bytes=$this->documents->documentBytes($row->company_id,$invoice);
+        return response($bytes,200,[
+            'Content-Type'=>'application/pdf',
+            'Content-Disposition'=>'attachment; filename="'.$meta['filename'].'"',
+            'Cache-Control'=>'private, no-store, max-age=0',
+            'X-Content-Type-Options'=>'nosniff',
+        ]);
+    }
+
+    public function send(Request $request,int $invoice)
+    {
+        $row=$this->record($invoice);
+        $this->documents->send($request,$this->company($row->company_id),$invoice);
+        return redirect()->route('admin.invoices.edit',$invoice)
+            ->with('success','Invoice email handoff confirmed and delivery audited.');
     }
 
     public function export(Request $request)

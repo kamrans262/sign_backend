@@ -248,6 +248,10 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/jobs/{job}/invoice-sources', [\App\Http\Controllers\Api\InvoiceController::class,'sources'])->whereNumber('job');
             Route::get('/jobs/{job}/invoice-deposits', [\App\Http\Controllers\Api\InvoiceController::class,'availableDeposits'])->whereNumber('job');
             Route::get('/invoices/{invoice}', [\App\Http\Controllers\Api\InvoiceController::class,'show'])->whereNumber('invoice');
+            Route::get('/invoices/{invoice}/document', [\App\Http\Controllers\Api\InvoiceController::class,'document'])->whereNumber('invoice');
+            Route::get('/invoices/{invoice}/pdf', [\App\Http\Controllers\Api\InvoiceController::class,'pdf'])->whereNumber('invoice')->middleware('throttle:30,1');
+            Route::get('/invoices/{invoice}/pdf/download', [\App\Http\Controllers\Api\InvoiceController::class,'download'])->whereNumber('invoice')->middleware('throttle:30,1');
+            Route::get('/invoices/{invoice}/reconciliation', [\App\Http\Controllers\Api\InvoiceController::class,'reconciliation'])->whereNumber('invoice');
             Route::get('/invoices/{invoice}/attachments/{attachment}', [\App\Http\Controllers\Api\InvoiceController::class,'attachment'])->whereNumber('invoice')->whereNumber('attachment')->middleware('throttle:30,1');
         });
         Route::middleware(['company.access','company.permission:documents.write',
@@ -255,6 +259,9 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/invoices', [\App\Http\Controllers\Api\InvoiceController::class,'store'])->middleware('throttle:20,1');
             Route::patch('/invoices/{invoice}', [\App\Http\Controllers\Api\InvoiceController::class,'update'])->whereNumber('invoice');
             Route::post('/invoices/{invoice}/approve', [\App\Http\Controllers\Api\InvoiceController::class,'approve'])->whereNumber('invoice')->middleware('throttle:10,1');
+            Route::post('/invoices/{invoice}/issue', [\App\Http\Controllers\Api\InvoiceController::class,'issue'])->whereNumber('invoice')->middleware('throttle:10,1');
+            Route::post('/invoices/{invoice}/customer-link', [\App\Http\Controllers\Api\InvoiceController::class,'customerLink'])->whereNumber('invoice')->middleware('throttle:10,1');
+            Route::post('/invoices/{invoice}/send', [\App\Http\Controllers\Api\InvoiceController::class,'send'])->whereNumber('invoice')->middleware('throttle:5,1');
             Route::post('/invoices/{invoice}/payments', [\App\Http\Controllers\Api\InvoiceController::class,'payment'])->whereNumber('invoice')->middleware('throttle:10,1');
             Route::post('/invoices/{invoice}/payments/{payment}/void', [\App\Http\Controllers\Api\InvoiceController::class,'voidPayment'])->whereNumber('invoice')->whereNumber('payment')->middleware('throttle:10,1');
             Route::post('/invoices/{invoice}/void', [\App\Http\Controllers\Api\InvoiceController::class,'voidInvoice'])->whereNumber('invoice')->middleware('throttle:10,1');

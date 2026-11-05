@@ -71,7 +71,7 @@ $selectedAddenda=old('addenda_ids',$editing?$invoice['source_addenda_ids']:[]);
 <div><button class="btn btn-primary">Save Draft Invoice</button></div>
 </form>
 @else
-<div style="padding:20px"><p>The approved invoice cannot be edited. Issued PDF and customer delivery will be added in Stage 2.</p></div>
+<div style="padding:20px"><p>The approved invoice cannot be edited. Issued PDF is locked to its exact approved revision.</p></div>
 @endif
 </section>
 @if($editing)
@@ -99,6 +99,29 @@ $selectedAddenda=old('addenda_ids',$editing?$invoice['source_addenda_ids']:[]);
 <label>Method <select class="input" name="method"><option value="bank_transfer">Bank Transfer</option><option value="cash">Cash</option><option value="other">Other Manual</option></select></label>
 <label>Reference <input class="input" name="reference_number" maxlength="120"></label>
 <button class="btn btn-primary">Confirm Received</button></form></section>
+@endif
+
+@if(in_array($invoice['lifecycle_status'],['approved','sent'],true))
+<section class="panel"><div class="panel-header"><h2>Official Invoice PDF &amp; Delivery</h2></div>
+<div style="padding:20px">
+@if(empty($issuedDocument))
+<form method="post" action="{{ route('admin.invoices.issue',$invoice['id']) }}" onsubmit="return confirm('Issue the final, immutable invoice PDF?')">@csrf
+<input type="hidden" name="confirm" value="1"><button class="btn btn-primary">Issue Official PDF</button></form>
+@else
+<p>Issued revision {{ $issuedDocument->revision }} &mdash; SHA-256: <code>{{ $issuedDocument->pdf_sha256 }}</code></p>
+<a class="btn btn-outline" href="{{ route('admin.invoices.issuedPdf',$invoice['id']) }}">Download Verified PDF</a>
+<form class="toolbar" method="post" action="{{ route('admin.invoices.send',$invoice['id']) }}" onsubmit="return confirm('Send this issued invoice to the specified customer email?')">@csrf
+<input type="hidden" name="request_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}">
+<label>Recipient email <input class="input" type="email" name="recipient_email" maxlength="255" required value="{{ $invoice['client_email'] }}"></label>
+<label>Delivery <select class="input" name="mode"><option value="link">Secure link</option><option value="pdf">Attach verified PDF</option></select></label>
+<button class="btn btn-primary">Send Invoice</button></form>
+@endif
+@if(!empty($deliveries) && count($deliveries)>0)
+<h3>Delivery History</h3><div class="table-wrap"><table><thead><tr><th>Recipient</th><th>Mode</th><th>Status</th><th>Time</th></tr></thead><tbody>
+@foreach($deliveries as $delivery)<tr><td>{{ $delivery->recipient_email }}</td><td>{{ $delivery->mode }}</td><td>{{ $delivery->status }}</td><td>{{ $delivery->sent_at ?? $delivery->created_at }}</td></tr>@endforeach
+</tbody></table></div>
+@endif
+</div></section>
 @endif
 <section class="panel"><div class="panel-header"><h2>Payment History (Immutable)</h2></div><div class="table-wrap"><table><thead>
 <tr><th>ID</th><th>Amount CHF</th><th>Date</th><th>Method</th><th>Reference</th><th>Status</th><th>Action</th></tr></thead><tbody>

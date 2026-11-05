@@ -27,6 +27,13 @@ Route::get('/sign/{token}',
     [\App\Http\Controllers\Api\PublicSignatureController::class, 'browser'])
     ->middleware('throttle:30,1')->name('signing.public.browser');
 
+// M17: 256-bit bearer capabilities, hash-only storage, seven-day expiration.
+// Never accept guessed numeric invoice IDs in unauthenticated routes.
+Route::get('/invoice-view/{token}', [\App\Http\Controllers\Api\PublicInvoiceController::class,'show'])
+    ->where('token','[a-f0-9]{64}')->middleware('throttle:30,1')->name('invoices.customer');
+Route::get('/invoice-view/{token}/pdf', [\App\Http\Controllers\Api\PublicInvoiceController::class,'pdf'])
+    ->where('token','[a-f0-9]{64}')->middleware('throttle:15,1')->name('invoices.customer.pdf');
+
 // Customer quote view: time-limited, tamper-evident signed URLs only.
 Route::get('/quote-view/{quote}', [\App\Http\Controllers\Api\ServiceQuoteController::class, 'publicShow'])
     ->middleware('signed')->whereNumber('quote')->name('quotes.public');
@@ -115,6 +122,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/invoices/{invoice}/edit', [\App\Http\Controllers\Admin\InvoiceController::class,'edit'])->whereNumber('invoice')->name('invoices.edit');
         Route::patch('/invoices/{invoice}', [\App\Http\Controllers\Admin\InvoiceController::class,'update'])->whereNumber('invoice')->name('invoices.update');
         Route::post('/invoices/{invoice}/approve', [\App\Http\Controllers\Admin\InvoiceController::class,'approve'])->whereNumber('invoice')->name('invoices.approve');
+        Route::post('/invoices/{invoice}/issue', [\App\Http\Controllers\Admin\InvoiceController::class,'issue'])->whereNumber('invoice')->name('invoices.issue');
+        Route::get('/invoices/{invoice}/issued-pdf', [\App\Http\Controllers\Admin\InvoiceController::class,'issuedPdf'])->whereNumber('invoice')->name('invoices.issuedPdf');
+        Route::post('/invoices/{invoice}/send', [\App\Http\Controllers\Admin\InvoiceController::class,'send'])->whereNumber('invoice')->name('invoices.send');
         Route::post('/invoices/{invoice}/payments', [\App\Http\Controllers\Admin\InvoiceController::class,'payment'])->whereNumber('invoice')->name('invoices.payment');
         Route::post('/invoices/{invoice}/payments/{payment}/void', [\App\Http\Controllers\Admin\InvoiceController::class,'voidPayment'])->whereNumber('invoice')->whereNumber('payment')->name('invoices.voidPayment');
         Route::post('/invoices/{invoice}/void', [\App\Http\Controllers\Admin\InvoiceController::class,'voidInvoice'])->whereNumber('invoice')->name('invoices.voidInvoice');

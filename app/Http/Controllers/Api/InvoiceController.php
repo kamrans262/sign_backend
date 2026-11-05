@@ -5,13 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Services\InvoiceService;
+use App\Services\InvoiceDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 final class InvoiceController extends Controller
 {
-    public function __construct(private readonly InvoiceService $invoices) {}
+    public function __construct(private readonly InvoiceService $invoices,
+        private readonly InvoiceDocumentService $documents) {}
 
     private function company(Request $request): Company
     {
@@ -119,4 +121,59 @@ final class InvoiceController extends Controller
             'Cache-Control'=>'private, no-store','X-Content-Type-Options'=>'nosniff',
         ]);
     }
+    // M17 Stage 2: only the server's immutable, hash-verified PDF is official.
+    public function issue(Request $request,int $invoice): JsonResponse
+    {
+        return $this->json(['document'=>$this->documents->issue(
+            $request,$this->company($request),$invoice)]);
+    }
+
+    public function document(Request $request,int $invoice): JsonResponse
+    {
+        return $this->json(['document'=>$this->documents->document(
+            $this->company($request)->id,$invoice)]);
+    }
+
+    public function pdf(Request $request,int $invoice)
+    {
+        return $this->officialPdf($request,$invoice,false);
+    }
+
+    public function download(Request $request,int $invoice)
+    {
+        return $this->officialPdf($request,$invoice,true);
+    }
+
+    private function officialPdf(Request $request,int $invoice,bool $attachment)
+    {
+        $company=$this->company($request);
+        $meta=$this->documents->document($company->id,$invoice);
+        $bytes=$this->documents->documentBytes($company->id,$invoice);
+        return response($bytes,200,[
+            'Content-Type'=>'application/pdf',
+            'Content-Disposition'=>($attachment?'attachment':'inline').
+                '; filename="'.$meta['filename'].'"',
+            'Cache-Control'=>'private, no-store, max-age=0',
+            'X-Content-Type-Options'=>'nosniff',
+        ]);
+    }
+
+    public function customerLink(Request $request,int $invoice): JsonResponse
+    {
+        return $this->json($this->documents->createLink(
+            $request,$this->company($request),$invoice));
+    }
+
+    public function send(Request $request,int $invoice): JsonResponse
+    {
+        return $this->json($this->documents->send(
+            $request,$this->company($request),$invoice));
+    }
+
+    public function reconciliation(Request $request,int $invoice): JsonResponse
+    {
+        return $this->json($this->documents->reconciliation(
+            $this->company($request)->id,$invoice));
+    }
+
 }

@@ -608,6 +608,10 @@ final class InvoiceService
             abort_unless(in_array($row->status,['draft','approved'],true) &&
                 (int)$row->lock_version===(int)$data['lock_version'],409,
                 'Only an unchanged unsent invoice may be voided.');
+            abort_if(DB::table('service_invoice_issues')
+                ->where('company_id',$company->id)
+                ->where('service_invoice_id',$invoice)->exists(),409,
+                'Issued invoices cannot be deleted or voided; use a credit-note workflow.');
             abort_if(DB::table('service_invoice_payments')
                 ->where('company_id',$company->id)->where('service_invoice_id',$invoice)
                 ->where('status','recorded')->exists(),409,
