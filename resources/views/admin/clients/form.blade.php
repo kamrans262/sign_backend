@@ -76,7 +76,7 @@
 </section>
 <section class="panel">
   <div class="panel-header"><div><h2>Archive Client</h2><p class="panel-header-hint">Retains the record for audit and future job history. Archived clients cannot be selected in mobile lists.</p></div></div>
-  <form method="post" action="{{ route('admin.clients.destroy', $client) }}" onsubmit="return confirm('Archive this client?')">
+  <form method="post" action="{{ route('admin.clients.destroy', $client) }}" data-confirm="Archive this client?">
     @csrf @method('delete')
     <button type="submit" class="btn btn-danger">Archive Client</button>
   </form>
