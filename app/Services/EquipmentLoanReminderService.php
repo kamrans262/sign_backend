@@ -216,7 +216,10 @@ final class EquipmentLoanReminderService
     private function dispatch(Company $company,int $id,string $kind,
         string $key,int $version,?int $actor): array
     {
-        return DB::transaction(function()use($company,$id,$kind,$key,$version,$actor):array {
+        // Durable claim commits BEFORE transport side effects. A worker crash
+        // after SMTP acceptance must never erase the idempotency key.
+        $claim=DB::transaction(function()use(
+            $company,$id,$kind,$key,$version,$actor):array {
             DB::table('companies')->where('id',$company->id)
                 ->lockForUpdate()->firstOrFail();
             $loan=DB::table('equipment_loans')
@@ -232,7 +235,8 @@ final class EquipmentLoanReminderService
             if($previous){
                 abort_unless(hash_equals((string)$previous->request_fingerprint,
                     $fingerprint),409,'Reminder retry key belongs to another request.');
-                return $this->single($previous);
+                // pending and unknown are never silently retried.
+                return ['new'=>false,'receipt'=>$this->single($previous)];
             }
             abort_unless($loan->status==='active',409,'Equipment has been returned.');
             abort_unless((int)$loan->lock_version===$version,409,
@@ -242,14 +246,14 @@ final class EquipmentLoanReminderService
             abort_unless($this->transportReady(),503,
                 'A real outbound mail transport is required; no email sent.');
             if($kind==='automatic'){
-                $settings=$this->setting($company->id,$id);
-                abort_unless($settings && $settings->automatic_enabled
-                    && $settings->recipient_confirmed
+                $setting=$this->setting($company->id,$id);
+                abort_unless($setting && $setting->automatic_enabled
+                    && $setting->recipient_confirmed
                     && config('equipment.automatic_enabled',false),409,
                     'Automatic borrower reminders are not enabled.');
                 abort_unless($loan->expected_return_date<
                     $this->loans->companyDate($company),409,
-                    'Loan is not overdue in its company timezone.');
+                    'Loan is not overdue in company timezone.');
             }
             $reminderId=DB::table('equipment_loan_reminders')->insertGetId([
                 'company_id'=>$company->id,'equipment_loan_id'=>$id,
@@ -263,32 +267,78 @@ final class EquipmentLoanReminderService
                 'reminder_id'=>$reminderId,'kind'=>$kind,
                 'due_date'=>$loan->expected_return_date,
             ]);
+            return ['new'=>true,'id'=>$reminderId];
+        },3);
+
+        if(!$claim['new'])return $claim['receipt'];
+        $reminderId=$claim['id'];
+
+        return DB::transaction(function()use(
+            $company,$id,$kind,$version,$actor,$reminderId):array {
+            // All transitions use this company->loan lock order, and cannot
+            // return/extend/change recipient midway through mail submission.
+            DB::table('companies')->where('id',$company->id)
+                ->lockForUpdate()->firstOrFail();
+            $loan=DB::table('equipment_loans')
+                ->where('company_id',$company->id)->where('id',$id)
+                ->lockForUpdate()->firstOrFail();
+            $reminder=DB::table('equipment_loan_reminders')
+                ->where('company_id',$company->id)
+                ->where('equipment_loan_id',$id)->where('id',$reminderId)
+                ->lockForUpdate()->firstOrFail();
+            if($reminder->status!=='pending')return $this->single($reminder);
+            $currentEmail=mb_strtolower(trim((string)$loan->borrower_email));
+            $valid=$loan->status==='active'
+                && (int)$loan->lock_version===$version
+                && $loan->expected_return_date===$reminder->due_date
+                && hash_equals($reminder->recipient_email,$currentEmail)
+                && $this->transportReady();
+            if($kind==='automatic'){
+                $setting=$this->setting($company->id,$id);
+                $valid=$valid && $setting && $setting->automatic_enabled
+                    && $setting->recipient_confirmed
+                    && config('equipment.automatic_enabled',false)
+                    && $loan->expected_return_date<
+                        $this->loans->companyDate($company);
+            }
+            if(!$valid){
+                DB::table('equipment_loan_reminders')->where('id',$reminderId)
+                    ->update(['status'=>'cancelled','cancelled_at'=>now(),
+                        'last_error_code'=>'changed_before_dispatch',
+                        'updated_at'=>now()]);
+                $this->event($company->id,$id,$actor,
+                    'reminder_cancelled_before_dispatch',[
+                        'reminder_id'=>$reminderId,'kind'=>$kind]);
+                return $this->single(DB::table('equipment_loan_reminders')
+                    ->where('id',$reminderId)->firstOrFail());
+            }
             $attemptId=DB::table('equipment_loan_delivery_attempts')->insertGetId([
-                'company_id'=>$company->id,'equipment_loan_reminder_id'=>$reminderId,
+                'company_id'=>$company->id,
+                'equipment_loan_reminder_id'=>$reminderId,
                 'attempt_number'=>1,'status'=>'submitting',
                 'transport'=>(string)config('mail.default'),
                 'started_at'=>now(),
             ]);
             DB::table('equipment_loan_reminders')->where('id',$reminderId)
-                ->update(['status'=>'submitting','attempt_count'=>1,'updated_at'=>now()]);
+                ->update(['status'=>'submitting','attempt_count'=>1,
+                    'updated_at'=>now()]);
             $status='submitted';
             $errorCode=null;
             try{
                 $asset=DB::table('equipment_assets')
                     ->where('company_id',$company->id)
                     ->where('id',$loan->equipment_asset_id)->firstOrFail();
-                Mail::to($email)->send(new EquipmentLoanReminderMail(
-                    (string)$company->name,
-                    (string)$loan->borrower_name,
-                    (string)$asset->name,
-                    (string)$asset->code,
+                Mail::to($currentEmail)->send(new EquipmentLoanReminderMail(
+                    (string)$company->name,(string)$loan->borrower_name,
+                    (string)$asset->name,(string)$asset->code,
                     (string)$loan->expected_return_date
                 ));
-            }catch(\Throwable $e){
-                // SMTP timeouts can occur after acceptance. DO NOT auto-retry.
+            }catch(\Throwable $error){
+                // SMTP may accept an email and then report a timeout.
+                // Mark unknown, never issue another attempt automatically.
                 $status='unknown';
                 $errorCode='transport_outcome_uncertain';
-                report($e);
+                report($error);
             }
             DB::table('equipment_loan_delivery_attempts')->where('id',$attemptId)
                 ->update(['status'=>$status,'error_code'=>$errorCode,
@@ -299,8 +349,7 @@ final class EquipmentLoanReminderService
                     'updated_at'=>now()]);
             $this->event($company->id,$id,$actor,
                 $status==='submitted'?'reminder_submitted':'reminder_unknown',[
-                    'reminder_id'=>$reminderId,'kind'=>$kind,
-                    'status'=>$status,
+                    'reminder_id'=>$reminderId,'kind'=>$kind,'status'=>$status,
                 ]);
             return $this->single(DB::table('equipment_loan_reminders')
                 ->where('id',$reminderId)->firstOrFail());
