@@ -42,6 +42,7 @@
       <a class="side-link {{ request()->routeIs('admin.acceptances.*') ? 'active' : '' }}" href="{{ route('admin.acceptances.index') }}"><x-admin.icon name="briefcase"/><span>Work Acceptance Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.labour.*') ? 'active' : '' }}" href="{{ route('admin.labour.index') }}" @if(request()->routeIs('admin.labour.*'))aria-current="page"@endif><x-admin.icon name="history"/><span>Time & Labour Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}" href="{{ route('admin.deposits.index') }}"><x-admin.icon name="briefcase"/><span>Deposit Management</span></a>
+      <a class="side-link {{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}" href="{{ route('admin.invoices.index') }}"><x-admin.icon name="briefcase"/><span>Invoice Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}" href="{{ route('admin.expenses.index') }}" @if(request()->routeIs('admin.expenses.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Expenses Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}" href="{{ route('admin.reports.index') }}" @if(request()->routeIs('admin.reports.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Reports Management</span></a>
       <a class="side-link {{ request()->routeIs('admin.addenda.*') ? 'active' : '' }}" href="{{ route('admin.addenda.index') }}" @if(request()->routeIs('admin.addenda.*')) aria-current="page" @endif>
@@ -106,6 +107,7 @@
         <a href="{{ route('admin.acceptances.index') }}" class="{{ request()->routeIs('admin.acceptances.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Work Acceptance Management</a>
         <a href="{{ route('admin.labour.index') }}" class="{{ request()->routeIs('admin.labour.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Time & Labour Management</a>
       <a href="{{ route('admin.deposits.index') }}" class="{{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Deposit Management</a>
+      <a href="{{ route('admin.invoices.index') }}" class="{{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Invoice Management</a>
       <a href="{{ route('admin.expenses.index') }}" class="{{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Expenses Management</a>
       <a href="{{ route('admin.reports.index') }}" class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Reports Management</a>
         <a href="{{ route('admin.addenda.index') }}" class="{{ request()->routeIs('admin.addenda.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Addenda Management</a>
