@@ -44,6 +44,7 @@
 <td>{{ $quote->reference_number }}</td><td>Company #{{ $quote->company_id }} · Job #{{ $quote->service_job_id }}</td>
 <td>{{ number_format($quote->deposit_minor/100,2) }}</td>
 <td><form method="post" action="{{ route('admin.deposits.fromQuote',$quote->id) }}" onsubmit="return confirm('Create a pending deposit from the approved quote?')">@csrf
+<input type="hidden" name="request_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}">
 <button class="btn btn-small btn-outline">Request Deposit</button></form></td></tr>
 @empty<tr><td colspan="4">No approved quotes with deposit amounts yet.</td></tr>@endforelse
 </tbody></table></div></section>
