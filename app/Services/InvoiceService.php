@@ -137,6 +137,21 @@ final class InvoiceService
             'last_page'=>max(1,(int)ceil($total/$limit))];
     }
 
+    public function availableDeposits(int $company,int $job): array
+    {
+        ServiceJob::query()->where('company_id',$company)->findOrFail($job);
+        $rows=DB::table('job_deposits as d')
+            ->leftJoin('service_invoice_deposit_allocations as a',
+                'a.job_deposit_id','=','d.id')
+            ->where('d.company_id',$company)->where('d.service_job_id',$job)
+            ->where('d.status','received')->whereNull('a.id')
+            ->orderBy('d.id')->get(['d.id','d.amount_minor']);
+        return ['job_id'=>$job,'currency'=>'CHF',
+            'available_minor'=>(int)$rows->sum('amount_minor'),
+            'deposit_ids'=>$rows->pluck('id')->map(fn($n)=>(int)$n)->all(),
+            'allocation_policy'=>'whole_deposits_once'];
+    }
+
     public function items(int $company,int $invoice): array
     {
         $this->find($company,$invoice);
@@ -302,7 +317,7 @@ final class InvoiceService
                     'client_name_snapshot'=>$client->full_name,
                     'client_email_snapshot'=>$client->email,
                     'client_phone_snapshot'=>$client->phone_number??null,
-                    'billing_address'=>$client->billing_address??null,
+                    'billing_address'=>$client->address??null,
                     'currency'=>'CHF','status'=>'draft','lock_version'=>1,
                     'revision'=>1,'request_key'=>$key,'request_fingerprint'=>$fp,
                     'created_at'=>now(),'created_by'=>$actor,
