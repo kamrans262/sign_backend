@@ -34,6 +34,10 @@ final class InvoiceController extends Controller
             'jobs'=>ServiceJob::query()->where('category','!=','archived')
                 ->orderByDesc('id')->limit(750)->get([
                     'id','company_id','client_id','reference_number','title']),
+            'addenda'=>DB::table('addenda')->whereNotNull('signed_at')
+                ->whereNotNull('signed_pdf_sha256')
+                ->orderByDesc('id')->limit(300)->get([
+                    'id','company_id','service_job_id','number','title']),
             'quotes'=>ServiceQuote::query()->whereIn('status',['approved','sent'])
                 ->whereNotNull('approved_at')->whereNotNull('service_job_id')
                 ->orderByDesc('id')->limit(750)->get([
