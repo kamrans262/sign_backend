@@ -50,7 +50,7 @@ final class M20BusinessNotifications
     public function sync(int $limit = 40): array
     {
         $limit = max(1, min(100, $limit));
-        $counts = ['invoice' => 0, 'equipment' => 0, 'document' => 0];
+        $counts = ['invoice' => 0, 'equipment' => 0, 'document' => 0, 'customer' => 0];
         // Invoices: status sent, due date reached, void-free, and a positive
         // unpaid remainder after confirmed payments and deposit allocations.
         $invoices = $this->authorizedOwner(DB::table('service_invoices as source'))
@@ -128,6 +128,35 @@ final class M20BusinessNotifications
                 'document', []
             );
         }
+        // Verified M13 customer reservations require a company staff review.
+        // Only the completed/signed artifact and decision are inspected; neither
+        // the reservation text nor customer evidence is emitted to a lock screen.
+        $reservations = $this->authorizedOwner(DB::table('work_acceptances as source'))
+            ->where('source.status', 'accepted_with_reservations')
+            ->where('source.acceptance_result', 'accepted_with_reservations')
+            ->whereNotNull('source.signed_at')
+            ->whereExists(function ($q): void {
+                $q->selectRaw('1')->from('work_acceptance_artifacts as a')
+                    ->whereColumn('a.work_acceptance_id', 'source.id')
+                    ->whereColumn('a.company_id', 'source.company_id');
+            })
+            ->whereNotExists(function ($q): void {
+                $q->selectRaw('1')->from('m20_notifications as n')
+                    ->whereColumn('n.company_id', 'source.company_id')
+                    ->whereColumn('n.recipient_user_id', 'c.owner_user_id')
+                    ->whereRaw((DB::connection()->getDriverName() === 'sqlite'
+                        ? "n.event_key = ('customer.action_required.' || source.id)"
+                        : "n.event_key = CONCAT('customer.action_required.', source.id)"));
+            })
+            ->select('source.id', 'source.company_id', 'c.owner_user_id')
+            ->orderByDesc('source.id')->limit($limit)->get();
+        foreach ($reservations as $item) {
+            $counts['customer'] += (int) $this->emit(
+                $item->company_id, $item->owner_user_id,
+                'customer.action_required', 'customer.action_required.'.$item->id,
+                'customer', []
+            );
+        }
         return $counts;
     }
     /** Recheck source state immediately before dispatching a private notification. */
@@ -158,6 +187,18 @@ final class M20BusinessNotifications
                 ->where('company_id', $companyId)->where('status', 'active')
                 ->whereNull('returned_at')->whereNull('actual_return_date')
                 ->where('expected_return_date', '<', today()->toDateString())->exists();
+        }
+        if ($event === 'customer.action_required') {
+            return DB::table('work_acceptances as w')
+                ->where('w.id', $id)->where('w.company_id', $companyId)
+                ->where('w.status', 'accepted_with_reservations')
+                ->where('w.acceptance_result', 'accepted_with_reservations')
+                ->whereNotNull('w.signed_at')
+                ->whereExists(function ($q): void {
+                    $q->selectRaw('1')->from('work_acceptance_artifacts as a')
+                        ->whereColumn('a.work_acceptance_id', 'w.id')
+                        ->whereColumn('a.company_id', 'w.company_id');
+                })->exists();
         }
         if ($event === 'document.signed') {
             return DB::table('signature_requests as sr')

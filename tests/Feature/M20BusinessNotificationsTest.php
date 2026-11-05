@@ -59,9 +59,9 @@ final class M20BusinessNotificationsTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $service = app(M20BusinessNotifications::class);
-        $this->assertSame(['invoice' => 1, 'equipment' => 1, 'document' => 0],
+        $this->assertSame(['invoice' => 1, 'equipment' => 1, 'document' => 0, 'customer' => 0],
             $service->sync());
-        $this->assertSame(['invoice' => 0, 'equipment' => 0, 'document' => 0],
+        $this->assertSame(['invoice' => 0, 'equipment' => 0, 'document' => 0, 'customer' => 0],
             $service->sync());
         $invoice = DB::table('m20_notifications')
             ->where('event_key', 'invoice.payment_due.'.$invoiceId)->first();
@@ -100,8 +100,88 @@ final class M20BusinessNotificationsTest extends TestCase
             'country_iso_code' => 'CH', 'status' => 'active',
         ]);
         $company->users()->attach($user->id, ['role' => 'owner', 'status' => 'active']);
-        $this->assertSame(['invoice' => 0, 'equipment' => 0, 'document' => 0],
+        $this->assertSame(['invoice' => 0, 'equipment' => 0, 'document' => 0, 'customer' => 0],
             app(M20BusinessNotifications::class)->sync());
         $this->assertSame(0, DB::table('m20_notifications')->count());
     }
+
+    public function test_signed_acceptance_with_reservations_creates_safe_customer_action_event(): void
+    {
+        Mail::fake();
+        $owner = User::factory()->create(['is_active' => true]);
+        $company = Company::create([
+            'owner_user_id' => $owner->id, 'name' => 'M20 Customer Action',
+            'country_iso_code' => 'CH', 'status' => 'active',
+        ]);
+        $company->users()->attach($owner->id, ['role' => 'owner', 'status' => 'active']);
+        $client = Client::create([
+            'company_id' => $company->id, 'full_name' => 'Review Customer',
+            'email' => 'review@example.test', 'source' => 'manual',
+        ]);
+        $job = DB::table('service_jobs')->insertGetId([
+            'company_id' => $company->id, 'client_id' => $client->id,
+            'reference_number' => 'M20-ACTION-JOB',
+            'title' => 'Customer reservation review',
+            'description' => 'Verified customer acceptance',
+            'start_date' => today()->subDay(),
+            'due_date' => today()->addDays(7),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $acceptanceId = DB::table('work_acceptances')->insertGetId([
+            'company_id' => $company->id, 'service_job_id' => $job,
+            'client_id' => $client->id, 'number' => 'M20-WA-001',
+            'completed_work' => 'Exterior works completed',
+            'completion_date' => today(), 'cleaning_status' => 'cleaned',
+            'status' => 'accepted_with_reservations',
+            'acceptance_result' => 'accepted_with_reservations',
+            'customer_reservation' => 'PRIVATE CUSTOMER RESERVATION: gate lock',
+            'signed_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $requestId = DB::table('work_acceptance_requests')->insertGetId([
+            'company_id' => $company->id, 'work_acceptance_id' => $acceptanceId,
+            'request_uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'document_uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'token_sha256' => hash('sha256', 'request-m20-action'),
+            'consent_reference' => hash('sha256', 'consent-m20-action'),
+            'approved_revision' => 1,
+            'approved_pdf_sha256' => hash('sha256', 'approved-pdf-m20'),
+            'signer_name' => 'Review Customer',
+            'signer_email' => 'review@example.test', 'status' => 'signed',
+            'expires_at' => now()->addDay(),
+            'signed_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('work_acceptance_artifacts')->insert([
+            'company_id' => $company->id,
+            'work_acceptance_id' => $acceptanceId,
+            'work_acceptance_request_id' => $requestId,
+            'signature_path' => 'private/m20-action-signature.png',
+            'signature_sha256' => hash('sha256', 'signature-m20'),
+            'signed_pdf_path' => 'private/m20-action-signed.pdf',
+            'signed_pdf_sha256' => hash('sha256', 'signed-m20'),
+            'evidence' => json_encode(['status' => 'verified']),
+            'created_at' => now(),
+        ]);
+        $service = app(M20BusinessNotifications::class);
+        $this->assertSame(
+            ['invoice' => 0, 'equipment' => 0, 'document' => 0, 'customer' => 1],
+            $service->sync()
+        );
+        $row = DB::table('m20_notifications')
+            ->where('event_key', 'customer.action_required.'.$acceptanceId)->first();
+        $this->assertNotNull($row);
+        $this->assertSame('customer', $row->category);
+        $this->assertSame($owner->id, $row->recipient_user_id);
+        $this->assertStringNotContainsString('PRIVATE CUSTOMER', $row->body);
+        $this->assertTrue($service->actionable($row));
+        $this->assertSame(
+            ['invoice' => 0, 'equipment' => 0, 'document' => 0, 'customer' => 0],
+            $service->sync()
+        );
+        DB::table('work_acceptances')->where('id', $acceptanceId)
+            ->update(['status' => 'archived']);
+        $this->assertFalse($service->actionable($row));
+        $this->assertSame(0, DB::table('m20_push_deliveries')->count());
+        Mail::assertNothingSent();
+    }
+
 }
