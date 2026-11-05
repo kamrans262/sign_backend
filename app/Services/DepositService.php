@@ -276,7 +276,9 @@ final class DepositService
     public function summary(int $company,int $job,?int $quoteId=null): array
     {
         ServiceJob::query()->where('company_id',$company)->findOrFail($job);
-        if($quoteId!==null) $this->authorisedQuote(Company::findOrFail($company),$job,$quoteId);
+        // Read-only history remains available if an approved quote is later archived.
+        if($quoteId!==null) ServiceQuote::query()->where('company_id',$company)
+            ->where('service_job_id',$job)->findOrFail($quoteId);
         $base=DB::table('job_deposits')->where('company_id',$company)
             ->where('service_job_id',$job);
         if($quoteId!==null)$base->where('service_quote_id',$quoteId);
