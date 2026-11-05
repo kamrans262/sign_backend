@@ -30,6 +30,7 @@ class CompanyManagementController extends Controller
         'documents.read', 'documents.write', 'quotes.read', 'quotes.write',
         'invoices.read', 'invoices.write', 'reports.read', 'reports.write',
         'expenses.read', 'expenses.write', 'labour.read', 'labour.write',
+        'equipment.read', 'equipment.write',
     ];
 
     private function company(Request $request, int $id, array $allowedRoles = []): Company

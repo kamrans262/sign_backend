@@ -246,4 +246,38 @@ final class M19EquipmentLoanStage1Test extends TestCase
         $this->get('/admin/equipment-loans/'.$loan->id.'/edit')
             ->assertOk()->assertSee('Mark Returned')->assertSee('Immutable Loan History');
     }
+    public function test_company_owner_can_grant_separate_equipment_read_and_write_permissions(): void
+    {
+        [$owner,$company]=$this->setupTenant();
+        $asset=$this->makeAsset();
+        $member=User::factory()->create(['is_active'=>true,'email_verified_at'=>now()]);
+        $company->users()->attach($member->id,[
+            'role'=>'member','status'=>'active',
+            'permissions'=>json_encode([],JSON_THROW_ON_ERROR),
+        ]);
+        $this->patchJson('/api/v1/companies/'.$company->id.'/members/'.$member->id,[
+            'role'=>'member','permissions'=>['equipment.read'],
+        ])->assertOk();
+        Sanctum::actingAs($member);
+        $this->getJson('/api/v1/equipment')->assertOk()
+            ->assertJsonCount(1,'data.records');
+        $this->postJson('/api/v1/equipment',[
+            'code'=>'MEMBER-DENIED','name'=>'Drill','category'=>'Tools',
+            'brand'=>'Test','model'=>'20V','purchase_date'=>'2026-01-01',
+            'status'=>'available',
+        ])->assertForbidden();
+        $this->getJson('/api/v1/equipment-loans')->assertOk();
+        Sanctum::actingAs($owner);
+        $this->patchJson('/api/v1/companies/'.$company->id.'/members/'.$member->id,[
+            'role'=>'member','permissions'=>['equipment.read','equipment.write'],
+        ])->assertOk();
+        Sanctum::actingAs($member);
+        $this->postJson('/api/v1/equipment',[
+            'code'=>'MEMBER-ALLOWED','name'=>'Drill','category'=>'Tools',
+            'brand'=>'Test','model'=>'20V','purchase_date'=>'2026-01-01',
+            'status'=>'available',
+        ])->assertCreated();
+        $this->assertDatabaseCount('equipment_assets',2);
+    }
+
 }
