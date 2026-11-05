@@ -439,7 +439,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::patch('/equipment-loans/{loan}',[\App\Http\Controllers\Api\EquipmentLoanController::class,'update'])->whereNumber('loan');
             Route::post('/equipment-loans/{loan}/extend',[\App\Http\Controllers\Api\EquipmentLoanController::class,'extend'])->whereNumber('loan')->middleware('throttle:12,1');
             Route::post('/equipment-loans/{loan}/reminders/send',
-                [\App\Http\Controllers\Api\EquipmentLoanController::class,'sendReminder'])->whereNumber('loan')->middleware('throttle:3,1');
+                [\App\Http\Controllers\Api\EquipmentLoanController::class,'sendReminder'])->whereNumber('loan')->middleware('throttle:equipment-reminders');
             Route::put('/equipment-loans/{loan}/reminders/policy',
                 [\App\Http\Controllers\Api\EquipmentLoanController::class,'reminderPolicy'])->whereNumber('loan')->middleware('throttle:12,1');
             Route::post('/equipment-loans/{loan}/return',[\App\Http\Controllers\Api\EquipmentLoanController::class,'returnLoan'])->whereNumber('loan')->middleware('throttle:12,1');
