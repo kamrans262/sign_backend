@@ -46,7 +46,7 @@ final class PublicGeneralDocumentController extends Controller
     }
     public function signing(Request $request,string $token)
     {
-        $data=$this->documents->signingSummary($token);
+        $data=$this->documents->openSigning($request,$token);
         if($request->expectsJson())return response()->json(['data'=>$data],
             200,self::headers());
         return response()->view('public.general-document-sign',[
