@@ -478,6 +478,31 @@ final class GeneralDocumentIssueService
         return ['bytes'=>$this->bytes($issue),'filename'=>'General_Document_'.$issue->general_document_id.'.pdf'];
     }
 
+    /** White/blank canvases are not signature evidence. */
+    private function verifyInk(string $png): void
+    {
+        try { SignedPdfService::validatePng($png); }
+        catch(\InvalidArgumentException $error) { abort(422,$error->getMessage()); }
+        $image=@imagecreatefromstring($png);
+        abort_unless($image!==false,422,'Invalid drawn signature image.');
+        try{
+            $width=imagesx($image);$height=imagesy($image);
+            $marks=0;
+            for($y=0;$y<$height;$y+=max(1,(int)floor($height/75))){
+                for($x=0;$x<$width;$x+=max(1,(int)floor($width/150))){
+                    $color=imagecolorat($image,$x,$y);
+                    $alpha=($color>>24)&0x7F;
+                    $rgb=$color&0xFFFFFF;
+                    $r=($rgb>>16)&255;$g=($rgb>>8)&255;$b=$rgb&255;
+                    if($alpha<110&&($r+$g+$b)<510)$marks++;
+                }
+            }
+            abort_unless($marks>=12,422,'Draw a visible signature.');
+        }finally{
+            imagedestroy($image);
+        }
+    }
+
     public function complete(Request $request,string $token): array
     {
         [$item,$issue]=$this->signing($token);
@@ -499,8 +524,7 @@ final class GeneralDocumentIssueService
             'Please sign using the invited name.');
         $png=base64_decode($data['signature_png'],true);
         abort_unless(is_string($png),422,'Signature image is not valid base64.');
-        try {SignedPdfService::validatePng($png);}
-        catch(\InvalidArgumentException $error){abort(422,$error->getMessage());}
+        $this->verifyInk($png);
         $now=now()->utc();
         $snapshot=$this->verifySnapshot($issue);
         $signed=$this->signedPdf->build($this->bytes($issue),
@@ -611,12 +635,11 @@ final class GeneralDocumentIssueService
             $presented=$request->validate(['signature_link'=>['required','url','max:2048']]);
             $url=parse_url($presented['signature_link']);
             $token=basename((string)($url['path']??''));
+            $expected=route('general-document.sign.show',['token'=>$token]);
             abort_unless(($url['scheme']??'')==='https'
                 && hash_equals((string)$signature->token_sha256,
                     hash('sha256',$token))
-                && rtrim(($url['host']??''),'.')===
-                    rtrim((string)parse_url(route('general-document.sign.show',
-                        ['token'=>$token]),PHP_URL_HOST),'.'),403,
+                && hash_equals($expected,(string)$presented['signature_link']),403,
                 'Signing invitation does not match this request.');
         }
         $fingerprint=hash('sha256',json_encode([
