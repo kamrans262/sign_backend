@@ -36,6 +36,37 @@ final class GlobalSearchService
         return self::SOURCES[$type][8] ?? null;
     }
 
+
+    /** Match job and invoice statuses shown by their authoritative modules. */
+    private function statusExpression(string $type, string $column): string
+    {
+        if ($type === 'jobs') {
+            return "CASE WHEN category = 'archived' THEN 'archived' "
+                ."WHEN stage != 'completed' AND due_date < CURRENT_DATE THEN 'overdue' "
+                ."ELSE stage END";
+        }
+        if ($type === 'invoices') {
+            // Reconcile only recorded payments and deposits that remain received.
+            // A refunded deposit must never make an invoice look paid.
+            $paid = "(SELECT COALESCE(SUM(p.amount_minor), 0) "
+                ."FROM service_invoice_payments p WHERE p.company_id = service_invoices.company_id "
+                ."AND p.service_invoice_id = service_invoices.id AND p.status = 'recorded')";
+            $deposits = "(SELECT COALESCE(SUM(a.amount_minor), 0) "
+                ."FROM service_invoice_deposit_allocations a "
+                ."JOIN job_deposits d ON d.id = a.job_deposit_id AND d.company_id = a.company_id "
+                ."WHERE a.company_id = service_invoices.company_id "
+                ."AND a.service_invoice_id = service_invoices.id AND d.status = 'received')";
+            $credited = "($paid + $deposits)";
+            return "CASE WHEN service_invoices.status IN ('approved', 'sent') THEN "
+                ."CASE WHEN $credited >= service_invoices.total_minor THEN 'paid' "
+                ."WHEN $credited > 0 THEN 'partially_paid' "
+                ."WHEN service_invoices.due_date < CURRENT_DATE THEN 'overdue' "
+                ."WHEN service_invoices.status = 'approved' THEN 'pending' "
+                ."ELSE 'sent' END ELSE service_invoices.status END";
+        }
+        return $column;
+    }
+
     public function search(array $filters, ?int $companyId, array $allowedTypes, ?int $actorId = null): array
     {
         $requested = trim((string) ($filters['types'] ?? ''));
@@ -57,8 +88,17 @@ final class GlobalSearchService
             if (isset($filters['status']) && $status === 'NULL') continue;
 
             $query = DB::table($table);
+            $status = $this->statusExpression($type, $status);
             if ($companyId !== null) $query->where('company_id', $companyId);
             if ($type === 'clients') $query->whereNull('deleted_at');
+            // A site report has its own searchable canonical record. Do not list
+            // its managed PDF twice or offer two destinations for one report.
+            if ($type === 'documents') {
+                $query->whereNotIn('id', static function ($linked): void {
+                    $linked->select('managed_document_id')->from('site_reports')
+                        ->whereNotNull('managed_document_id');
+                });
+            }
             // Personal reminders must not be readable by another team member.
             if ($type === 'reminders' && $actorId !== null) {
                 $query->where('owner_user_id', $actorId);
@@ -66,7 +106,7 @@ final class GlobalSearchService
             if (isset($filters['client_id'])) $query->where($client, (int) $filters['client_id']);
             if (isset($filters['job_id'])) $query->where($job, (int) $filters['job_id']);
             if (isset($filters['document_type'])) $query->where($docType, $filters['document_type']);
-            if (isset($filters['status'])) $query->where($status, $filters['status']);
+            if (isset($filters['status'])) $query->whereRaw('('.$status.') = ?', [$filters['status']]);
             if (isset($filters['date_from'])) $query->where('created_at', '>=', $filters['date_from'].' 00:00:00');
             if (isset($filters['date_to'])) $query->where('created_at', '<=', $filters['date_to'].' 23:59:59');
             if ($needle !== '') {

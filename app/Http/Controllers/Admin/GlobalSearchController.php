@@ -35,7 +35,10 @@ final class GlobalSearchController extends Controller
             'reports' => 'admin.reports.edit', 'reminders' => 'admin.reminders.edit',
         ];
         foreach ($result['records'] as &$record) {
-            $record['url'] = route($routes[$record['type']], $record['id']);
+            // Document Management resolves a typed catalog key, not a bare ID.
+            $target = $record['type'] === 'documents'
+                ? 'managed-'.$record['id'] : $record['id'];
+            $record['url'] = route($routes[$record['type']], $target);
         }
         unset($record);
         return view('admin.search.index', [
