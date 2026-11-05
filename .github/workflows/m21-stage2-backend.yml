@@ -1,0 +1,70 @@
+name: M21 Stage 2 Search Security and Reconciliation
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-m21-stage2-backend
+  cancel-in-progress: true
+jobs:
+  sqlite-search-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, openssl, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Search PHP, views, routing and schema
+        run: |
+          for f in app/Services/GlobalSearchService.php app/Http/Controllers/Api/GlobalSearchController.php app/Http/Controllers/Admin/GlobalSearchController.php tests/Feature/M21GlobalSearchTest.php tests/Feature/M21Stage2SecurityAndReconciliationTest.php; do php -l "$f" || exit 1; done
+          php artisan migrate:fresh --force
+          php artisan view:cache
+          php artisan route:list --path=api/v1/search
+          php artisan route:list --path=admin/search
+      - name: M21 search and Admin security acceptance
+        run: php artisan test tests/Feature/M21GlobalSearchTest.php tests/Feature/M21Stage2SecurityAndReconciliationTest.php tests/Feature/AdminUiConsistencyTest.php
+      - name: Connected modules regressions
+        run: php artisan test tests/Feature/M5ServiceJobManagementTest.php tests/Feature/M9DocumentManagementTest.php tests/Feature/M17InvoiceManagementTest.php tests/Feature/M19EquipmentLoanStage1Test.php tests/Feature/M20RemindersNotificationsTest.php
+  mysql-search-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: m21_stage2_ci
+          MYSQL_DATABASE: sign2digital_m21_stage2
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pm21_stage2_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sign2digital_m21_stage2
+      DB_USERNAME: root
+      DB_PASSWORD: m21_stage2_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Real MySQL 8.4 schema and M21 scoped search
+        run: |
+          php artisan migrate:fresh --force
+          php artisan test tests/Feature/M21GlobalSearchTest.php tests/Feature/M21Stage2SecurityAndReconciliationTest.php
