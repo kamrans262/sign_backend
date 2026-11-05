@@ -241,6 +241,24 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/labour/timer/{action}', [\App\Http\Controllers\Api\LabourTimerController::class,'action'])->whereIn('action',['start','pause','resume','stop'])->middleware('throttle:30,1');
             Route::post('/labour/ai/voice', [\App\Http\Controllers\Api\LabourAiController::class,'voice'])->middleware('throttle:6,1');
         });
+        // M17: invoice reads and explicit manual payment ledger, no gateway.
+        Route::middleware(['company.access','company.permission:documents.read',
+            'company.permission:jobs.read'])->group(function (): void {
+            Route::get('/invoices', [\App\Http\Controllers\Api\InvoiceController::class,'index']);
+            Route::get('/invoices/{invoice}', [\App\Http\Controllers\Api\InvoiceController::class,'show'])->whereNumber('invoice');
+            Route::get('/invoices/{invoice}/attachments/{attachment}', [\App\Http\Controllers\Api\InvoiceController::class,'attachment'])->whereNumber('invoice')->whereNumber('attachment')->middleware('throttle:30,1');
+        });
+        Route::middleware(['company.access','company.permission:documents.write',
+            'company.permission:jobs.read'])->group(function (): void {
+            Route::post('/invoices', [\App\Http\Controllers\Api\InvoiceController::class,'store'])->middleware('throttle:20,1');
+            Route::patch('/invoices/{invoice}', [\App\Http\Controllers\Api\InvoiceController::class,'update'])->whereNumber('invoice');
+            Route::post('/invoices/{invoice}/approve', [\App\Http\Controllers\Api\InvoiceController::class,'approve'])->whereNumber('invoice')->middleware('throttle:10,1');
+            Route::post('/invoices/{invoice}/payments', [\App\Http\Controllers\Api\InvoiceController::class,'payment'])->whereNumber('invoice')->middleware('throttle:10,1');
+            Route::post('/invoices/{invoice}/payments/{payment}/void', [\App\Http\Controllers\Api\InvoiceController::class,'voidPayment'])->whereNumber('invoice')->whereNumber('payment')->middleware('throttle:10,1');
+            Route::post('/invoices/{invoice}/void', [\App\Http\Controllers\Api\InvoiceController::class,'voidInvoice'])->whereNumber('invoice')->middleware('throttle:10,1');
+            Route::post('/invoices/{invoice}/attachments', [\App\Http\Controllers\Api\InvoiceController::class,'upload'])->whereNumber('invoice')->middleware('throttle:20,1');
+            Route::delete('/invoices/{invoice}/attachments/{attachment}', [\App\Http\Controllers\Api\InvoiceController::class,'removeAttachment'])->whereNumber('invoice')->whereNumber('attachment');
+        });
         // M16: CHF manual deposits; no payment gateway or automatic bank settlement.
         Route::middleware(['company.access','company.permission:documents.read',
             'company.permission:jobs.read'])->group(function (): void {
