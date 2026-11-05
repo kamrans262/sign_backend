@@ -109,6 +109,21 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/search', \App\Http\Controllers\Admin\GlobalSearchController::class)
             ->middleware('throttle:60,1')->name('search.index');
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
+        Route::post('/users/{user}/revoke-sessions', [UserController::class,'revokeSessions'])
+            ->whereNumber('user')->middleware('throttle:5,1')->name('users.revoke-sessions');
+        // M22: Help & Support uses the existing Admin shell and admin-only guard.
+        Route::get('/support', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'index'])->name('support.index');
+        Route::get('/support/faqs', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'faqs'])->name('support.faqs');
+        Route::get('/support/faqs/create', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'editFaq'])->name('support.faq.create');
+        Route::post('/support/faqs', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'saveFaq'])->name('support.faq.store');
+        Route::get('/support/faqs/{faq}/edit', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'editFaq'])->whereNumber('faq')->name('support.faq.edit');
+        Route::patch('/support/faqs/{faq}', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'saveFaq'])->whereNumber('faq')->name('support.faq.update');
+        Route::post('/support/faqs/{faq}/delete', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'deleteFaq'])->whereNumber('faq')->name('support.faq.delete');
+        Route::get('/support/{ticket}', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'show'])->whereNumber('ticket')->name('support.show');
+        Route::patch('/support/{ticket}', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'update'])->whereNumber('ticket')->name('support.update');
+        Route::post('/support/{ticket}/replies', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'reply'])->whereNumber('ticket')->name('support.reply');
+        Route::get('/support/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'attachment'])
+            ->whereNumber('ticket')->whereNumber('attachment')->name('support.attachment');
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
         Route::resource('jobs', \App\Http\Controllers\Admin\ServiceJobController::class)->except(['show']);
         // M11 dedicated Photos & Notes Management.

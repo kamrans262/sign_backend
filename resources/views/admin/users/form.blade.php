@@ -70,6 +70,9 @@
       </label>
     </div>
     @if($editing)
+      <p class="hint account-meta">Active mobile sessions: {{ $user->tokens()->count() }}. Revocation does not delete jobs, documents or user data.</p>
+    @endif
+    @if($editing)
       <p class="hint account-meta">Email verification: {{ $user->email_verified_at ? 'Verified' : 'Pending OTP' }} · User #{{ $user->id }} · Created {{ $user->created_at?->format('M d, Y') }} · {{ $user->companies()->count() }} company memberships</p>
     @endif
     <div class="form-actions">
@@ -78,4 +81,15 @@
     </div>
   </section>
 </form>
+@if($editing)
+<section class="panel">
+<div class="panel-header"><h2>Security Session Oversight</h2></div>
+<form method="post" action="{{ route('admin.users.revoke-sessions',$user) }}">
+@csrf
+<div class="field"><label for="admin_password">Confirm your administrator password</label>
+<input class="input" id="admin_password" type="password" name="admin_password" autocomplete="current-password" required></div>
+<div class="form-actions"><button class="btn btn-outline">Revoke User Sessions</button></div>
+</form>
+</section>
+@endif
 @endsection

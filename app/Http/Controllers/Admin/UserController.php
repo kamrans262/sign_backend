@@ -94,6 +94,19 @@ class UserController extends Controller
         return back()->with('success', 'Account updated.');
     }
 
+    public function revokeSessions(Request $request, User $user): RedirectResponse
+    {
+        $data=$request->validate(['admin_password'=>['required','string']]);
+        if (!Hash::check($data['admin_password'],$request->user()->password)) {
+            return back()->withErrors(['admin_password'=>'Administrator password is incorrect.']);
+        }
+        $count=$user->tokens()->count();
+        $user->tokens()->delete();
+        AuditLogger::record('admin.user.sessions_revoked',$request->user(),$user,
+            metadata:['count'=>$count],request:$request);
+        return back()->with('success','User sessions revoked.');
+    }
+
     private function validated(Request $request, ?User $user = null): array
     {
         return $request->validate([
