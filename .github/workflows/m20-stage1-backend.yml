@@ -30,7 +30,7 @@ jobs:
           php artisan route:list --path=api/v1/notifications
           php artisan route:list --path=admin/notifications
       - name: M20 Stage 1 acceptance
-        run: php artisan test tests/Feature/M20RemindersNotificationsTest.php
+        run: php artisan test tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M20Stage1AdminPreferencesTest.php
       - name: Previous M19 reminder safety and financial regressions
         run: php artisan test tests/Feature/M19EquipmentLoanStage2Test.php tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php
   mysql-stage1:
@@ -68,4 +68,4 @@ jobs:
       - name: Full isolated MySQL 8.4 migration
         run: php artisan migrate:fresh --force
       - name: M20 tenant, due and editable copy tests
-        run: php artisan test tests/Feature/M20RemindersNotificationsTest.php
+        run: php artisan test tests/Feature/M20RemindersNotificationsTest.php tests/Feature/M20Stage1AdminPreferencesTest.php

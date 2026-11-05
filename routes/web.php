@@ -298,6 +298,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/signatures/{signature}/resend-signed',
             [\App\Http\Controllers\Admin\SignatureRequestController::class,'resendSigned'])
             ->whereNumber('signature')->middleware('throttle:5,1')->name('signatures.resendSigned');
+        // M20: platform administrator may manage reminders and audit inbox outcomes.
+        Route::get('/reminders', [\App\Http\Controllers\Admin\M20ReminderAdminController::class,'index'])->name('reminders.index');
+        Route::get('/reminders/create', [\App\Http\Controllers\Admin\M20ReminderAdminController::class,'create'])->name('reminders.create');
+        Route::post('/reminders', [\App\Http\Controllers\Admin\M20ReminderAdminController::class,'store'])->name('reminders.store');
+        Route::get('/reminders/{reminder}/edit', [\App\Http\Controllers\Admin\M20ReminderAdminController::class,'edit'])->whereNumber('reminder')->name('reminders.edit');
+        Route::patch('/reminders/{reminder}', [\App\Http\Controllers\Admin\M20ReminderAdminController::class,'update'])->whereNumber('reminder')->name('reminders.update');
+        Route::post('/reminders/{reminder}/status', [\App\Http\Controllers\Admin\M20ReminderAdminController::class,'status'])->whereNumber('reminder')->name('reminders.status');
+        Route::get('/notification-inbox', [\App\Http\Controllers\Admin\M20ReminderAdminController::class,'inbox'])->name('notifications.inbox');
+
         // M20: platform-admin-only notification text management.
         Route::get('/notifications/templates', [\App\Http\Controllers\Admin\M20NotificationTemplateController::class,'index'])->name('notifications.index');
         Route::get('/notifications/templates/{template}/edit', [\App\Http\Controllers\Admin\M20NotificationTemplateController::class,'edit'])->whereNumber('template')->name('notifications.edit');

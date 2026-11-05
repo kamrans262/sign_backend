@@ -3,6 +3,10 @@
 @section('breadcrumb','Notifications / Templates')
 @section('heading','Notification Templates')
 @section('description','Edit future in-app and push notification copy in English and French. Push delivery remains disabled until Firebase setup.')
+@section('header_actions')
+<a class="btn btn-outline" href="{{ route('admin.reminders.index') }}">Reminders Management</a>
+<a class="btn btn-outline" href="{{ route('admin.notifications.inbox') }}">In-app Audit</a>
+@endsection
 @section('content')
 <section class="panel">
 <div class="panel-header"><h2>Notification Text Templates</h2></div>

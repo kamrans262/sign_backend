@@ -70,7 +70,7 @@ final class M20ReminderController extends Controller
             $tables = [
                 'invoice' => 'service_invoices', 'job' => 'service_jobs',
                 'client' => 'clients', 'document' => 'managed_documents',
-                'equipment' => 'equipment_assets',
+                'equipment' => 'equipment_loans',
             ];
             if (!DB::table($tables[$referenceType])
                 ->where('company_id', $request->attributes->get('company')->id)
@@ -161,6 +161,8 @@ final class M20ReminderController extends Controller
             DB::table('m20_reminders')->where('id', $reminder)->update($values + [
                 'lock_version' => $version + 1, 'updated_at' => now(),
                 'notified_at' => $clearNotification ? null : $row->notified_at,
+                'follow_up_notified_at' => $row->follow_up_at !== $values['follow_up_at']
+                    ? null : $row->follow_up_notified_at,
             ]);
             $this->audit($request, $reminder, 'updated', ['version' => $version + 1]);
         });

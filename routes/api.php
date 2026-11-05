@@ -453,6 +453,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/reminders/{reminder}', [\App\Http\Controllers\Api\M20ReminderController::class,'show'])->whereNumber('reminder');
             Route::patch('/reminders/{reminder}', [\App\Http\Controllers\Api\M20ReminderController::class,'update'])->whereNumber('reminder');
             Route::post('/reminders/{reminder}/status', [\App\Http\Controllers\Api\M20ReminderController::class,'status'])->whereNumber('reminder');
+            Route::get('/notification-preferences', [\App\Http\Controllers\Api\M20NotificationPreferencesController::class,'show']);
+            Route::put('/notification-preferences', [\App\Http\Controllers\Api\M20NotificationPreferencesController::class,'update']);
             Route::get('/notifications', [\App\Http\Controllers\Api\M20NotificationController::class,'index']);
             Route::post('/notifications/read-all', [\App\Http\Controllers\Api\M20NotificationController::class,'markAllRead']);
             Route::post('/notifications/{notification}/read', [\App\Http\Controllers\Api\M20NotificationController::class,'markRead'])->whereNumber('notification');
