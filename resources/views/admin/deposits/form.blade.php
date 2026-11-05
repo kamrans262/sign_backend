@@ -34,16 +34,16 @@
 @if($editing)
 <section class="panel"><div class="panel-header"><h2>Payment Reconciliation</h2></div><div class="toolbar">
 @if($record['status']==='pending')
-<form method="post" action="{{ route('admin.deposits.receive',$record['id']) }}" onsubmit="return confirm('Confirm the money was actually received outside Sign2Digital?')">@csrf
+<form method="post" action="{{ route('admin.deposits.receive',$record['id']) }}" data-confirm="Confirm the money was actually received outside Sign2Digital?">@csrf
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}">
 <button class="btn btn-primary">Mark Received (Manual)</button></form>
-<form method="post" action="{{ route('admin.deposits.destroy',$record['id']) }}" onsubmit="return confirm('Void this pending request? This retains its audit history.')">@csrf @method('DELETE')
+<form method="post" action="{{ route('admin.deposits.destroy',$record['id']) }}" data-confirm="Void this pending request? This retains its audit history.">@csrf @method('DELETE')
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}">
 <input class="input" name="reason" minlength="8" maxlength="2000" placeholder="Reason to void" required>
 <button class="btn btn-outline">Void Pending</button></form>
 @endif
 @if($record['status']==='received')
-<form method="post" action="{{ route('admin.deposits.refund',$record['id']) }}" onsubmit="return confirm('Was the refund already sent outside this app? This only records it.')">@csrf
+<form method="post" action="{{ route('admin.deposits.refund',$record['id']) }}" data-confirm="Was the refund already sent outside this app? This only records it.">@csrf
 <input type="hidden" name="confirm" value="1"><input type="hidden" name="lock_version" value="{{ $record['lock_version'] }}">
 <input class="input" name="reason" minlength="8" maxlength="2000" placeholder="Manual refund reference/reason" required>
 <button class="btn btn-outline">Record Refunded (Manual)</button></form>
@@ -68,7 +68,7 @@
 @forelse($receipts as $receipt)<tr><td>{{ $receipt['name'] }}</td><td>{{ number_format($receipt['byte_size']) }}</td>
 <td><code>{{ $receipt['sha256'] }}</code></td>
 <td><a href="{{ route('admin.deposits.receipt',[$record['id'],$receipt['id']]) }}" class="btn btn-small btn-outline">Verified Original</a></td>
-<td>@if($pending)<form method="post" action="{{ route('admin.deposits.removeReceipt',[$record['id'],$receipt['id']]) }}" onsubmit="return confirm('Remove this receipt from the active view?')">@csrf @method('DELETE')
+<td>@if($pending)<form method="post" action="{{ route('admin.deposits.removeReceipt',[$record['id'],$receipt['id']]) }}" data-confirm="Remove this receipt from the active view?">@csrf @method('DELETE')
 <button class="btn btn-small btn-outline">Remove</button></form>@else Locked @endif</td>
 </tr>@empty<tr><td colspan="5">No receipts recorded.</td></tr>@endforelse</tbody></table></div>
 </section>
