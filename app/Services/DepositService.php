@@ -135,12 +135,36 @@ final class DepositService
             'reference_number'=>['nullable','string','max:120'],
             'notes'=>['nullable','string','max:12000'],
             'lock_version'=>[$id===null?'nullable':'required','integer','min:1'],
+            'request_key'=>['nullable','string','between:8,100','regex:/^[A-Za-z0-9._-]+$/D'],
         ]);
         $minor=self::minor($data['amount']);
+        $key=$id===null?($data['request_key']??null):null;
+        $fingerprint=$key===null?null:hash('sha256',json_encode([
+            'job_id'=>(int)$data['job_id'],
+            'quote_id'=>isset($data['quote_id'])?(int)$data['quote_id']:null,
+            'amount_minor'=>$minor,'deposit_date'=>$data['deposit_date'],
+            'payment_method'=>$data['payment_method'],
+            'client_name'=>trim((string)($data['client_name']??'')),
+            'reference_number'=>trim((string)($data['reference_number']??'')),
+            'notes'=>trim((string)($data['notes']??'')),
+        ],JSON_THROW_ON_ERROR));
         $actor=$request->user()?->id;
-        $saved=DB::transaction(function () use ($company,$data,$minor,$actor,$id): object {
-            // Serialize quote capacity checks and deposit edits with the company row.
+        $replayed=false;
+        $saved=DB::transaction(function () use ($company,$data,$minor,$actor,$id,
+            $key,$fingerprint,&$replayed): object {
+            // A company row lock serializes concurrent deposit requests.
             DB::table('companies')->where('id',$company->id)->lockForUpdate()->firstOrFail();
+            if($id===null && $key!==null) {
+                $prior=DB::table('job_deposits')->where('company_id',$company->id)
+                    ->where('request_key',$key)->first();
+                if($prior!==null) {
+                    abort_unless($prior->request_fingerprint!==null &&
+                        hash_equals((string)$prior->request_fingerprint,(string)$fingerprint),
+                        409,'The request key was previously used for different deposit details.');
+                    $replayed=true;
+                    return $this->find($company->id,(int)$prior->id);
+                }
+            }
             $job=ServiceJob::query()->where('company_id',$company->id)
                 ->where('category','!=','archived')->findOrFail((int)$data['job_id']);
             $quote=$this->authorisedQuote($company,$job->id,
@@ -166,6 +190,7 @@ final class DepositService
                 $new=DB::table('job_deposits')->insertGetId(array_merge($values,[
                     'company_id'=>$company->id,'service_job_id'=>$job->id,
                     'service_quote_id'=>$quote?->id,
+                    'request_key'=>$key,'request_fingerprint'=>$fingerprint,
                     'client_name_snapshot'=>$client->full_name,
                     'status'=>'pending','lock_version'=>1,
                     'created_by'=>$actor,'created_at'=>now(),
@@ -189,7 +214,7 @@ final class DepositService
             $this->event($company->id,$id,$actor,'updated',['amount_minor'=>$minor]);
             return $this->find($company->id,$id);
         });
-        AuditLogger::record($id===null?'deposits.created':'deposits.updated',
+        if(!$replayed) AuditLogger::record($id===null?'deposits.created':'deposits.updated',
             $request->user(),null,$company,['deposit_id'=>$saved->id],$request);
         return $this->payload($saved);
     }
