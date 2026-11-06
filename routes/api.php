@@ -60,6 +60,11 @@ Route::get('/public/work-acceptance/{token}/receipt', [\App\Http\Controllers\Api
 Route::get('/public/work-acceptance/{token}/signed-pdf', [\App\Http\Controllers\Api\PublicWorkAcceptanceController::class,'signedPdf'])->middleware('throttle:12,1');
 
 
+// M23 Stripe events: no session, verified from the raw Stripe-Signature
+// before any tenant lookup or database mutation. Disabled by default.
+Route::post('/v1/billing/webhook', [\App\Http\Controllers\Api\M23StripeBillingController::class,'webhook'])
+    ->middleware('throttle:120,1');
+
 Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
     Route::post('/v1/auth/logout', [\App\Http\Controllers\Api\MobileAuthController::class, 'logout']);
     // Existing route retained for older clients.
@@ -147,9 +152,20 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 Route::get('/usage', [\App\Http\Controllers\Api\M23BillingController::class,'usage']);
                 Route::get('/eligibility', [\App\Http\Controllers\Api\M23BillingController::class,'eligibility']);
                 Route::get('/history', [\App\Http\Controllers\Api\M23BillingController::class,'history']);
-                Route::post('/checkout', [\App\Http\Controllers\Api\M23BillingController::class,'unavailable']);
-                Route::post('/portal', [\App\Http\Controllers\Api\M23BillingController::class,'unavailable']);
-                Route::post('/cancel', [\App\Http\Controllers\Api\M23BillingController::class,'unavailable']);
+                Route::post('/checkout', [\App\Http\Controllers\Api\M23StripeBillingController::class,'checkout'])
+                    ->middleware('throttle:5,1');
+                Route::get('/checkout/{requestId}/status', [\App\Http\Controllers\Api\M23StripeBillingController::class,'checkoutStatus'])
+                    ->middleware('throttle:20,1');
+                Route::post('/portal', [\App\Http\Controllers\Api\M23StripeBillingController::class,'portal'])
+                    ->middleware('throttle:5,1');
+                Route::post('/cancel', [\App\Http\Controllers\Api\M23StripeBillingController::class,'cancel'])
+                    ->middleware('throttle:5,1');
+                Route::post('/resume', [\App\Http\Controllers\Api\M23StripeBillingController::class,'resume'])
+                    ->middleware('throttle:5,1');
+                Route::post('/change-preview', [\App\Http\Controllers\Api\M23StripeBillingController::class,'changePreview'])
+                    ->middleware('throttle:10,1');
+                Route::post('/change', [\App\Http\Controllers\Api\M23StripeBillingController::class,'change'])
+                    ->middleware('throttle:5,1');
             });
 
         // M3: all company actions require a real Sanctum-authenticated account.
