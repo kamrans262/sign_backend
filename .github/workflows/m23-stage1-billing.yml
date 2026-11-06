@@ -1,0 +1,76 @@
+name: M23 Stage 1 Subscription Foundation
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: m23-stage1-billing
+  cancel-in-progress: true
+
+jobs:
+  sqlite-billing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Syntax, routes, migrations and cached Admin templates
+        run: |
+          php -l app/Services/M23BillingService.php
+          php -l app/Http/Controllers/Api/M23BillingController.php
+          php -l app/Http/Controllers/Admin/M23BillingAdminController.php
+          php -l tests/Feature/M23SubscriptionStage1Test.php
+          php artisan migrate:fresh --force
+          php artisan view:cache
+          php artisan route:list --path=api/v1/billing
+          php artisan route:list --path=admin/billing
+      - name: M23 allowance and admin security acceptance
+        run: php artisan test tests/Feature/M23SubscriptionStage1Test.php
+      - name: Existing document issue and security regressions
+        run: |
+          php artisan test tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php tests/Feature/M22ProfileSecuritySupportTest.php
+
+  mysql-billing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: m23_ci_only
+          MYSQL_DATABASE: sign2digital_m23_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pm23_ci_only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sign2digital_m23_ci
+      DB_USERNAME: root
+      DB_PASSWORD: m23_ci_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: MySQL schema and billing acceptance
+        run: |
+          php artisan migrate:fresh --force
+          php artisan test tests/Feature/M23SubscriptionStage1Test.php tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php
