@@ -260,4 +260,21 @@ final class M22ProfileSecuritySupportTest extends TestCase
             ->assertUnprocessable();
         $this->assertTrue($admin->fresh()->is_active);
     }
+
+    public function test_global_push_opt_out_blocks_new_device_registration_even_before_fcm_check(): void
+    {
+        $user = $this->actor();
+        $company = $this->company($user);
+        $this->withHeader('X-Company-Id', (string) $company->id);
+        $this->patchJson('/api/v1/me/preferences', [
+            'language'=>'English','dateFormat'=>'DD/MM/YYYY','timeFormat'=>'24 hours',
+            'timeZone'=>'Europe/Zurich','pushNotifications'=>false,
+            'emailNotifications'=>true,'smsNotifications'=>false,
+        ])->assertOk();
+        $this->postJson('/api/v1/push-devices', [
+            'installation_id'=>'56c74f2a-d7f7-4d34-b7cb-9e17f7d319f2',
+            'platform'=>'android', 'fid'=>str_repeat('fcm-token', 12),
+        ])->assertStatus(422);
+        $this->assertSame(0, DB::table('m20_push_devices')->where('user_id', $user->id)->count());
+    }
 }
