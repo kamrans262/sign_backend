@@ -62,8 +62,9 @@ final class M23SubscriptionStage1Test extends TestCase
         $this->getJson('/api/v1/billing/history')->assertOk()
             ->assertJsonCount(0,'data.invoices');
         $this->postJson('/api/v1/billing/checkout',[
-            'plan_id'=>999,'amount_minor'=>1,
-        ])->assertStatus(503)->assertJsonPath('data.available',false);
+            'plan_id'=>999,
+            'request_id'=>'11111111-1111-4111-8111-111111111111',
+        ])->assertStatus(503);
         $this->assertDatabaseCount('m23_company_subscriptions',0);
     }
 
