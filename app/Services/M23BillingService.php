@@ -108,7 +108,7 @@ final class M23BillingService
                 ? null : max(0,$paidLimit-$paidUsed),
             'paid_plan_quota_exhausted'=>$verified && !$paidEligible,
             'enforcement_enabled'=>(bool)$settings->enforcement_enabled,
-            'stripe_enabled'=>false, // Stage 1: payment provider never enabled.
+            'stripe_enabled'=>app(M23StripeGateway::class)->enabled(),
             'has_verified_subscription'=>$verified,
             'has_active_grant'=>$hasGrant,
             'eligible'=>$eligible,
@@ -190,7 +190,8 @@ final class M23BillingService
             'feature_labels'=>array_values(array_map(
                 fn($f)=>$labels[$f],array_intersect(self::FEATURES,$features))),
             'document_limit'=>$plan->document_limit===null?null:(int)$plan->document_limit,
-            'can_checkout'=>false, // Stripe keys and price activation deferred.
+            'can_checkout'=>app(M23StripeGateway::class)->enabled()
+                && !empty($plan->stripe_price_id),
             'revision'=>(int)$plan->revision,
         ];
     }
@@ -227,8 +228,8 @@ final class M23BillingService
             'current_plan'=>$plan,
             'trial_ends_at'=>$subscription?->trial_ends_at,
             'period_ends_at'=>$subscription?->period_ends_at,
-            'can_manage_billing'=>false,
-            'can_checkout'=>false,
+            'can_manage_billing'=>$verified && app(M23StripeGateway::class)->enabled(),
+            'can_checkout'=>!$verified && app(M23StripeGateway::class)->enabled(),
             'demo_only'=>false,
         ];
     }
@@ -258,7 +259,7 @@ final class M23BillingService
             'events'=>DB::table('m23_subscription_events')
                 ->where('company_id',$company->id)->orderByDesc('id')->limit(100)
                 ->get(['event_type','created_at'])->all(),
-            'provider_connected'=>false,
+            'provider_connected'=>app(M23StripeGateway::class)->enabled(),
         ];
     }
 }
