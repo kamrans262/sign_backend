@@ -209,4 +209,52 @@ final class M22ProfileSecuritySupportTest extends TestCase
         $this->getJson('/api/v1/support/faqs')->assertOk()
             ->assertJsonCount(1,'data.records');
     }
+
+    public function test_deletion_requires_password_and_erases_personal_data_without_losing_user_reference(): void
+    {
+        Storage::fake('local');
+        $user = $this->actor();
+        $token = $user->createToken('Other device')->accessToken->id;
+        $this->patchJson('/api/v1/me/preferences', [
+            'language'=>'French','dateFormat'=>'DD/MM/YYYY','timeFormat'=>'24 hours',
+            'timeZone'=>'Europe/Zurich','pushNotifications'=>false,
+            'emailNotifications'=>true,'smsNotifications'=>false,
+        ])->assertOk();
+        $this->postJson('/api/v1/support/tickets', [
+            'category'=>'bug','subject'=>'Personal support issue',
+            'description'=>'Please remove this private conversation',
+        ])->assertCreated();
+        $this->postJson('/api/v1/me/delete',['password'=>'wrong'])
+            ->assertUnprocessable();
+        $this->assertTrue($user->fresh()->is_active);
+        $this->postJson('/api/v1/me/delete',['password'=>'Initial!123Pwd'])
+            ->assertOk()->assertJsonPath('data.deleted', true)
+            ->assertJsonPath('data.business_records_retained', true);
+        $this->assertDatabaseHas('users',[
+            'id'=>$user->id,'name'=>'Deleted account','is_active'=>false,
+            'email'=>'deleted-'.$user->id.'@accounts.invalid',
+        ]);
+        $this->assertDatabaseMissing('personal_access_tokens',['id'=>$token]);
+        $this->assertDatabaseMissing('m22_user_preferences',['user_id'=>$user->id]);
+        $this->assertDatabaseMissing('m22_support_tickets',['user_id'=>$user->id]);
+        $this->assertNull($user->fresh()->phone_number);
+    }
+
+    public function test_account_deletion_blocks_company_owner_and_platform_admin(): void
+    {
+        $owner=$this->actor();
+        $company=$this->company($owner);
+        $this->postJson('/api/v1/me/delete',['password'=>'Initial!123Pwd'])
+            ->assertUnprocessable();
+        $this->assertDatabaseHas('companies',[
+            'id'=>$company->id,'owner_user_id'=>$owner->id,
+        ]);
+        $admin=User::factory()->create([
+            'is_active'=>true,'is_platform_admin'=>true,'password'=>'Initial!123Pwd',
+        ]);
+        Sanctum::actingAs($admin);
+        $this->postJson('/api/v1/me/delete',['password'=>'Initial!123Pwd'])
+            ->assertUnprocessable();
+        $this->assertTrue($admin->fresh()->is_active);
+    }
 }
