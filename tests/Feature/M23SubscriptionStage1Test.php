@@ -133,6 +133,9 @@ final class M23SubscriptionStage1Test extends TestCase
         ])->assertRedirect();
         $plan=DB::table('m23_plans')->first();
         $this->assertSame('draft',$plan->status);
+        $this->assertDatabaseHas('m23_plan_revisions',[
+            'plan_id'=>$plan->id,'revision'=>1,'status'=>'draft',
+        ]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         Sanctum::actingAs($owner);
         $this->getJson('/api/v1/billing/plans')->assertJsonCount(0,'data.plans');
@@ -144,6 +147,10 @@ final class M23SubscriptionStage1Test extends TestCase
             ->assertJsonCount(1,'data.plans')
             ->assertJsonPath('data.plans.0.price_label','CHF 20.00 / month')
             ->assertJsonPath('data.plans.0.can_checkout',false);
+        $this->assertDatabaseHas('m23_plan_revisions',[
+            'plan_id'=>$plan->id,'revision'=>2,'status'=>'published',
+        ]);
+        $this->assertDatabaseCount('m23_plan_revisions',2);
         $this->getJson('/api/v1/billing/overview')->assertJsonPath('data.status','free');
     }
 
