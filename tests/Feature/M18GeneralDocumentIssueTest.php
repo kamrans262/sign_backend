@@ -86,6 +86,11 @@ final class M18GeneralDocumentIssueTest extends TestCase
         $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/',$first['sha256']);
         $this->assertSame($first['sha256'],$this->issued($id)['sha256']);
         $this->assertDatabaseCount('general_document_issues',1);
+        $this->assertDatabaseHas('m23_document_usage',[
+            'company_id'=>$company->id,'source_type'=>'general_document','source_id'=>$id,
+        ]);
+        $this->assertSame(1,\Illuminate\Support\Facades\DB::table('m23_document_usage')
+            ->where('company_id',$company->id)->count());
         $pdf=$this->get('/api/v1/general-documents/'.$id.'/pdf')->assertOk()
             ->assertHeader('Content-Type','application/pdf')->getContent();
         $this->assertStringStartsWith('%PDF-',$pdf);

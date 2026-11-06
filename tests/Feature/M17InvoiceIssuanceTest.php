@@ -56,6 +56,10 @@ final class M17InvoiceIssuanceTest extends TestCase
             ->assertOk()->assertJsonPath('data.document.sha256',$first['sha256']);
         $this->assertSame(1,DB::table('service_invoice_issues')
             ->where('service_invoice_id',$id)->count());
+        $this->assertDatabaseHas('m23_document_usage',[
+            'company_id'=>$company->id,'source_type'=>'invoice','source_id'=>$id,
+        ]);
+        $this->assertSame(1,DB::table('m23_document_usage')->where('company_id',$company->id)->count());
         $body=$this->get($url.'/pdf')->assertOk()
             ->assertHeader('Content-Type','application/pdf')->baseResponse->getContent();
         $this->assertStringStartsWith('%PDF-',$body);
