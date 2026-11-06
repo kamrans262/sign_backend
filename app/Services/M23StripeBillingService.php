@@ -268,7 +268,7 @@ final class M23StripeBillingService
         abort_unless($sub && $sub->stripe_subscription_id
             && $sub->stripe_subscription_item_id
             && $sub->stripe_customer_id,409,'Current billing details are unavailable.');
-        $data=$this->stripe->request('GET','/invoices/create_preview',[
+        $data=$this->stripe->request('POST','/invoices/create_preview',[
             'customer'=>$sub->stripe_customer_id,
             'subscription'=>$sub->stripe_subscription_id,
             'subscription_details[items][0][id]'=>$sub->stripe_subscription_item_id,
