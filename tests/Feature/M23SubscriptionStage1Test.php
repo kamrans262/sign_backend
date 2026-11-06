@@ -177,6 +177,61 @@ final class M23SubscriptionStage1Test extends TestCase
             ->assertJsonPath('data.status','free');
     }
 
+    public function test_configured_paid_document_quota_uses_current_verified_period_and_rejects_overage(): void
+    {
+        $owner=$this->actor();
+        $company=$this->company($owner);
+        $plan=DB::table('m23_plans')->insertGetId([
+            'code'=>'metered','name'=>'Metered Plan','period'=>'monthly',
+            'currency'=>'CHF','amount_minor'=>1500,
+            'features'=>json_encode(['invoices']),
+            'document_limit'=>2,'status'=>'published',
+            'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        DB::table('m23_company_subscriptions')->insert([
+            'company_id'=>$company->id,'plan_id'=>$plan,
+            'status'=>'active','stripe_customer_id'=>'cus_m23_fixture',
+            'stripe_subscription_id'=>'sub_m23_fixture',
+            'provider_synced_at'=>now()->subMinutes(5),
+            'period_starts_at'=>now()->subDay(),
+            'period_ends_at'=>now()->addDays(29),
+            'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        DB::table('m23_document_usage')->insert([
+            'company_id'=>$company->id,'source_type'=>'quote','source_id'=>901,
+            'issue_event'=>'first_issuance','actor_user_id'=>$owner->id,
+            'issued_at'=>now()->subMonths(2),
+            'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        $billing=app(M23BillingService::class);
+        DB::table('m23_billing_settings')->where('id',1)
+            ->update(['enforcement_enabled'=>true]);
+        $this->assertTrue($billing->hasVerifiedPlan($billing->subscription($company->id)));
+        $billing->recordIssue($company->id,'invoice',10,$owner->id);
+        $billing->recordIssue($company->id,'report',11,$owner->id);
+        $policy=$billing->allowance($company->id);
+        $this->assertSame(3,$policy['used']); // One older free document.
+        $this->assertSame(2,$policy['paid_period_limit']);
+        $this->assertSame(2,$policy['paid_period_used']);
+        $this->assertSame(0,$policy['paid_period_remaining']);
+        $this->assertTrue($policy['paid_plan_quota_exhausted']);
+        $this->assertTrue($policy['subscription_required']);
+        try {
+            $billing->recordIssue($company->id,'general_document',12,$owner->id);
+            $this->fail('The paid quota must apply to every unique document source.');
+        } catch(HttpResponseException $e) {
+            $this->assertSame(402,$e->getResponse()->getStatusCode());
+        }
+        // Retrying a previously counted PDF issuance is always idempotent.
+        $billing->recordIssue($company->id,'invoice',10,$owner->id);
+        $this->assertDatabaseCount('m23_document_usage',3);
+
+        // A subscription whose provider verification expires must not grant access.
+        DB::table('m23_company_subscriptions')->where('company_id',$company->id)
+            ->update(['provider_synced_at'=>null]);
+        $this->assertFalse($billing->allowance($company->id)['has_verified_subscription']);
+    }
+
     public function test_non_admin_cannot_manage_settings_and_settings_never_enable_live_billing(): void
     {
         $owner=$this->actor();
