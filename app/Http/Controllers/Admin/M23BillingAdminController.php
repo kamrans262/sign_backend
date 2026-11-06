@@ -17,6 +17,23 @@ final class M23BillingAdminController extends Controller
 {
     public function __construct(private readonly M23BillingService $billing) {}
 
+    /**
+     * Preserve a complete, append-only snapshot of every price, benefit,
+     * quota and publication revision. No secret keys are ever stored.
+     */
+    private function snapshotPlan(int $planId, Request $request): void
+    {
+        $row=DB::table('m23_plans')->where('id',$planId)->firstOrFail();
+        DB::table('m23_plan_revisions')->insert([
+            'plan_id'=>$planId,
+            'revision'=>(int)$row->revision,
+            'status'=>(string)$row->status,
+            'snapshot'=>json_encode($row,JSON_THROW_ON_ERROR),
+            'changed_by_user_id'=>$request->user()->id,
+            'created_at'=>now(),
+        ]);
+    }
+
     public function index(Request $request): View
     {
         $filters=$request->validate([
@@ -65,6 +82,9 @@ final class M23BillingAdminController extends Controller
         $row=$plan?DB::table('m23_plans')->where('id',$plan)->firstOrFail():null;
         return view('admin.billing.plan',[
             'plan'=>$row,'supportedFeatures'=>M23BillingService::FEATURES,
+            'revisions'=>$row ? DB::table('m23_plan_revisions')
+                ->where('plan_id',$row->id)
+                ->orderByDesc('revision')->limit(50)->get() : collect(),
             'inUse'=>$row ? DB::table('m23_company_subscriptions')
                 ->where('plan_id',$row->id)->exists():false,
         ]);
@@ -125,6 +145,7 @@ final class M23BillingAdminController extends Controller
                 $payload['created_at']=now();
                 $id=DB::table('m23_plans')->insertGetId($payload);
             }
+            $this->snapshotPlan($id,$request);
             $this->event(null,$request,'admin.plan.saved',
                 ['plan_id'=>$id,'revision'=>$payload['revision']??1]);
             AuditLogger::record('admin.billing.plan_saved',$request->user(),null,null,
@@ -143,14 +164,20 @@ final class M23BillingAdminController extends Controller
         DB::transaction(function()use($request,$plan,$data):void {
             $row=DB::table('m23_plans')->where('id',$plan)->lockForUpdate()->first();
             abort_unless($row,404);
-            if($data['status']==='archived' && DB::table('m23_company_subscriptions')
-                ->where('plan_id',$plan)->exists())abort(409,'Cannot archive a subscribed plan.');
+            if($row->status===$data['status'])return;
+            if(DB::table('m23_company_subscriptions')->where('plan_id',$plan)->exists()){
+                abort(409,'A subscribed plan cannot change publication status.');
+            }
             DB::table('m23_plans')->where('id',$plan)->update([
-                'status'=>$data['status'],'updated_by_user_id'=>$request->user()->id,
+                'status'=>$data['status'],
+                'revision'=>(int)$row->revision+1,
+                'updated_by_user_id'=>$request->user()->id,
                 'updated_at'=>now(),
             ]);
+            $this->snapshotPlan($plan,$request);
             $this->event(null,$request,'admin.plan.status_changed',
-                ['plan_id'=>$plan,'status'=>$data['status']]);
+                ['plan_id'=>$plan,'revision'=>(int)$row->revision+1,
+                    'status'=>$data['status']]);
             AuditLogger::record('admin.billing.plan_status_changed',
                 $request->user(),null,null,['plan_id'=>$plan,
                     'status'=>$data['status']],$request);
