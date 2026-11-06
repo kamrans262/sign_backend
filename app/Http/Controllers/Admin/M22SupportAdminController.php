@@ -63,7 +63,7 @@ final class M22SupportAdminController extends Controller
         return view('admin.support.show',compact('item','replies','attachments','admins'));
     }
 
-    public function update(Request $request,int $ticket): RedirectResponse
+    public function update(Request $request, int $ticket): RedirectResponse
     {
         $data=$request->validate([
             'status'=>['required',Rule::in(['open','in_progress','waiting_for_customer','resolved','closed'])],
@@ -74,28 +74,32 @@ final class M22SupportAdminController extends Controller
             abort_unless(User::whereKey($data['assigned_admin_id'])
                 ->where('is_active',true)->where('is_platform_admin',true)->exists(),422);
         }
-        $row=DB::table('m22_support_tickets')->find($ticket);
-        abort_unless($row,404);
-        DB::table('m22_support_tickets')->where('id',$ticket)->update([
-            'status'=>$data['status'],'priority'=>$data['priority'],
-            'assigned_admin_id'=>$data['assigned_admin_id']??null,
-            'updated_at'=>now(),
-        ]);
-        AuditLogger::record('admin.support.ticket_updated',$request->user(),null,
-            metadata:['ticket_id'=>$ticket,'status'=>$data['status'],
-                'priority'=>$data['priority']],request:$request);
+        DB::transaction(function () use ($ticket, $data, $request): void {
+            // Both customer replies and uploads lock this same ticket row.
+            $row=DB::table('m22_support_tickets')->where('id',$ticket)->lockForUpdate()->first();
+            abort_unless($row,404);
+            DB::table('m22_support_tickets')->where('id',$ticket)->update([
+                'status'=>$data['status'],'priority'=>$data['priority'],
+                'assigned_admin_id'=>$data['assigned_admin_id']??null,
+                'updated_at'=>now(),
+            ]);
+            AuditLogger::record('admin.support.ticket_updated',$request->user(),null,
+                metadata:['ticket_id'=>$ticket,'status'=>$data['status'],
+                    'priority'=>$data['priority']],request:$request);
+        });
         return back()->with('success','Support ticket updated.');
     }
 
     public function reply(Request $request,int $ticket): RedirectResponse
     {
-        DB::table('m22_support_tickets')->find($ticket) ?: abort(404);
         $data=$request->validate([
             'body'=>['required','string','min:1','max:10000'],
             'internal'=>['nullable','boolean'],
         ]);
         $internal=$request->boolean('internal');
         DB::transaction(function() use($request,$ticket,$data,$internal): void {
+            $row=DB::table('m22_support_tickets')->where('id',$ticket)->lockForUpdate()->first();
+            abort_unless($row,404);
             DB::table('m22_support_replies')->insert([
                 'ticket_id'=>$ticket,'author_user_id'=>$request->user()->id,
                 'body'=>trim($data['body']),'internal'=>$internal,
