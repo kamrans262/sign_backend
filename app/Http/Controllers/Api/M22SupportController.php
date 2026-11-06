@@ -121,22 +121,26 @@ final class M22SupportController extends Controller
 
     public function reply(Request $request, int $ticket): JsonResponse
     {
-        $row=$this->owned($request,$ticket);
-        $data=$request->validate(['body'=>['required','string','min:1','max:10000']]);
-        abort_if($row->status==='closed',409,'Closed ticket cannot be changed.');
-        DB::transaction(function () use ($ticket,$request,$data): void {
+        $data = $request->validate(['body'=>['required','string','min:1','max:10000']]);
+        // Lock ticket so an administrator cannot close it during reply creation.
+        DB::transaction(function () use ($ticket, $request, $data): void {
+            $row = DB::table('m22_support_tickets')
+                ->where('user_id', $request->user()->id)
+                ->where('id', $ticket)->lockForUpdate()->first();
+            abort_unless($row, 404);
+            abort_if($row->status === 'closed', 409, 'Closed ticket cannot be changed.');
             DB::table('m22_support_replies')->insert([
-                'ticket_id'=>$ticket,'author_user_id'=>$request->user()->id,
-                'body'=>trim($data['body']),'internal'=>false,
-                'created_at'=>now(),'updated_at'=>now(),
+                'ticket_id'=>$ticket, 'author_user_id'=>$request->user()->id,
+                'body'=>trim($data['body']), 'internal'=>false,
+                'created_at'=>now(), 'updated_at'=>now(),
             ]);
-            DB::table('m22_support_tickets')->where('id',$ticket)->update([
-                'status'=>'open','updated_at'=>now(),
+            DB::table('m22_support_tickets')->where('id', $ticket)->update([
+                'status'=>'open', 'updated_at'=>now(),
             ]);
-            AuditLogger::record('mobile.support.ticket_replied',$request->user(),
-                $request->user(),metadata:['ticket_id'=>$ticket],request:$request);
+            AuditLogger::record('mobile.support.ticket_replied', $request->user(),
+                $request->user(), metadata:['ticket_id'=>$ticket], request:$request);
         });
-        return $this->show($request,$ticket);
+        return $this->show($request, $ticket);
     }
 
     private function validateAttachment(Request $request): array
@@ -160,31 +164,38 @@ final class M22SupportController extends Controller
         return [$file,$mime,$bytes];
     }
 
-    public function upload(Request $request,int $ticket): JsonResponse
+    public function upload(Request $request, int $ticket): JsonResponse
     {
-        $row=$this->owned($request,$ticket);
-        abort_if($row->status==='closed',409);
-        [$file,$mime,$bytes]=$this->validateAttachment($request);
-        $extension=match($mime){'application/pdf'=>'pdf','image/png'=>'png',default=>'jpg'};
-        $path='m22/support/'.$ticket.'/'.Str::uuid().'.'.$extension;
-        if (!Storage::disk('local')->put($path,$bytes)) abort(503);
+        $this->owned($request, $ticket);
+        [$file, $mime, $bytes] = $this->validateAttachment($request);
+        $extension = match ($mime) {'application/pdf'=>'pdf', 'image/png'=>'png', default=>'jpg'};
+        $path = 'm22/support/'.$ticket.'/'.Str::uuid().'.'.$extension;
+        if (!Storage::disk('local')->put($path, $bytes)) abort(503);
         try {
-            $id=DB::table('m22_support_attachments')->insertGetId([
-                'ticket_id'=>$ticket,'reply_id'=>null,
-                'uploaded_by_user_id'=>$request->user()->id,
-                'private_path'=>$path,'mime_type'=>$mime,
-                'original_name'=>Str::limit(basename($file->getClientOriginalName()),160,''),
-                'byte_size'=>strlen($bytes),'sha256'=>hash('sha256',$bytes),
-                'created_at'=>now(),'updated_at'=>now(),
-            ]);
+            $id = DB::transaction(function () use ($request, $ticket, $path, $mime, $file, $bytes): int {
+                // Recheck the status and owner at the write boundary.
+                $row = DB::table('m22_support_tickets')
+                    ->where('user_id', $request->user()->id)
+                    ->where('id', $ticket)->lockForUpdate()->first();
+                abort_unless($row, 404);
+                abort_if($row->status === 'closed', 409, 'Closed ticket cannot accept attachments.');
+                return DB::table('m22_support_attachments')->insertGetId([
+                    'ticket_id'=>$ticket, 'reply_id'=>null,
+                    'uploaded_by_user_id'=>$request->user()->id,
+                    'private_path'=>$path, 'mime_type'=>$mime,
+                    'original_name'=>Str::limit(basename($file->getClientOriginalName()),160,''),
+                    'byte_size'=>strlen($bytes), 'sha256'=>hash('sha256',$bytes),
+                    'created_at'=>now(), 'updated_at'=>now(),
+                ]);
+            });
         } catch (\Throwable $e) {
             Storage::disk('local')->delete($path);
             throw $e;
         }
-        AuditLogger::record('mobile.support.attachment_uploaded',$request->user(),
-            $request->user(),metadata:['ticket_id'=>$ticket,'attachment_id'=>$id],
+        AuditLogger::record('mobile.support.attachment_uploaded', $request->user(),
+            $request->user(), metadata:['ticket_id'=>$ticket,'attachment_id'=>$id],
             request:$request);
-        return response()->json(['data'=>['id'=>$id]],201);
+        return response()->json(['data'=>['id'=>$id]], 201);
     }
 
     public function attachment(Request $request,int $ticket,int $attachment)
