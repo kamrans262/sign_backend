@@ -45,12 +45,21 @@ final class M23BillingService
 
     public function hasVerifiedPlan(?object $subscription): bool
     {
+        // A locally-entered provider ID or an obsolete period is not a
+        // verified subscription. Stage 2 will populate these fields only
+        // after signed provider events and authoritative reconciliation.
         return $subscription !== null
             && in_array($subscription->status,['active','trialing'],true)
-            && $subscription->stripe_subscription_id !== null
-            && $subscription->stripe_customer_id !== null
-            && ($subscription->period_ends_at === null
-                || now()->lessThan($subscription->period_ends_at));
+            && !empty($subscription->stripe_subscription_id)
+            && !empty($subscription->stripe_customer_id)
+            && $subscription->provider_synced_at !== null
+            && $subscription->period_starts_at !== null
+            && $subscription->period_ends_at !== null
+            && now()->greaterThanOrEqualTo($subscription->period_starts_at)
+            && now()->lessThan($subscription->period_ends_at)
+            && ($subscription->status !== 'trialing'
+                || $subscription->trial_ends_at === null
+                || now()->lessThan($subscription->trial_ends_at));
     }
 
     public function used(int $companyId): int
@@ -65,19 +74,45 @@ final class M23BillingService
         $subscription=$this->subscription($companyId);
         $grant=$this->grant($companyId);
         $verified=$this->hasVerifiedPlan($subscription);
-        $hasAccess=$verified || $grant !== null;
         $limit=(int)$settings->free_document_limit;
+        $paidLimit=null;
+        $paidUsed=null;
+        $paidEligible=$verified;
+        if($verified){
+            // Every plan quota is scoped to the VERIFIED subscription cycle;
+            // free-document usage is a separate lifetime entitlement.
+            $plan=$subscription->plan_id
+                ? DB::table('m23_plans')->where('id',$subscription->plan_id)->first()
+                : null;
+            $paidEligible=$plan !== null;
+            if($plan && $plan->document_limit !== null){
+                $paidLimit=(int)$plan->document_limit;
+                $paidUsed=DB::table('m23_document_usage')
+                    ->where('company_id',$companyId)
+                    ->where('issued_at','>=',$subscription->period_starts_at)
+                    ->where('issued_at','<',$subscription->period_ends_at)
+                    ->count();
+                $paidEligible=$paidUsed<$paidLimit;
+            }
+        }
+        $hasGrant=$grant !== null;
+        $withinQuota=$verified ? $paidEligible : ($used<$limit);
+        $eligible=!(bool)$settings->enforcement_enabled || $hasGrant || $withinQuota;
         return [
             'limit'=>$limit,
             'used'=>$used,
             'remaining'=>max(0,$limit-$used),
+            'paid_period_limit'=>$paidLimit,
+            'paid_period_used'=>$paidUsed,
+            'paid_period_remaining'=>$paidLimit === null || $paidUsed === null
+                ? null : max(0,$paidLimit-$paidUsed),
+            'paid_plan_quota_exhausted'=>$verified && !$paidEligible,
             'enforcement_enabled'=>(bool)$settings->enforcement_enabled,
             'stripe_enabled'=>false, // Stage 1: payment provider never enabled.
             'has_verified_subscription'=>$verified,
-            'has_active_grant'=>$grant!==null,
-            'eligible'=>!(bool)$settings->enforcement_enabled || $hasAccess || $used<$limit,
-            'subscription_required'=>(bool)$settings->enforcement_enabled
-                && !$hasAccess && $used >= $limit,
+            'has_active_grant'=>$hasGrant,
+            'eligible'=>$eligible,
+            'subscription_required'=>!$eligible,
         ];
     }
 
