@@ -432,6 +432,8 @@ final class SiteReportService
                 $job=ServiceJob::query()->where('company_id',$company->id)
                     ->findOrFail($report->service_job_id);
                 abort_if($job->category==='archived',409,'Cannot approve reports for archived jobs.');
+                app(\App\Services\M23BillingService::class)->recordIssue(
+                    (int)$company->id,'report',(int)$id,$request->user()?->id);
                 $bytes=$this->pdf($report);
                 $path='reports/'.$company->id.'/'.$job->id.'/'.Str::uuid().'.pdf';
                 abort_unless(Storage::disk('local')->put($path,$bytes),503,'Private PDF storage unavailable.');

@@ -341,6 +341,8 @@ class ServiceQuoteController extends Controller
                     ]);
                 }
             }
+            app(\App\Services\M23BillingService::class)->recordIssue(
+                (int)$company->id,'quote',(int)$item->id,$request->user()?->id);
             $item->update([
                 'status' => 'approved', 'approved_at' => now(),
                 'updated_by' => $request->user()->id,
