@@ -212,6 +212,9 @@ final class M22ProfileSecuritySupportTest extends TestCase
 
     public function test_deletion_requires_password_and_erases_personal_data_without_losing_user_reference(): void
     {
+        // Other tests share Laravel's rate limiter cache; this test verifies
+        // deletion authorization and persistence, not per-minute throttling.
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Storage::fake('local');
         $user = $this->actor();
         $token = $user->createToken('Other device')->accessToken->id;
