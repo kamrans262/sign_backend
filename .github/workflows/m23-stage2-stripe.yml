@@ -52,6 +52,7 @@ jobs:
           php -l app/Http/Controllers/Api/M23StripeBillingController.php
           php artisan migrate:fresh --force
           php artisan route:list --path=api/v1/billing
+          php artisan billing:m23-reconcile
       - name: M23 Stage 1 and Stage 2 acceptance with fake Stripe and real database
         run: |
           php artisan test tests/Feature/M23SubscriptionStage1Test.php tests/Feature/M23StripeBillingStage2Test.php
