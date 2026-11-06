@@ -9,6 +9,7 @@ use App\Support\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -333,10 +334,79 @@ final class M22AccountController extends Controller
         return response()->json(['data' => [
             'account' => $userData,
             'preferences' => $this->preferenceData($user),
-            'support_ticket_references' => DB::table('m22_support_tickets')
-                ->where('user_id',$user->id)->orderBy('id')->pluck('reference')->all(),
+            'support_tickets' => DB::table('m22_support_tickets')
+                ->where('user_id', $user->id)->orderBy('id')
+                ->get(['id','reference','category','subject','description','status','created_at'])
+                ->map(function ($ticket) {
+                    $ticket->replies = DB::table('m22_support_replies')
+                        ->where('ticket_id', $ticket->id)->where('internal', false)
+                        ->orderBy('id')->get(['body','created_at'])->all();
+                    $ticket->attachments = DB::table('m22_support_attachments')
+                        ->where('ticket_id', $ticket->id)
+                        ->get(['original_name','mime_type','byte_size'])->all();
+                    return $ticket;
+                })->all(),
             'scope' => 'personal_account_only_company_documents_not_included',
         ]], 200, ['Cache-Control'=>'private, no-store']);
+    }
+
+
+    /**
+     * Erase personal profile and private support data without destroying
+     * issued company records, legal audit evidence or signed documents.
+     */
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        $this->password($request);
+        $user = $this->actor($request);
+        if ($user->is_platform_admin || $user->ownedCompanies()->exists()) {
+            throw ValidationException::withMessages(['account' =>
+                'Transfer company ownership and platform administration first.']);
+        }
+        $privateFiles = [];
+        DB::transaction(function () use ($user, $request, &$privateFiles): void {
+            $locked = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if ($locked->is_platform_admin || $locked->ownedCompanies()->exists()) {
+                throw ValidationException::withMessages(['account' => 'Account ownership must be transferred.']);
+            }
+            $privateFiles = array_merge(
+                $locked->profile_photo_path ? [$locked->profile_photo_path] : [],
+                DB::table('m22_support_attachments as a')
+                    ->join('m22_support_tickets as t', 't.id', '=', 'a.ticket_id')
+                    ->where('t.user_id', $locked->id)->pluck('a.private_path')->all()
+            );
+            DB::table('m22_support_tickets')->where('user_id', $locked->id)->delete();
+            DB::table('m22_user_preferences')->where('user_id', $locked->id)->delete();
+            DB::table('m22_email_change_challenges')->where('user_id', $locked->id)->delete();
+            DB::table('email_otp_challenges')->where('user_id', $locked->id)->delete();
+            DB::table('company_user')->where('user_id', $locked->id)
+                ->update(['status' => 'inactive', 'updated_at' => now()]);
+            DB::table('m20_notification_preferences')->where('user_id', $locked->id)
+                ->update(['push_enabled' => false, 'updated_at' => now()]);
+            DB::table('m20_push_devices')->where('user_id', $locked->id)->update([
+                'enabled' => false, 'revoked_at' => now(),
+                'fid_hash' => hash('sha256', 'deleted-'.$locked->id),
+                'encrypted_fid' => Crypt::encryptString('revoked'),
+                'updated_at' => now(),
+            ]);
+            $locked->forceFill([
+                'name' => 'Deleted account', 'email' => 'deleted-'.$locked->id.'@accounts.invalid',
+                'password' => Str::random(64), 'phone_number' => null,
+                'country_iso_code' => null, 'dialing_code' => null,
+                'job_title' => null, 'email_verified_at' => null,
+                'profile_photo_path' => null, 'profile_photo_mime' => null,
+                'remember_token' => null, 'is_active' => false,
+            ])->save();
+            $locked->tokens()->delete();
+            AuditLogger::record('mobile.account.deleted', $locked, $locked,
+                metadata: ['personal_profile_erased' => true, 'business_records_retained' => true],
+                request: $request);
+        });
+        foreach (array_unique($privateFiles) as $path) Storage::disk('local')->delete($path);
+        return response()->json(['data' => [
+            'deleted' => true, 'requires_login' => true,
+            'business_records_retained' => true,
+        ]], 200, ['Cache-Control' => 'private, no-store']);
     }
 
     public function deactivate(Request $request): JsonResponse
