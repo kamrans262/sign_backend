@@ -18,6 +18,10 @@ final class M20PushDeviceController extends Controller
             'platform' => ['required', 'in:android,ios'],
             'fid' => ['required', 'string', 'min:20', 'max:4096'],
         ]);
+        if (DB::table('m22_user_preferences')->where('user_id', $request->user()->id)
+            ->where('push_notifications', false)->exists()) {
+            abort(422, 'Enable account-wide push consent before registering a device.');
+        }
         abort_unless($fcm->available(), 503, 'Push notifications are not configured.');
         $company = $request->attributes->get('company')->id;
         $user = $request->user()->id;
