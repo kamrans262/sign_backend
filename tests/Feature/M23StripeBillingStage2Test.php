@@ -15,6 +15,8 @@ final class M23StripeBillingStage2Test extends TestCase
 {
     use RefreshDatabase;
 
+    private bool $firstEnded=false;
+
     private function tenant(): array
     {
         $owner=User::factory()->create([
@@ -62,7 +64,8 @@ final class M23StripeBillingStage2Test extends TestCase
 
     private function fixture(): void
     {
-        Http::fake(function($request){
+        $checkoutCreateCalls=0;
+        Http::fake(function($request)use(&$checkoutCreateCalls){
             $url=$request->url();
             if(str_contains($url,'/prices/price_test1')){
                 return Http::response([
@@ -73,29 +76,38 @@ final class M23StripeBillingStage2Test extends TestCase
             }
             if(str_ends_with($url,'/customers'))
                 return Http::response(['id'=>'cus_test1']);
-            if(str_ends_with($url,'/checkout/sessions'))
+            if(str_ends_with($url,'/checkout/sessions')){
+                $checkoutCreateCalls++;
+                $sessionId=$checkoutCreateCalls===1?'cs_test_a1':'cs_test_b2';
                 return Http::response([
-                    'id'=>'cs_test_a1','customer'=>'cus_test1',
+                    'id'=>$sessionId,'customer'=>'cus_test1',
                     'mode'=>'subscription',
-                    'url'=>'https://checkout.stripe.com/c/pay/cs_test_a1',
+                    'url'=>'https://checkout.stripe.com/c/pay/'.$sessionId,
                     'expires_at'=>time()+1800,
                 ]);
-            if(str_contains($url,'/checkout/sessions/cs_test_a1'))
+            }
+            if(str_contains($url,'/checkout/sessions/cs_test_')){
+                $sessionId=basename(parse_url($url,PHP_URL_PATH));
                 return Http::response([
-                    'id'=>'cs_test_a1','customer'=>'cus_test1',
+                    'id'=>$sessionId,'customer'=>'cus_test1',
                     'client_reference_id'=>(string)DB::table('companies')
                         ->where('name','Billing Test')->value('id'),
                     'mode'=>'subscription','status'=>'complete',
-                    'payment_status'=>'paid','subscription'=>'sub_test1',
-                    'url'=>'https://checkout.stripe.com/c/pay/cs_test_a1',
+                    'payment_status'=>'paid',
+                    'subscription'=>$sessionId==='cs_test_a1'?'sub_test1':'sub_test2',
+                    'url'=>'https://checkout.stripe.com/c/pay/'.$sessionId,
                 ]);
-            if(str_contains($url,'/subscriptions/sub_test1')){
+            }
+            if(str_contains($url,'/subscriptions/sub_test')){
+                $subId=basename(parse_url($url,PHP_URL_PATH));
                 if($request->method()==='POST'){
-                    return Http::response(['id'=>'sub_test1']);
+                    return Http::response(['id'=>$subId]);
                 }
                 return Http::response([
-                    'id'=>'sub_test1','customer'=>'cus_test1',
-                    'livemode'=>false,'status'=>'active',
+                    'id'=>$subId,'customer'=>'cus_test1',
+                    'livemode'=>false,
+                    'status'=>$subId==='sub_test1' && $this->firstEnded
+                        ?'canceled':'active',
                     'cancel_at_period_end'=>false,
                     'items'=>['data'=>[[
                         'id'=>'si_test1','price'=>['id'=>'price_test1'],
@@ -187,6 +199,45 @@ final class M23StripeBillingStage2Test extends TestCase
         $this->assertDatabaseCount('m23_provider_events',1);
         $this->assertDatabaseCount('m23_checkout_intents',1);
         $this->assertDatabaseCount('m23_billing_invoices',0);
+    }
+
+    public function test_new_uuid_cannot_create_overlapping_checkout_for_company(): void
+    {
+        [$owner,$company,$plan]=$this->tenant();
+        $this->enable();$this->fixture();
+        $this->checkout($plan);
+        $this->postJson('/api/v1/billing/checkout',[
+            'plan_id'=>$plan,
+            'request_id'=>'44444444-4444-4444-8444-444444444444',
+        ])->assertStatus(409);
+        $this->assertDatabaseCount('m23_checkout_intents',1);
+    }
+
+    public function test_verified_cancellation_allows_a_new_checkout_without_reusing_old_identity(): void
+    {
+        [$owner,$company,$plan]=$this->tenant();
+        $this->enable();$this->fixture();
+        $first=$this->checkout($plan);
+        $this->getJson('/api/v1/billing/checkout/'.$first['intent_id'].'/status')
+            ->assertJsonPath('data.verified',true);
+        $this->firstEnded=true;
+        // Simulate the prior signed/deleted webhook reconciliation state.
+        DB::table('m23_company_subscriptions')->where('company_id',$company->id)
+            ->update(['status'=>'canceled']);
+        $secondId='44444444-4444-4444-8444-444444444444';
+        $second=$this->postJson('/api/v1/billing/checkout',[
+            'plan_id'=>$plan,'request_id'=>$secondId,
+        ])->assertOk()->json('data');
+        $this->assertSame($secondId,$second['intent_id']);
+        $this->assertSame('https://checkout.stripe.com/c/pay/cs_test_b2',
+            $second['checkout_url']);
+        $this->getJson('/api/v1/billing/checkout/'.$secondId.'/status')
+            ->assertJsonPath('data.verified',true);
+        $this->assertDatabaseHas('m23_company_subscriptions',[
+            'company_id'=>$company->id,'status'=>'active',
+            'stripe_subscription_id'=>'sub_test2',
+        ]);
+        $this->assertDatabaseCount('m23_checkout_intents',2);
     }
 
     public function test_signature_tamper_mode_mismatch_and_unknown_customer_fail_closed(): void
