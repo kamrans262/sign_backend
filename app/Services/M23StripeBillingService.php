@@ -97,6 +97,31 @@ final class M23StripeBillingService
             DB::table('companies')->where('id',$company->id)
                 ->lockForUpdate()->firstOrFail();
             $sub=$this->companyRecord($company);
+            if($sub && $sub->stripe_subscription_id &&
+                in_array($sub->status,['canceled','incomplete_expired'],true)){
+                // Never reuse an old provider identity as a new subscription.
+                // Verify that Stripe itself considers the prior record ended.
+                $old=$this->stripe->subscription($sub->stripe_subscription_id);
+                abort_unless(($old['id']??null)===$sub->stripe_subscription_id
+                    && ($old['customer']??null)===$sub->stripe_customer_id
+                    && in_array($old['status']??'',[
+                        'canceled','incomplete_expired'],true),409,
+                    'Previous subscription has not ended at Stripe.');
+                DB::table('m23_company_subscriptions')
+                    ->where('company_id',$company->id)->update([
+                        'status'=>'free','plan_id'=>null,
+                        'stripe_subscription_id'=>null,
+                        'stripe_subscription_item_id'=>null,
+                        'period_starts_at'=>null,'period_ends_at'=>null,
+                        'trial_ends_at'=>null,'provider_synced_at'=>null,
+                        'cancel_at_period_end'=>false,
+                        'version'=>(int)$sub->version+1,'updated_at'=>now(),
+                    ]);
+                $this->event($company->id,'previous_subscription_archived',[
+                    'provider_reference_sha256'=>hash('sha256',
+                        $sub->stripe_subscription_id)],$actor->id);
+                $sub=$this->companyRecord($company);
+            }
             abort_if($sub && in_array($sub->status,['active','trialing','past_due','unpaid'],true)
                 && $sub->stripe_subscription_id,409,
                 'A subscription already exists. Use Change Plan or Billing Portal.');
@@ -119,6 +144,19 @@ final class M23StripeBillingService
                 }
                 abort(409,'This checkout request expired. Begin a new checkout.');
             }
+            // A second unique UUID must not create another Checkout while
+            // an existing session is still active (same-company race).
+            $pending=DB::table('m23_checkout_intents')
+                ->where('company_id',$company->id)->where('status','pending')
+                ->where(function($q):void{
+                    $q->where('expires_at','>',now())
+                        ->orWhere(function($q):void{
+                            $q->whereNull('expires_at')
+                                ->where('created_at','>',now()->subMinutes(30));
+                        });
+                })->exists();
+            abort_if($pending,409,
+                'An existing Checkout is pending. Return to it or retry after expiry.');
             $customer=$this->customer($company);
             $id=DB::table('m23_checkout_intents')->insertGetId([
                 'request_id'=>$requestId,'company_id'=>$company->id,
