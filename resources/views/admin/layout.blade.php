@@ -61,6 +61,9 @@
         <x-admin.icon name="users" /><span>Users</span>
       </a>
 
+      <a class="side-link {{ request()->routeIs('admin.billing.*') ? 'active' : '' }}" href="{{ route('admin.billing.index') }}" @if(request()->routeIs('admin.billing.*')) aria-current="page" @endif>
+        <x-admin.icon name="briefcase" /><span>Subscriptions &amp; Billing</span>
+      </a>
       <a class="side-link {{ request()->routeIs('admin.support.*') ? 'active' : '' }}" href="{{ route('admin.support.index') }}" @if(request()->routeIs('admin.support.*')) aria-current="page" @endif>
         <x-admin.icon name="users" /><span>Help &amp; Support</span>
       </a>
@@ -108,6 +111,8 @@
       <nav aria-label="Mobile administration">
         <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><x-admin.icon name="overview" /> Dashboard</a>
         <a href="{{ route('admin.companies.index') }}" class="{{ request()->routeIs('admin.companies.*') ? 'active' : '' }}"><x-admin.icon name="building" /> Company Management</a>
+        <a href="{{ route('admin.billing.index') }}" class="{{ request()->routeIs('admin.billing.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Subscriptions &amp; Billing</a>
+
         <a href="{{ route('admin.clients.index') }}" class="{{ request()->routeIs('admin.clients.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Client Management</a>
         <a href="{{ route('admin.jobs.index') }}" class="{{ request()->routeIs('admin.jobs.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Job Management</a>
         <a href="{{ route('admin.job-media.index') }}" class="{{ request()->routeIs('admin.job-media.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Photos & Notes Management</a>
