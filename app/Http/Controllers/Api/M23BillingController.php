@@ -38,7 +38,7 @@ final class M23BillingController extends Controller
         return $this->respond([
             'company_id'=>(int)$company->id,
             'plans'=>$this->billing->plans(),
-            'checkout_available'=>false,
+            'checkout_available'=>app(\App\Services\M23StripeGateway::class)->enabled(),
         ]);
     }
 
