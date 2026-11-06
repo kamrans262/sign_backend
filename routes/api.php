@@ -127,6 +127,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         Route::patch('/me/preferences', [\App\Http\Controllers\Api\M22AccountController::class,'savePreferences'])->middleware('throttle:20,1');
         Route::get('/me/export', [\App\Http\Controllers\Api\M22AccountController::class,'export'])->middleware('throttle:5,1');
         Route::post('/me/deactivate', [\App\Http\Controllers\Api\M22AccountController::class,'deactivate'])->middleware('throttle:3,1');
+        Route::post('/me/delete', [\App\Http\Controllers\Api\M22AccountController::class,'deleteAccount'])->middleware('throttle:3,1');
 
         Route::get('/support/faqs', [\App\Http\Controllers\Api\M22SupportController::class,'faqs'])->middleware('throttle:60,1');
         Route::get('/support/tickets', [\App\Http\Controllers\Api\M22SupportController::class,'index']);
