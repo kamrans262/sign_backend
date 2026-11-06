@@ -137,6 +137,21 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         Route::post('/support/tickets/{ticket}/attachments', [\App\Http\Controllers\Api\M22SupportController::class,'upload'])->whereNumber('ticket')->middleware('throttle:6,1');
         Route::get('/support/tickets/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Api\M22SupportController::class,'attachment'])->whereNumber('ticket')->whereNumber('attachment')->middleware('throttle:20,1');
 
+        // M23: company-scoped subscription state and trial allowance.
+        // Stripe checkout, portal and cancellation remain disabled until Stage 2
+        // and separately authorized credential provisioning.
+        Route::middleware(['company.access','throttle:60,1'])->prefix('billing')
+            ->group(function (): void {
+                Route::get('/overview', [\App\Http\Controllers\Api\M23BillingController::class,'overview']);
+                Route::get('/plans', [\App\Http\Controllers\Api\M23BillingController::class,'plans']);
+                Route::get('/usage', [\App\Http\Controllers\Api\M23BillingController::class,'usage']);
+                Route::get('/eligibility', [\App\Http\Controllers\Api\M23BillingController::class,'eligibility']);
+                Route::get('/history', [\App\Http\Controllers\Api\M23BillingController::class,'history']);
+                Route::post('/checkout', [\App\Http\Controllers\Api\M23BillingController::class,'unavailable']);
+                Route::post('/portal', [\App\Http\Controllers\Api\M23BillingController::class,'unavailable']);
+                Route::post('/cancel', [\App\Http\Controllers\Api\M23BillingController::class,'unavailable']);
+            });
+
         // M3: all company actions require a real Sanctum-authenticated account.
         // Access to each company is additionally checked on the server using
         // an active membership, not only by matching the URL or a header.
