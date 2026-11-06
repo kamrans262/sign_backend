@@ -1,0 +1,60 @@
+name: M23 Stage 2 Stripe Billing Security
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: m23-stage2-stripe
+  cancel-in-progress: true
+jobs:
+  security:
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mysql]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci_only_m23
+          MYSQL_DATABASE: sign2digital_m23_stage2
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci_only_m23"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sign2digital_m23_stage2
+      DB_USERNAME: root
+      DB_PASSWORD: ci_only_m23
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, pdo_mysql, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Stripe code lint, offline schema, routes
+        run: |
+          php -l app/Services/M23StripeGateway.php
+          php -l app/Services/M23StripeBillingService.php
+          php -l app/Http/Controllers/Api/M23StripeBillingController.php
+          php artisan migrate:fresh --force
+          php artisan route:list --path=api/v1/billing
+      - name: M23 Stage 1 and Stage 2 acceptance with fake Stripe and real database
+        run: |
+          php artisan test tests/Feature/M23SubscriptionStage1Test.php tests/Feature/M23StripeBillingStage2Test.php
+      - name: Existing issued document compatibility
+        run: |
+          php artisan test tests/Feature/M7QuoteApprovalTest.php tests/Feature/M12ReportsManagementTest.php tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php
