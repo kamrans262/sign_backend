@@ -229,6 +229,7 @@ final class M23BillingService
             'trial_ends_at'=>$subscription?->trial_ends_at,
             'period_ends_at'=>$subscription?->period_ends_at,
             'can_manage_billing'=>$verified && app(M23StripeGateway::class)->enabled(),
+            'cancel_at_period_end'=>(bool)($subscription?->cancel_at_period_end??false),
             'can_checkout'=>!$verified && app(M23StripeGateway::class)->enabled(),
             'demo_only'=>false,
         ];
