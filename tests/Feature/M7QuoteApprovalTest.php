@@ -77,6 +77,11 @@ class M7QuoteApprovalTest extends TestCase
             'id'=>$quote->id,'status'=>'approved','revision'=>3,
         ]);
         $this->assertDatabaseCount('service_quote_revisions',3);
+        // A verified approval consumes one free-document allowance, not an edit.
+        $this->assertDatabaseHas('m23_document_usage',[
+            'company_id'=>$quote->company_id,'source_type'=>'quote',
+            'source_id'=>$quote->id,'issue_event'=>'first_issuance',
+        ]);
         $this->post('/admin/quotes/'.$quote->id.'/approve',[
             'expected_revision'=>2,
         ])->assertStatus(409);
