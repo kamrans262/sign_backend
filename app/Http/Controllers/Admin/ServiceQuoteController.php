@@ -289,6 +289,8 @@ class ServiceQuoteController extends Controller
                     !empty($i->unresolved_fields))) {
                 return back()->withErrors(['quote'=>'Complete client, prices and terms before approval.']);
             }
+            app(\App\Services\M23BillingService::class)->recordIssue(
+                (int)$target->company_id,'quote',(int)$target->id,$request->user()?->id);
             $target->update(['status'=>'approved','approved_at'=>now(),
                 'revision'=>$target->revision+1,'updated_by'=>$request->user()->id]);
             if ($bytes !== null) {
