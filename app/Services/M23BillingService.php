@@ -202,10 +202,16 @@ final class M23BillingService
         $policy=$this->allowance($companyId);
         $subscription=$this->subscription($companyId);
         $verified=$this->hasVerifiedPlan($subscription);
-        $row=$subscription && $subscription->plan_id
+        $providerState=$subscription !== null
+            && !empty($subscription->stripe_customer_id)
+            && !empty($subscription->stripe_subscription_id)
+            && $subscription->provider_synced_at !== null;
+        $row=$providerState && $subscription->plan_id
             ? DB::table('m23_plans')->where('id',$subscription->plan_id)->first()
             : null;
-        $plan=$verified && $row ? $this->plan($row) : null;
+        // Show the accurate unpaid/past_due/canceled provider state, but
+        // grant paid entitlements only for a currently verified active period.
+        $plan=$providerState && $row ? $this->plan($row) : null;
         $granted=$this->grant($companyId);
         $clients=DB::table('clients')->where('company_id',$companyId)->count();
         $equipment=Schema::hasTable('equipment_assets')
@@ -213,7 +219,7 @@ final class M23BillingService
         return [
             'company_id'=>$companyId,
             'plan_name'=>$plan['name']??($granted?'Administrative access grant':'Free allowance'),
-            'status'=>$verified?(string)$subscription->status:($granted?'granted':'free'),
+            'status'=>$providerState?(string)$subscription->status:($granted?'granted':'free'),
             'price_label'=>$plan['price_label']??null,
             'billing_description'=>$plan && $subscription?(
                 'Current period ends '.($subscription->period_ends_at??'not provided')
@@ -228,9 +234,9 @@ final class M23BillingService
             'current_plan'=>$plan,
             'trial_ends_at'=>$subscription?->trial_ends_at,
             'period_ends_at'=>$subscription?->period_ends_at,
-            'can_manage_billing'=>$verified && app(M23StripeGateway::class)->enabled(),
+            'can_manage_billing'=>$providerState && app(M23StripeGateway::class)->enabled(),
             'cancel_at_period_end'=>(bool)($subscription?->cancel_at_period_end??false),
-            'can_checkout'=>!$verified && app(M23StripeGateway::class)->enabled(),
+            'can_checkout'=>!$providerState && app(M23StripeGateway::class)->enabled(),
             'demo_only'=>false,
         ];
     }
