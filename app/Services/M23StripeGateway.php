@@ -126,8 +126,13 @@ final class M23StripeGateway
                 hash_equals($expected,$provided))$valid=true;
         }
         abort_unless($valid,400,'Webhook signature verification failed.');
-        $decoded=json_decode($raw,true,512,JSON_THROW_ON_ERROR);
-        abort_unless(is_array($decoded) && is_string($decoded['id']??null)
+        try {
+            $decoded=json_decode($raw,true,512,JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            abort(400,'Stripe event must contain valid JSON.');
+        }
+        abort_unless(is_array($decoded) && empty($decoded['account'])
+            && is_string($decoded['id']??null)
             && preg_match('/^evt_[A-Za-z0-9]+$/',$decoded['id'])
             && is_string($decoded['type']??null)
             && is_bool($decoded['livemode']??null)
