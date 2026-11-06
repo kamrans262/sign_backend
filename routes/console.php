@@ -155,6 +155,14 @@ Artisan::command('sign:m20-dispatch {--send} {--max=40}', function (
     return 0;
 })->purpose('Preview or explicitly dispatch opted-in M20 Firebase notifications');
 
+// M23 reconciliation is strictly opt-in. Dry-run CLI is always safe.
+// A production scheduler cannot contact Stripe until both the private
+// M23_RECONCILE_ENABLED flag and authenticated gateway flags are enabled.
+if (config('m23_billing.reconcile_enabled') === true) {
+    \Illuminate\Support\Facades\Schedule::command('billing:m23-reconcile --apply')
+        ->hourly()->withoutOverlapping();
+}
+
 // No deployment or cron installation is performed by adding this definition.
 // When host cron invokes schedule:run, the feature gate still defaults false.
 \Illuminate\Support\Facades\Schedule::command('sign:m20-dispatch --send --max=40')
