@@ -121,6 +121,14 @@ final class M23StripeBillingStage2Test extends TestCase
                     'customer'=>'cus_test1',
                     'url'=>'https://billing.stripe.com/p/session/abc123',
                 ]);
+            if(str_ends_with($url,'/invoices/create_preview')){
+                if($request->method()!=='POST')
+                    return Http::response(['error'=>'invoice preview requires POST'],405);
+                return Http::response([
+                    'object'=>'invoice','currency'=>'chf',
+                    'amount_due'=>2000,'amount_remaining'=>2000,
+                ]);
+            }
             if(str_contains($url,'/invoices/in_test1'))
                 return Http::response([
                     'id'=>'in_test1','customer'=>'cus_test1',
@@ -290,6 +298,31 @@ final class M23StripeBillingStage2Test extends TestCase
         $this->postJson('/api/v1/billing/cancel',[
             'confirm'=>true,
         ])->assertForbidden();
+    }
+
+    public function test_change_preview_uses_stripe_post_and_does_not_modify_the_subscription(): void
+    {
+        [$owner,$company,$plan]=$this->tenant();
+        $this->enable();$this->fixture();
+        $intent=$this->checkout($plan);
+        $this->getJson('/api/v1/billing/checkout/'.$intent['intent_id'].'/status')
+            ->assertJsonPath('data.verified',true);
+        $this->postJson('/api/v1/billing/change-preview',[
+            'plan_id'=>$plan,
+        ])->assertOk()
+            ->assertJsonPath('data.new_plan_id',$plan)
+            ->assertJsonPath('data.amount_due_minor',2000)
+            ->assertJsonPath('data.currency','chf')
+            ->assertJsonPath('data.proration_behavior','none')
+            ->assertJsonPath('data.confirmed',false);
+        Http::assertSent(fn($r)=>$r->method()==='POST'
+            && str_ends_with($r->url(),'/invoices/create_preview'));
+        $this->assertDatabaseHas('m23_company_subscriptions',[
+            'company_id'=>$company->id,'status'=>'active','plan_id'=>$plan,
+        ]);
+        $this->assertDatabaseMissing('m23_subscription_events',[
+            'company_id'=>$company->id,'event_type'=>'plan_change_requested',
+        ]);
     }
 
     public function test_cancel_and_change_require_explicit_confirmation_and_provider_state(): void
