@@ -57,4 +57,20 @@
   @else <p>Plan is assigned to subscriptions and its price/revision is immutable.</p> @endunless
 </section>
 @endif
+@if($plan && $revisions->count())
+<section class="panel">
+  <div class="panel-header"><h2>Plan revision history</h2></div>
+  <p>Every published state, price, feature and quota revision is preserved for audit. Existing subscriber pricing cannot be silently rewritten.</p>
+  <div class="table-wrap"><table><thead><tr><th>Revision</th><th>Status</th><th>Price</th><th>Document limit</th><th>Edited</th></tr></thead><tbody>
+    @foreach($revisions as $revision)
+      @php($snapshot=json_decode($revision->snapshot,true) ?: [])
+      <tr><td>#{{ $revision->revision }}</td>
+        <td>{{ ucfirst($revision->status) }}</td>
+        <td>{{ $snapshot['currency']??'CHF' }} {{ number_format(($snapshot['amount_minor']??0)/100,2) }}</td>
+        <td>{{ $snapshot['document_limit']??'Unlimited' }}</td>
+        <td>{{ $revision->created_at }}</td></tr>
+    @endforeach
+  </tbody></table></div>
+</section>
+@endif
 @endsection
