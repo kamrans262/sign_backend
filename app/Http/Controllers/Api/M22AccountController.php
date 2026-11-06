@@ -379,6 +379,7 @@ final class M22AccountController extends Controller
             DB::table('m22_user_preferences')->where('user_id', $locked->id)->delete();
             DB::table('m22_email_change_challenges')->where('user_id', $locked->id)->delete();
             DB::table('email_otp_challenges')->where('user_id', $locked->id)->delete();
+            DB::table('password_reset_tokens')->where('email', $locked->email)->delete();
             DB::table('company_user')->where('user_id', $locked->id)
                 ->update(['status' => 'inactive', 'updated_at' => now()]);
             DB::table('m20_notification_preferences')->where('user_id', $locked->id)
