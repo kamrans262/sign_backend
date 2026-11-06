@@ -8,8 +8,8 @@
 @endsection
 @section('content')
 <section class="panel">
-  <div class="panel-header"><h2>Billing configuration</h2><span class="pill">Stripe OFF · Quota enforcement OFF</span></div>
-  <p>No subscription charge, automatic lockout or live provider request is permitted until a separately approved Stripe activation.</p>
+  <div class="panel-header"><h2>Billing configuration</h2><span class="pill">Stripe {{ $stripeReady?'READY':'OFF' }} · Quota enforcement {{ $settings->enforcement_enabled?'ON':'OFF' }}</span></div>
+  <p>Provider mode: {{ strtoupper($stripeMode) }}. Real payment requests require separately approved private server credentials and the database activation switch. No secrets are displayed here.</p>
   <form method="post" action="{{ route('admin.billing.settings') }}">@csrf
     <div class="fields">
       <div class="field"><label for="free_document_limit">Free finalized documents per company</label>
@@ -82,8 +82,8 @@
   </tbody></table></div>
 </section>
 <section class="panel">
-  <div class="panel-header"><h2>Provider transactions and webhook events</h2><span class="pill">Not connected</span></div>
-  <p>Stripe keys and signed webhook setup are added after development. The invoices below are **SaaS subscription invoices**, not M17 customer invoices.</p>
+  <div class="panel-header"><h2>Provider transactions and webhook events</h2><span class="pill">{{ $stripeReady?'Configured':'Not connected' }}</span></div>
+  <p>Provider webhook events requiring reconciliation: {{ $failedWebhookCount }}. Pending unexpired Checkouts: {{ $pendingCheckoutCount }}. SaaS subscription invoices below are separate from M17 business invoices.</p>
   <div class="table-wrap"><table><thead><tr><th>Record</th><th>Company</th><th>Status</th><th>Amount / Event</th></tr></thead><tbody>
     @forelse($billingInvoices as $invoice)
       <tr><td>Subscription invoice #{{ $invoice->id }}</td><td>{{ $invoice->company_id }}</td><td>{{ $invoice->status }}</td><td>{{ $invoice->currency }} {{ number_format($invoice->amount_due_minor/100,2) }}</td></tr>
