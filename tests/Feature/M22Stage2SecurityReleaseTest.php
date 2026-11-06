@@ -95,7 +95,7 @@ final class M22Stage2SecurityReleaseTest extends TestCase
         $this->getJson('/api/v1/me/export')->assertOk()
             ->assertJsonCount(1, 'data.support_tickets')
             ->assertDontSee('Confidential staff-only investigation')
-            ->assertHeader('Cache-Control', 'private, no-store');
+            ->assertHeader('Cache-Control', 'no-store, private');
     }
 
     public function test_deletion_clears_private_file_and_reset_grants_but_keeps_company_integrity(): void
