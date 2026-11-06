@@ -192,6 +192,9 @@ final class InvoiceDocumentService
                     ->where('service_invoice_id',$invoice)
                     ->where('revision',$row->revision)->first();
                 if($prior)return $prior;
+                // Record exactly one real issuance, atomically with the immutable PDF.
+                app(\App\Services\M23BillingService::class)->recordIssue(
+                    (int)$company->id,'invoice',(int)$invoice,$request->user()?->id);
                 $snapshot=$this->snapshot($row,$company);
                 $canonical=json_encode($snapshot,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
                 $bytes=$this->pdf($snapshot);

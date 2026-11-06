@@ -264,6 +264,8 @@ final class GeneralDocumentIssueService
                     ->where('general_document_id',$document)
                     ->where('approved_revision',$doc->approved_revision)->first();
                 if($prior)return $prior;
+                app(\App\Services\M23BillingService::class)->recordIssue(
+                    (int)$company->id,'general_document',(int)$document,$request->user()?->id);
                 $snapshot=$this->source($doc,$company);
                 $json=json_encode($snapshot,JSON_THROW_ON_ERROR|
                     JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
