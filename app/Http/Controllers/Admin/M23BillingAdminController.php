@@ -62,6 +62,12 @@ final class M23BillingAdminController extends Controller
             'companies'=>$companies->orderBy('c.name')->paginate(20)->withQueryString(),
             'settings'=>$settings,
             'filters'=>$filters,
+            'stripeReady'=>app(\App\Services\M23StripeGateway::class)->enabled(),
+            'stripeMode'=>config('m23_billing.live_mode')?'live':'test',
+            'failedWebhookCount'=>DB::table('m23_provider_events')
+                ->where('status','failed')->count(),
+            'pendingCheckoutCount'=>DB::table('m23_checkout_intents')
+                ->where('status','pending')->where('expires_at','>',now())->count(),
             'grants'=>DB::table('m23_subscription_grants as g')
                 ->join('companies as c','c.id','=','g.company_id')
                 ->select('g.*','c.name as company_name')
