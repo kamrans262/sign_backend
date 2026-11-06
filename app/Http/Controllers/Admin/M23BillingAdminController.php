@@ -198,8 +198,8 @@ final class M23BillingAdminController extends Controller
                 'free_document_limit'=>$data['free_document_limit'],
                 'trial_days'=>$data['trial_days']??null,
                 'currency'=>'CHF',
-                // Never enable charging or live quota enforcement from Stage 1.
-                'enforcement_enabled'=>false,'stripe_enabled'=>false,
+                // Plan/trial edits must not mutate activation switches.
+                // A separately authorized server rollout owns both flags.
                 'updated_by_user_id'=>$request->user()->id,'updated_at'=>now(),
             ]);
             $this->event(null,$request,'admin.settings.changed',[
