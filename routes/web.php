@@ -124,6 +124,17 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/support/{ticket}/replies', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'reply'])->whereNumber('ticket')->name('support.reply');
         Route::get('/support/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'attachment'])
             ->whereNumber('ticket')->whereNumber('attachment')->name('support.attachment');
+        // M23: subscription plans, tenant usage, access grants and safe billing setup.
+        // All routes inherit the platform.admin guard and existing session/CSRF.
+        Route::get('/billing', [\App\Http\Controllers\Admin\M23BillingAdminController::class,'index'])->name('billing.index');
+        Route::get('/billing/plans/create', [\App\Http\Controllers\Admin\M23BillingAdminController::class,'editPlan'])->name('billing.plans.create');
+        Route::post('/billing/plans', [\App\Http\Controllers\Admin\M23BillingAdminController::class,'savePlan'])->name('billing.plans.store');
+        Route::get('/billing/plans/{plan}/edit', [\App\Http\Controllers\Admin\M23BillingAdminController::class,'editPlan'])->whereNumber('plan')->name('billing.plans.edit');
+        Route::patch('/billing/plans/{plan}', [\App\Http\Controllers\Admin\M23BillingAdminController::class,'savePlan'])->whereNumber('plan')->name('billing.plans.update');
+        Route::post('/billing/plans/{plan}/status', [\App\Http\Controllers\Admin\M23BillingAdminController::class,'status'])->whereNumber('plan')->name('billing.plans.status');
+        Route::post('/billing/settings', [\App\Http\Controllers\Admin\M23BillingAdminController::class,'settings'])->name('billing.settings');
+        Route::post('/billing/grants', [\App\Http\Controllers\Admin\M23BillingAdminController::class,'grant'])->name('billing.grants.create');
+        Route::post('/billing/grants/{grant}/revoke', [\App\Http\Controllers\Admin\M23BillingAdminController::class,'revokeGrant'])->whereNumber('grant')->name('billing.grants.revoke');
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
         Route::resource('jobs', \App\Http\Controllers\Admin\ServiceJobController::class)->except(['show']);
         // M11 dedicated Photos & Notes Management.
