@@ -16,6 +16,8 @@ final class M23StripeBillingStage2Test extends TestCase
     use RefreshDatabase;
 
     private bool $firstEnded=false;
+    private bool $pollingInvoices=false;
+    private bool $checkoutPaid=true;
 
     private function tenant(): array
     {
@@ -93,7 +95,7 @@ final class M23StripeBillingStage2Test extends TestCase
                     'client_reference_id'=>(string)DB::table('companies')
                         ->where('name','Billing Test')->value('id'),
                     'mode'=>'subscription','status'=>'complete',
-                    'payment_status'=>'paid',
+                    'payment_status'=>$this->checkoutPaid?'paid':'unpaid',
                     'subscription'=>$sessionId==='cs_test_a1'?'sub_test1':'sub_test2',
                     'url'=>'https://checkout.stripe.com/c/pay/'.$sessionId,
                 ]);
@@ -127,6 +129,22 @@ final class M23StripeBillingStage2Test extends TestCase
                 return Http::response([
                     'object'=>'invoice','currency'=>'chf',
                     'amount_due'=>2000,'amount_remaining'=>2000,
+                ]);
+            }
+            if(str_contains($url,'/invoices?')){
+                if(!$this->pollingInvoices){
+                    return Http::response([
+                        'object'=>'list','data'=>[],'has_more'=>false,
+                    ]);
+                }
+                return Http::response([
+                    'object'=>'list','has_more'=>false,'data'=>[[
+                        'id'=>'in_test1','customer'=>'cus_test1',
+                        'subscription'=>'sub_test1','currency'=>'chf',
+                        'amount_due'=>2000,'amount_paid'=>2000,
+                        'status'=>'paid','created'=>time(),
+                        'status_transitions'=>['paid_at'=>time()],
+                    ]],
                 ]);
             }
             if(str_contains($url,'/invoices/in_test1'))
@@ -207,6 +225,50 @@ final class M23StripeBillingStage2Test extends TestCase
         $this->assertDatabaseCount('m23_provider_events',1);
         $this->assertDatabaseCount('m23_checkout_intents',1);
         $this->assertDatabaseCount('m23_billing_invoices',0);
+    }
+
+    public function test_mahj_style_stripe_api_verification_and_invoice_history_work_without_webhook(): void
+    {
+        [$owner,$company,$plan]=$this->tenant();
+        $this->enable();
+        config()->set('m23_billing.webhook_secret','');
+        $this->pollingInvoices=true;
+        $this->checkoutPaid=false;
+        $this->fixture();
+        $session=$this->checkout($plan);
+
+        // A redirect or incomplete Stripe payment never grants access.
+        $this->getJson('/api/v1/billing/checkout/'.$session['intent_id'].'/status')
+            ->assertOk()->assertJsonPath('data.verified',false);
+        $this->assertDatabaseCount('m23_billing_invoices',0);
+
+        $this->checkoutPaid=true;
+        $this->getJson('/api/v1/billing/checkout/'.$session['intent_id'].'/status')
+            ->assertOk()->assertJsonPath('data.verified',true);
+        $this->assertDatabaseHas('m23_company_subscriptions',[
+            'company_id'=>$company->id,'status'=>'active',
+            'stripe_subscription_id'=>'sub_test1',
+        ]);
+        $this->assertDatabaseHas('m23_billing_invoices',[
+            'company_id'=>$company->id,'stripe_invoice_id'=>'in_test1',
+            'status'=>'paid','amount_paid_minor'=>2000,
+        ]);
+        $this->assertDatabaseCount('m23_provider_events',0);
+        $this->assertDatabaseCount('m23_billing_invoices',1);
+
+        // Polling stays idempotent and detects changes made on Stripe later.
+        $this->firstEnded=true;
+        $this->artisan('billing:m23-reconcile',['--apply'=>true])
+            ->assertSuccessful();
+        $this->assertDatabaseHas('m23_company_subscriptions',[
+            'company_id'=>$company->id,'status'=>'canceled',
+        ]);
+        $this->getJson('/api/v1/billing/overview')
+            ->assertOk()->assertJsonPath('data.status','canceled');
+        $this->assertDatabaseCount('m23_billing_invoices',1);
+        Http::assertSent(fn($r)=>$r->method()==='GET'
+            && str_contains($r->url(),'/invoices?')
+            && str_contains($r->url(),'subscription=sub_test1'));
     }
 
     public function test_new_uuid_cannot_create_overlapping_checkout_for_company(): void
