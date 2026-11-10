@@ -22,7 +22,7 @@ jobs:
         run: |
           php -l tests/Feature/AdminUiConsistencyTest.php
           php artisan view:cache
-          php artisan test tests/Feature/AdminUiConsistencyTest.php
+          php artisan test tests/Feature/AdminUiConsistencyTest.php tests/Feature/M1AdminUiRebuildTest.php
       - name: Confirm modal JavaScript syntax
         run: |
           python3 - <<'PY'
