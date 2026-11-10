@@ -67,7 +67,7 @@ class M1AdminUiRebuildTest extends TestCase
         $this->actingAs($admin);
 
         foreach ([
-            '/admin' => 'Platform Overview',
+            '/admin' => 'Welcome back,',
             '/admin/users' => 'User Management',
             '/admin/users/create' => 'Add New User',
             '/admin/users/'.$user->id.'/edit' => 'Manage User',
