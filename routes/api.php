@@ -172,6 +172,9 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         // Access to each company is additionally checked on the server using
         // an active membership, not only by matching the URL or a header.
         Route::get('/companies', [\App\Http\Controllers\Api\CompanyManagementController::class, 'index']);
+        // Company setup works immediately after signup, before a company exists.
+        Route::post('/ai/companies/voice', [\App\Http\Controllers\Api\AiFormExtractionController::class, 'company'])
+            ->middleware('throttle:6,1');
         Route::post('/companies', [\App\Http\Controllers\Api\CompanyManagementController::class, 'store']);
         Route::get('/companies/invitations/mine', [\App\Http\Controllers\Api\CompanyManagementController::class, 'myInvitations']);
         Route::post('/companies/invitations/accept', [\App\Http\Controllers\Api\CompanyManagementController::class, 'acceptInvitation'])
@@ -224,6 +227,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/jobs/{job}', [\App\Http\Controllers\Api\ServiceJobController::class, 'show'])->whereNumber('job');
         });
         Route::middleware(['company.access', 'company.permission:jobs.write'])->group(function (): void {
+            Route::post('/ai/jobs/voice', [\App\Http\Controllers\Api\AiFormExtractionController::class, 'job'])
+                ->middleware('throttle:6,1');
             Route::post('/jobs', [\App\Http\Controllers\Api\ServiceJobController::class, 'store']);
             Route::patch('/jobs/{job}', [\App\Http\Controllers\Api\ServiceJobController::class, 'update'])->whereNumber('job');
             Route::delete('/jobs/{job}', [\App\Http\Controllers\Api\ServiceJobController::class, 'destroy'])->whereNumber('job');
