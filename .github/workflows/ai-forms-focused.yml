@@ -1,0 +1,37 @@
+name: Sign2Digital AI forms focused backend verification
+
+on:
+  push:
+    branches:
+      - fix/m20-admin-ui-modal-filters-2026-11-06
+    paths:
+      - '.github/workflows/ai-forms-focused.yml'
+      - 'app/Http/Controllers/Api/AiFormExtractionController.php'
+      - 'routes/api.php'
+      - 'tests/Feature/AiVoiceFormsTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: s2d-ai-form-backend
+  cancel-in-progress: true
+
+jobs:
+  ai-forms:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint AI controller and routes
+        run: php -l app/Http/Controllers/Api/AiFormExtractionController.php && php -l routes/api.php && php -l tests/Feature/AiVoiceFormsTest.php
+      - name: Run AI dictation, company and quote regression tests
+        run: php artisan test --filter='AiVoiceFormsTest|M3CompanyManagementTest|M6ServiceQuoteManagementTest|M18GeneralDocumentTest'
