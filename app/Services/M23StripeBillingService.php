@@ -362,6 +362,50 @@ final class M23StripeBillingService
                     'version'=>(int)$sub->version+1,'updated_at'=>now(),
                 ]);
         });
+        // The interim Mahj-style setup has no webhook. Reconcile Stripe
+        // invoices directly after fetching canonical subscription state.
+        // Webhook mode remains unchanged when configured later.
+        if((string)config('m23_billing.webhook_secret','')===''){
+            $this->syncInvoices($company,$subscriptionId);
+        }
+    }
+
+    /**
+     * Poll authoritative Stripe invoices for one verified company subscription.
+     * Works without a webhook, paginates safely and never trusts Flutter data.
+     */
+    public function syncInvoices(Company $company,string $subscriptionId): void
+    {
+        $sub=$this->companyRecord($company);
+        abort_unless($sub && $sub->stripe_customer_id
+            && $sub->stripe_subscription_id===$subscriptionId,409,
+            'Billing invoice relationship has not been verified.');
+        $cursor=null;
+        for($page=0;$page<5;$page++){
+            $params=['customer'=>$sub->stripe_customer_id,
+                'subscription'=>$subscriptionId,'limit'=>100];
+            if($cursor!==null)$params['starting_after']=$cursor;
+            $result=$this->stripe->request('GET','/invoices',$params);
+            abort_unless(($result['object']??null)==='list'
+                && is_array($result['data']??null)
+                && is_bool($result['has_more']??null),503,
+                'Stripe invoice listing could not be verified.');
+            foreach($result['data'] as $invoice){
+                abort_unless(is_array($invoice)
+                    && ($invoice['customer']??null)===$sub->stripe_customer_id
+                    && (($invoice['subscription']??
+                        ($invoice['parent']['subscription_details']['subscription']??null))
+                        ===$subscriptionId),409,
+                    'Stripe invoice does not belong to this subscription.');
+                $this->recordInvoice($invoice);
+                $cursor=$invoice['id']??null;
+            }
+            if($result['has_more']===false)return;
+            abort_unless(is_string($cursor)
+                && preg_match('/^in_[A-Za-z0-9]+$/',$cursor),503,
+                'Stripe invoice pagination is incomplete.');
+        }
+        abort(503,'Stripe invoice history exceeds safe reconciliation window.');
     }
 
     public function recordInvoice(array $invoice): void
