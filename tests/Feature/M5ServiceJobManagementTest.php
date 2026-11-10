@@ -87,7 +87,8 @@ class M5ServiceJobManagementTest extends TestCase
         $this->getJson('/api/v1/jobs?category=archived')->assertOk()
             ->assertJsonCount(0, 'data.jobs');
         $this->getJson('/api/v1/jobs/'.$id)->assertOk()
-            ->assertJsonPath('data.financials.quote_amount_chf', null)
+            ->assertJsonPath('data.financials.quote_amount_chf', 0)
+            ->assertJsonPath('data.section_counts.quotes', 0)
             ->assertJsonCount(0, 'data.sections.quotes')
             ->assertJsonCount(0, 'data.sections.invoices');
         $this->patchJson('/api/v1/jobs/'.$id, [
