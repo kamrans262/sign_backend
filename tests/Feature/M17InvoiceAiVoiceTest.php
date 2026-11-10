@@ -72,7 +72,7 @@ final class M17InvoiceAiVoiceTest extends TestCase
             ->assertJsonPath('data.saved', false)
             ->assertJsonPath('data.approved', false)
             ->assertJsonPath('data.issued', false);
-        $this->assertDatabaseCount('invoices', 0);
+        $this->assertDatabaseCount('service_invoices', 0);
         Http::assertSentCount(2);
     }
 
@@ -136,6 +136,6 @@ final class M17InvoiceAiVoiceTest extends TestCase
             ->assertJsonMissingPath('data.suggestion.paid')
             ->assertJsonMissingPath('data.suggestion.approved')
             ->assertJsonPath('data.approved', false);
-        $this->assertDatabaseCount('invoices', 0);
+        $this->assertDatabaseCount('service_invoices', 0);
     }
 }
