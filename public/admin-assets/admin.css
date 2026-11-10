@@ -108,7 +108,48 @@ a.metric:hover { text-decoration:none; transform:translateY(-2px); box-shadow:0 
 .input::placeholder { color:var(--placeholder); opacity:1; font-weight:400; }
 .input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(22,98,130,.085); }
 textarea.input { resize:vertical; min-height:94px; }
-select.input { appearance:auto; cursor:pointer; }
+select.input { cursor:pointer; }
+select.input:not([multiple]):not([size]) {
+  -webkit-appearance:none;
+  appearance:none;
+  padding-right:42px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23122536' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+  background-size:16px 16px;
+}
+select.input:disabled { cursor:not-allowed; }
+@media (forced-colors:active) {
+  select.input:not([multiple]):not([size]) {
+    -webkit-appearance:auto;
+    appearance:auto;
+    background-image:none;
+    padding-right:14px;
+  }
+}
+/* Form labels used by Work Acceptance, Addenda, Labour, Documents and the
+   other management pages. Preserve existing one-column layouts and tokens. */
+.form-grid {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:18px;
+  align-items:start;
+}
+.form-grid > *,
+.panel label:has(> .input) { min-width:0; }
+.form-grid > label,
+.panel label:has(> .input) {
+  display:block;
+  color:var(--ink);
+  font-size:13px;
+  font-weight:600;
+  line-height:1.45;
+}
+.panel label > .input {
+  display:block;
+  width:100%;
+  margin-top:8px;
+}
 .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
 .field { display:flex; flex-direction:column; gap:9px; min-width:0; }
 .field.full { grid-column:1/-1; }
@@ -341,7 +382,7 @@ td .strong { font-size:13px; }
 .hope-ui-adapt .btn { border-radius:8px; min-height:42px; height:42px; padding:0 17px; font-size:13px; font-weight:600; }
 .hope-ui-adapt .btn-small { min-height:34px; height:34px; padding:0 12px; font-size:11.5px; }
 .hope-ui-adapt .btn-primary { background:var(--primary); border-color:var(--primary); }
-.hope-ui-adapt .input { border-radius:8px; min-height:44px; border-color:#dce4ea; background:#fff; }
+.hope-ui-adapt .input { border-radius:8px; min-height:44px; border-color:#dce4ea; background-color:#fff; }
 .hope-ui-adapt .input:focus { border-color:var(--primary); }
 .hope-ui-adapt .field label { font-size:13px; }
 .hope-ui-adapt .panel-subtitle { font-size:12.5px; }
