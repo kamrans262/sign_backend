@@ -7,7 +7,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#FFFFFF">
   <title>Administrator Login | Sign2Digital</title>
-  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=4">
+  <link rel="stylesheet" href="{{ route('admin.asset', ['file' => 'admin.css'], false) }}?v=6">
 </head>
 <body class="login-page hope-ui-adapt">
 <main class="hope-auth-shell">
