@@ -1,0 +1,25 @@
+name: M20 Reminder AI Backend
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths: ['.github/workflows/m20-reminder-ai-voice.yml', 'app/Http/Controllers/Api/M20ReminderAiController.php', 'tests/Feature/M20ReminderAiVoiceTest.php', 'routes/api.php']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: s2d-m20-reminder-ai
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php -l app/Http/Controllers/Api/M20ReminderAiController.php && php -l tests/Feature/M20ReminderAiVoiceTest.php && php -l routes/api.php
+      - run: php artisan test --filter='M20ReminderAiVoiceTest|M20RemindersNotificationsTest'
