@@ -1,0 +1,37 @@
+name: Sign2Digital Invoice AI Voice Backend Regression
+
+on:
+  push:
+    branches:
+      - fix/m20-admin-ui-modal-filters-2026-11-06
+    paths:
+      - '.github/workflows/m17-invoice-ai-voice.yml'
+      - 'app/Http/Controllers/Api/InvoiceAiController.php'
+      - 'routes/api.php'
+      - 'tests/Feature/M17InvoiceAiVoiceTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: s2d-m17-invoice-ai
+  cancel-in-progress: true
+
+jobs:
+  invoice-ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Check Invoice voice syntax
+        run: php -l app/Http/Controllers/Api/InvoiceAiController.php && php -l routes/api.php && php -l tests/Feature/M17InvoiceAiVoiceTest.php
+      - name: Invoice AI and M17 invoice regression
+        run: php artisan test --filter='M17InvoiceAiVoiceTest|M17InvoiceManagementTest|M17InvoiceIssuanceTest'
