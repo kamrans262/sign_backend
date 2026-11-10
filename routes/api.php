@@ -521,6 +521,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         // Stage 1 never activates Firebase, SMTP or M19 borrower-email sending.
         Route::middleware('company.access')->group(function (): void {
             Route::get('/reminders', [\App\Http\Controllers\Api\M20ReminderController::class,'index']);
+            Route::post('/reminders/ai/voice', [\App\Http\Controllers\Api\M20ReminderAiController::class,'voice'])
+                ->middleware('throttle:6,1');
             Route::post('/reminders', [\App\Http\Controllers\Api\M20ReminderController::class,'store'])->middleware('throttle:30,1');
             Route::get('/reminders/{reminder}', [\App\Http\Controllers\Api\M20ReminderController::class,'show'])->whereNumber('reminder');
             Route::patch('/reminders/{reminder}', [\App\Http\Controllers\Api\M20ReminderController::class,'update'])->whereNumber('reminder');
