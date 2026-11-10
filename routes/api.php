@@ -354,6 +354,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         });
         Route::middleware(['company.access','company.permission:documents.write',
             'company.permission:jobs.read'])->group(function (): void {
+            Route::post('/invoices/ai/voice', [\App\Http\Controllers\Api\InvoiceAiController::class,'voice'])
+                ->middleware('throttle:6,1');
             Route::post('/invoices', [\App\Http\Controllers\Api\InvoiceController::class,'store'])->middleware('throttle:20,1');
             Route::patch('/invoices/{invoice}', [\App\Http\Controllers\Api\InvoiceController::class,'update'])->whereNumber('invoice');
             Route::post('/invoices/{invoice}/approve', [\App\Http\Controllers\Api\InvoiceController::class,'approve'])->whereNumber('invoice')->middleware('throttle:10,1');
