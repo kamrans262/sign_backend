@@ -8,6 +8,7 @@ on:
       - 'app/Services/JobDetailsSnapshot.php'
       - 'app/Http/Controllers/Api/ServiceJobController.php'
       - 'tests/Feature/M5JobDetailsLiveSummaryTest.php'
+      - 'tests/Feature/M5ServiceJobManagementTest.php'
   workflow_dispatch:
 
 permissions:
