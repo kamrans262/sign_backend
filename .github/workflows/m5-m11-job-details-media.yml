@@ -1,0 +1,35 @@
+name: Sign2Digital M5-M11 Job Details and Media Verification
+
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/m5-m11-job-details-media.yml'
+      - 'app/Services/JobDetailsSnapshot.php'
+      - 'app/Http/Controllers/Api/ServiceJobController.php'
+      - 'tests/Feature/M5JobDetailsLiveSummaryTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: s2d-m5-m11-backend
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint job summary and controller
+        run: php -l app/Services/JobDetailsSnapshot.php && php -l app/Http/Controllers/Api/ServiceJobController.php && php -l tests/Feature/M5JobDetailsLiveSummaryTest.php
+      - name: Run persisted job details and private photo tests
+        run: php artisan test --filter='M5JobDetailsLiveSummaryTest|M5ServiceJobManagementTest|M5Stage2SecurityAndReleaseTest|M11JobMediaTest'
