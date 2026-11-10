@@ -208,19 +208,16 @@ class ServiceJobController extends Controller
                 ->where('service_job_id',$target->id)->orderByDesc('id')->limit(100)
                 ->get(['id','number','status','revision'])
             : collect();
-        return response()->json(['data' => [
+        $snapshot = app(\App\Services\JobDetailsSnapshot::class)->forJob(
+            $target, $canSeeQuotes, $this->canReadReports($request));
+        return response()->json(['data' => array_merge([
             'job' => $this->payload($target),
             'sections' => [
                 'quotes' => $quotes, 'signed_quotes' => [], 'addenda' => [], 'documents' => [],
                 'photos' => $photos, 'notes' => $notes, 'purchases' => [], 'time' => [],
                 'deposits' => [], 'site_reports' => $reports, 'acceptance' => $acceptances, 'invoices' => [],
             ],
-            'financials' => [
-                'quote_amount_chf' => null, 'expenses_chf' => null, 'labour_cost_chf' => null,
-                'deposits_chf' => null, 'invoiced_chf' => null, 'received_chf' => null,
-                'remaining_balance_chf' => null,
-            ],
-        ]]);
+        ], $snapshot)]);
     }
 
     public function store(Request $request): JsonResponse
