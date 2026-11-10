@@ -62,4 +62,48 @@ final class AdminUiConsistencyTest extends TestCase
         $this->assertStringContainsString('.hope-ui-adapt .admin-labour-filters', $css);
         $this->assertStringContainsString('.admin-confirm-dialog::backdrop', $css);
     }
+
+    public function test_shared_form_grid_has_readable_label_spacing_and_selects_have_one_icon(): void
+    {
+        $css = file_get_contents(public_path('admin-assets/admin.css'));
+        $this->assertIsString($css);
+        $this->assertStringContainsString('.form-grid {', $css);
+        $this->assertStringContainsString('grid-template-columns:minmax(0,1fr);', $css);
+        $this->assertStringContainsString('gap:18px;', $css);
+        $this->assertStringContainsString('.panel label > .input {', $css);
+        $this->assertStringContainsString('margin-top:8px;', $css);
+        $this->assertStringContainsString('select.input:not([multiple]):not([size])', $css);
+        $this->assertStringContainsString('background-position:right 14px center;', $css);
+        $this->assertStringContainsString('-webkit-appearance:none;', $css);
+        $this->assertStringContainsString('background-color:#fff;', $css);
+
+        // All admin modules share these styles; do not reintroduce the
+        // browser-native select arrow alongside the designed dropdown icon.
+        $this->assertStringNotContainsString('select.input { appearance:auto;', $css);
+        $layout = file_get_contents(resource_path('views/admin/layout.blade.php'));
+        $this->assertStringContainsString('admin.css\'], false) }}?v=6', $layout);
+    }
+
+    public function test_all_major_admin_form_layouts_use_shared_input_and_label_system(): void
+    {
+        foreach ([
+            'acceptances/form', 'addenda/form', 'deposits/form',
+            'equipment/form', 'equipment/loan-form', 'expenses/form',
+            'general-documents/form', 'invoices/form', 'labour/form',
+            'reports/form',
+        ] as $view) {
+            $source = file_get_contents(resource_path('views/admin/'.$view.'.blade.php'));
+            $this->assertIsString($source);
+            $this->assertStringContainsString('class="form-grid"', $source, $view);
+            $this->assertStringContainsString('class="input"', $source, $view);
+        }
+        foreach ([
+            'billing/plan','clients/form','companies/form','jobs/form','quotes/form',
+        ] as $view) {
+            $source = file_get_contents(resource_path('views/admin/'.$view.'.blade.php'));
+            $this->assertIsString($source);
+            $this->assertStringContainsString('class="fields"', $source, $view);
+            $this->assertStringContainsString('class="input"', $source, $view);
+        }
+    }
 }
