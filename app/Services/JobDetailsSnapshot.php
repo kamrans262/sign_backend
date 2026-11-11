@@ -66,7 +66,15 @@ final class JobDetailsSnapshot
             : null;
         $receivedMinor = $paymentMinor === null || $depositMinor === null
             ? null : $depositMinor + $paymentMinor;
-        $remainingMinor = $invoiceMinor === null || $receivedMinor === null
+        // No issued invoice means no customer receivable has been established.
+        // It is not a zero balance, and the job expense budget is unrelated.
+        $hasReceivable = $canReadDocuments
+            ? $query('service_invoices')
+                ->whereIn('status', ['approved', 'sent', 'issued'])
+                ->where('currency', 'CHF')->exists()
+            : false;
+        $remainingMinor = !$hasReceivable || $invoiceMinor === null ||
+                $receivedMinor === null
             ? null : max(0, $invoiceMinor - $receivedMinor);
 
         $minor = [
