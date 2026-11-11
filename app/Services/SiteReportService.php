@@ -329,21 +329,17 @@ final class SiteReportService
 
     private function pdf(object $record): string
     {
-        $pdf=new \FPDF();
-        $pdf->SetMargins(19,19,19);
-        $pdf->SetAutoPageBreak(true,18);
+        $companyName=(string)(DB::table('companies')
+            ->where('id',$record->company_id)->value('name')??'');
+        $kind=$record->kind==='meeting_minutes'?'Meeting Minutes':'Site Report';
+        $pdf=new Sign2DigitalDocumentPdf($kind,
+            (string)$record->number,$companyName);
         $pdf->AddPage();
-        $pdf->SetTextColor(22,98,130);
-        $pdf->SetFont('Arial','B',18);
-        $pdf->MultiCell(0,10,$this->toPdfText($record->title));
-        $pdf->SetTextColor(18,37,54);
-        $pdf->SetFont('Arial','',10);
-        $pdf->MultiCell(0,7,$this->toPdfText($record->number.'  |  '.($record->kind==='meeting_minutes'?'Meeting Minutes':'Site Report')));
-        $pdf->MultiCell(0,7,$this->toPdfText('Date: '.$record->report_date));
-        $pdf->MultiCell(0,7,$this->toPdfText('Prepared by: '.$record->prepared_by));
-        if($record->location) $pdf->MultiCell(0,7,$this->toPdfText('Location: '.$record->location));
-        if($record->weather) $pdf->MultiCell(0,7,$this->toPdfText('Weather: '.$record->weather));
-        $pdf->Ln(4);
+        $pdf->metadata('Report Title',(string)$record->title);
+        $pdf->metadata('Date',(string)$record->report_date);
+        $pdf->metadata('Prepared By',(string)$record->prepared_by);
+        if($record->location)$pdf->metadata('Location',(string)$record->location);
+        if($record->weather)$pdf->metadata('Weather / Condition',(string)$record->weather);
         $content=json_decode((string)$record->content,true)?:[];
         $items=$content['sections']??[];
         $labels=['siteProgress'=>'Site Progress','notes'=>'Notes & Observations',
@@ -351,41 +347,30 @@ final class SiteReportService
             'summary'=>'Summary','agenda'=>'Agenda','observations'=>'Observations'];
         foreach($items as $key=>$value) {
             if(!is_string($value)||trim($value)==='')continue;
-            $pdf->SetFont('Arial','B',11);
-            $pdf->MultiCell(0,8,$this->toPdfText($labels[$key]??ucfirst($key)));
-            $pdf->SetFont('Arial','',10);
-            $pdf->MultiCell(0,6,$this->toPdfText($value));
-            $pdf->Ln(3);
+            $pdf->section($labels[$key]??ucfirst($key),$value);
         }
         foreach([
             'attendees'=>'Attendees','absentees'=>'Absentees','decisions'=>'Decisions',
             'outstanding_points'=>'Outstanding Points','next_steps'=>'Next Steps',
         ] as $field=>$label) {
             if(empty($content[$field]))continue;
-            $pdf->SetFont('Arial','B',11);
-            $pdf->MultiCell(0,8,$this->toPdfText($label));
-            $pdf->SetFont('Arial','',10);
-            foreach($content[$field] as $line)$pdf->MultiCell(0,6,$this->toPdfText('- '.$line));
-            $pdf->Ln(3);
+            $pdf->section($label,implode("\n",
+                array_map(fn($line)=>'- '.$line,$content[$field])));
         }
         if(!empty($content['action_items'])) {
-            $pdf->SetFont('Arial','B',11);
-            $pdf->MultiCell(0,8,'Action Items');
-            $pdf->SetFont('Arial','',10);
+            $actionRows=[];
             foreach($content['action_items'] as $task) {
                 $line='- '.($task['description']??'');
                 if(!empty($task['assignee']))$line.=' | Owner: '.$task['assignee'];
                 if(!empty($task['due_date']))$line.=' | Due: '.$task['due_date'];
-                $pdf->MultiCell(0,6,$this->toPdfText($line));
+                $actionRows[]=$line;
             }
+            $pdf->section('Action Items',implode("\n",$actionRows));
         }
         $photos=json_decode((string)($record->photo_ids??'[]'),true)?:[];
         abort_if(count($photos)>8,422,'A report can include up to eight photos.');
         if ($photos) {
-            $pdf->Ln(4);
-            $pdf->SetFont('Arial','B',11);
-            $pdf->MultiCell(0,7,'Job Photos');
-            $pdf->SetFont('Arial','',10);
+            $pdf->section('Site Photos','Photo evidence verified for this report.');
             foreach ($photos as $index=>$photoId) {
                 $photo=DB::table('job_photos')->where('company_id',$record->company_id)
                     ->where('service_job_id',$record->service_job_id)
@@ -407,7 +392,9 @@ final class SiteReportService
                 $width=min(110.0,86.0*$ratio);
                 $height=$width/$ratio;
                 if ($height>92) { $height=92; $width=92*$ratio; }
-                if ($pdf->GetY()+$height+13>267) $pdf->AddPage();
+                if ($pdf->GetY()+$height+13>264) $pdf->AddPage();
+                $pdf->SetTextColor(18,37,54);
+                $pdf->SetFont('Arial','',9);
                 $pdf->MultiCell(0,6,$this->toPdfText('Photo #'.$photoId.': '.$photo->category));
                 $y=$pdf->GetY();
                 $pdf->Image($disk->path($photo->private_path),19,$y,$width,$height,
@@ -415,9 +402,8 @@ final class SiteReportService
                 $pdf->SetY($y+$height+5);
             }
         }
-        $pdf->Ln(6);
-        $pdf->SetFont('Arial','I',8);
-        $pdf->MultiCell(0,5,'Approved by an authorized Sign2Digital user. The original approved PDF is retained unchanged.');
+        $pdf->footnote('Approved by an authorized Sign2Digital user. '
+            .'The original approved PDF is retained unchanged.');
         return $pdf->Output('S');
     }
 
