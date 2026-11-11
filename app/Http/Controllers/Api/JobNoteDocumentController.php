@@ -213,6 +213,8 @@ final class JobNoteDocumentController extends Controller
                     ->where('service_job_id', $target->id)->where('job_note_id', $source->id)
                     ->where('id', $draft)->lockForUpdate()->firstOrFail();
                 abort_unless($item->status === 'draft', 409, 'This draft was already approved.');
+                app(\App\Services\M23BillingService::class)->recordIssue(
+                    (int)$company->id,'note_document',(int)$item->id,$request->user()?->id);
                 $bytes = $this->pdf($item);
                 $path = 'job-media/'.$company->id.'/'.$target->id.'/documents/'.Str::uuid().'.pdf';
                 if (!Storage::disk('local')->put($path, $bytes)) abort(503, 'Private document storage unavailable.');
