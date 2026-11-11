@@ -74,17 +74,18 @@ final class WorkAcceptanceCustomerService
     private function respondedPdf(string $source,object $report,array $data,
         array $photos): string
     {
-        $pdf=new Fpdi();
+        $pdf=new WorkAcceptanceResponsePdf();
         $count=$pdf->setSourceFile(StreamReader::createByString($source));
         abort_unless($count>=1&&$count<=50,422,'Unsupported report PDF.');
+        $companyName=(string)(DB::table('companies')
+            ->where('id',$report->company_id)->value('name')??'');
+        $pdf->customerSection($count,(string)$report->number,$companyName);
         foreach(range(1,$count) as $i) {
             $template=$pdf->importPage($i);
             $size=$pdf->getTemplateSize($template);
             $pdf->AddPage($size['orientation'],[$size['width'],$size['height']]);
             $pdf->useTemplate($template,0,0,$size['width'],$size['height'],true);
         }
-        $pdf->SetMargins(19,19,19);
-        $pdf->SetAutoPageBreak(true,18);
         $pdf->AddPage('P','A4');
         $pdf->SetTextColor(18,37,54);
         $pdf->SetFont('Arial','B',15);
@@ -116,7 +117,7 @@ final class WorkAcceptanceCustomerService
             $ratio=$photo['width']/max(1,$photo['height']);
             $w=min(100.0,83.0*$ratio);$h=$w/$ratio;
             if($h>90){$h=90;$w=90*$ratio;}
-            if($pdf->GetY()+$h+12>266)$pdf->AddPage('P','A4');
+            if($pdf->GetY()+$h+12>263)$pdf->AddPage('P','A4');
             $y=$pdf->GetY();
             $pdf->Image($photo['path'],19,$y,$w,$h,
                 $photo['mime']==='image/png'?'PNG':'JPG');
