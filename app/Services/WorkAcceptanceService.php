@@ -211,35 +211,27 @@ final class WorkAcceptanceService
 
     public function basePdf(object $row): string
     {
-        $pdf=new \FPDF();
-        $pdf->SetMargins(19,19,19);
-        $pdf->SetAutoPageBreak(true,19);
+        $companyName=(string)(DB::table('companies')
+            ->where('id',$row->company_id)->value('name')??'');
+        $pdf=new Sign2DigitalDocumentPdf('Work Acceptance',
+            (string)$row->number,$companyName);
         $pdf->AddPage();
-        $pdf->SetTextColor(22,98,130);
-        $pdf->SetFont('Arial','B',17);
-        $pdf->MultiCell(0,9,'Sign2Digital | Work Acceptance');
-        $pdf->SetTextColor(18,37,54);
-        $pdf->SetFont('Arial','',10);
         foreach([
-            'Reference'=>$row->number,'Job'=>DB::table('service_jobs')
+            'Job'=>DB::table('service_jobs')
                 ->where('id',$row->service_job_id)->value('title')??'',
             'Client'=>DB::table('clients')->where('id',$row->client_id)
                 ->value('full_name')??'',
-            'Completion date'=>$row->completion_date,
-            'Cleaning / restoration'=>str_replace('_',' ',$row->cleaning_status),
+            'Completion Date'=>(string)$row->completion_date,
+            'Cleaning / Restoration'=>str_replace('_',' ',$row->cleaning_status),
         ] as $label=>$value) {
-            $pdf->MultiCell(0,7,self::pdfLabel($label.': '.$value));
+            $pdf->metadata($label,(string)$value);
         }
         foreach([
-            'Completed work'=>$row->completed_work,
-            'Outstanding issues'=>$row->outstanding_issues??'',
-            'Required remedial work'=>$row->remedial_work??'',
+            'Completed Work'=>$row->completed_work,
+            'Outstanding Issues'=>$row->outstanding_issues??'',
+            'Required Remedial Work'=>$row->remedial_work??'',
         ] as $label=>$text) {
-            if(trim($text)==='')continue;
-            $pdf->Ln(3);$pdf->SetFont('Arial','B',11);
-            $pdf->MultiCell(0,7,self::pdfLabel($label));
-            $pdf->SetFont('Arial','',10);
-            $pdf->MultiCell(0,6,self::pdfLabel($text));
+            $pdf->section($label,(string)$text);
         }
         $ids=json_decode((string)($row->photo_ids??'[]'),true)?:[];
         foreach($ids as $photoId) {
@@ -260,17 +252,17 @@ final class WorkAcceptanceService
             $ratio=$dimensions[0]/max(1,$dimensions[1]);
             $w=min(108.0,90.0*$ratio);$h=$w/$ratio;
             if($h>95){$h=95;$w=95*$ratio;}
-            if($pdf->GetY()+$h+15>270)$pdf->AddPage();
-            $pdf->SetFont('Arial','',9);
-            $pdf->MultiCell(0,6,'Job Photo #'.$photoId);
+            if($pdf->GetY()+$h+15>264)$pdf->AddPage();
+            $pdf->SetFont('Arial','B',9);
+            $pdf->SetTextColor(22,98,130);
+            $pdf->MultiCell(0,6,'Work Acceptance Photo #'.$photoId);
             $y=$pdf->GetY();
             $pdf->Image($disk->path($photo->private_path),19,$y,$w,$h,
                 $photo->mime_type==='image/png'?'PNG':'JPG');
             $pdf->SetY($y+$h+5);
         }
-        $pdf->Ln(4);
-        $pdf->SetFont('Arial','I',9);
-        $pdf->MultiCell(0,6,'For customer review. This document is not accepted or signed until customer confirmation.');
+        $pdf->footnote('For customer review. This document is not accepted '
+            .'or signed until verified customer confirmation.');
         return $pdf->Output('S');
     }
 
