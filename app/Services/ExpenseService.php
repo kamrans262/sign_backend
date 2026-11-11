@@ -17,6 +17,21 @@ final class ExpenseService
     private const CATEGORIES=['fuel','tools','parking','meals','other','material','labour'];
     private const FINAL=['approved','reimbursed'];
 
+    /**
+     * Expense approval is available to active company owners/admins and active
+     * members explicitly granted expenses.write. Keep authorization server-side.
+     */
+    public function canApprove(Company $company, ?\App\Models\User $actor): bool
+    {
+        if ($actor === null || !$actor->is_active) return false;
+        $member = $company->users()->where('users.id', $actor->id)
+            ->wherePivot('status', 'active')->first();
+        if (!$member) return false;
+        if (in_array($member->pivot->role, ['owner', 'admin'], true)) return true;
+        $permissions = json_decode((string) $member->pivot->permissions, true);
+        return is_array($permissions) && in_array('expenses.write', $permissions, true);
+    }
+
     public function find(int $companyId,int $id): object
     {
         $q=DB::table('job_expenses as e')
@@ -334,6 +349,10 @@ final class ExpenseService
     public function changeStatus(Request $request,Company $company,int $id,string $action): array
     {
         abort_unless(in_array($action,['approve','reimburse','request-reimbursement'],true),404);
+        if ($action === 'approve') {
+            abort_unless($this->canApprove($company, $request->user()), 403,
+                'Expense approval requires company expense permissions.');
+        }
         $row=DB::transaction(function()use($request,$company,$id,$action):object {
             $row=DB::table('job_expenses')->where('company_id',$company->id)
                 ->where('id',$id)->lockForUpdate()->firstOrFail();
