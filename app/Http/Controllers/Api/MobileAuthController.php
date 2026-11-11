@@ -129,25 +129,36 @@ class MobileAuthController extends Controller
             ]]);
         }
 
-        // An enrolled authenticator must be verified before issuing any bearer.
+        // Enrollment and token issuance serialize on the same account lock.
+        // If 2FA is enabled concurrently, this endpoint cannot slip through
+        // the check and issue a bearer with only email OTP.
         $device = trim((string) ($data['device_name'] ?? 'Sign2Digital Mobile'));
-        $mfa = app(M24TwoFactorService::class);
-        if ($purpose === 'login' && $mfa->enabled((int) $user->id)) {
-            $ticket = $mfa->createLoginTicket($user, $device);
-            AuditLogger::record('mobile.auth.2fa_required', $user, $user, request: $request);
+        return DB::transaction(function () use ($user, $device, $purpose, $request): JsonResponse {
+            $locked = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if (!$locked->is_active || !$locked->email_verified_at) {
+                throw ValidationException::withMessages(['code' => 'Invalid verification request.']);
+            }
+            $mfa = app(M24TwoFactorService::class);
+            if ($mfa->enabled((int) $locked->id)) {
+                $ticket = $mfa->createLoginTicket($locked, $device);
+                AuditLogger::record('mobile.auth.2fa_required', $locked, $locked,
+                    request: $request);
+                return response()->json(['data' => [
+                    'purpose' => $purpose, 'requires_two_factor' => true,
+                    'two_factor_ticket' => $ticket, 'expires_in' => 300,
+                ]], 200, ['Cache-Control' => 'private, no-store']);
+            }
+            $token = $locked->createToken($device, ['*'],
+                now()->addDays(30))->plainTextToken;
+            AuditLogger::record('mobile.auth.otp_verified', $locked, $locked,
+                metadata: ['purpose' => $purpose], request: $request);
             return response()->json(['data' => [
-                'purpose' => 'login', 'requires_two_factor' => true,
-                'two_factor_ticket' => $ticket, 'expires_in' => 300,
+                'purpose' => $purpose,
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => $locked->only(['id','name','email','email_verified_at','phone_number']),
             ]], 200, ['Cache-Control' => 'private, no-store']);
-        }
-        $token = $user->createToken($device, ['*'], now()->addDays(30))->plainTextToken;
-        AuditLogger::record('mobile.auth.otp_verified', $user, $user, metadata: ['purpose' => $purpose], request: $request);
-        return response()->json(['data' => [
-            'purpose' => $purpose,
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user->only(['id', 'name', 'email', 'email_verified_at', 'phone_number']),
-        ]]);
+        }, 3);
     }
 
     public function resetPassword(Request $request): JsonResponse
