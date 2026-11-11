@@ -607,6 +607,9 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
                 [\App\Http\Controllers\Api\SignatureRequestController::class,'show'])->whereNumber('signature');
         });
         Route::middleware(['company.access', 'company.permission:quotes.write'])->group(function (): void {
+            Route::get('/quotes/{quote}/business-signature-context',
+                [\App\Http\Controllers\Api\SignatureRequestController::class,'businessContext'])
+                ->whereNumber('quote')->middleware('throttle:10,1');
             Route::post('/quotes/{quote}/signature-requests',
                 [\App\Http\Controllers\Api\SignatureRequestController::class,'store'])
                 ->whereNumber('quote')->middleware('throttle:10,1');
