@@ -44,7 +44,7 @@ jobs:
       - name: PDF, signature, job-photo and immutability regression tests
         env:
           M22_RENDER_PDFS: '1'
-        run: php artisan test --filter='M(12ReportsManagement|13WorkAcceptance)Test'
+        run: php -d display_errors=1 -d memory_limit=512M vendor/bin/phpunit --filter='M(12ReportsManagement|13WorkAcceptance)Test' --debug
       - name: Render real generated PDFs and inspect pages and colors
         run: |
           sudo apt-get update -qq
