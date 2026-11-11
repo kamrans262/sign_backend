@@ -74,6 +74,7 @@ final class M22AccountController extends Controller
             $locked->password = $data['password'];
             $locked->save();
             $locked->tokens()->delete();
+            DB::table('m24_two_factor_login_challenges')->where('user_id',$user->id)->delete();
             DB::table('email_otp_challenges')->where('user_id', $user->id)
                 ->whereNull('consumed_at')->update(['consumed_at' => now()]);
             DB::table('m22_email_change_challenges')->where('user_id', $user->id)
