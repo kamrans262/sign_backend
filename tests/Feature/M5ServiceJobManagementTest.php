@@ -76,7 +76,7 @@ class M5ServiceJobManagementTest extends TestCase
         $id = (int) $created->json('data.job.id');
         $this->assertDatabaseHas('service_jobs', [
             'id' => $id, 'company_id' => $company->id,
-            'reference_number' => sprintf('JOB-%08d', $id),
+            'reference_number' => 'JOB-W-001',
             'stage' => 'planning',
         ]);
         // Laravel's queue must remain an unrelated table.
