@@ -202,6 +202,8 @@ class M8SigningCompletionTest extends TestCase
         $this->assertSame($context['document_id'], $record->document_uuid);
         $this->assertSame($owner->id, $record->business_user_id);
         $this->assertNotNull($record->business_signed_at);
+        $this->getJson('/api/v1/signature-requests/'.$record->id)
+            ->assertOk()->assertJsonFragment(['type'=>'businessSigned']);
         $this->assertSame(hash('sha256', $this->signaturePng()),
             $record->business_signature_sha256);
         $this->assertSame($this->signaturePng(),
