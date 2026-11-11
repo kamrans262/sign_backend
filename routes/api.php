@@ -394,7 +394,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::delete('/deposits/{deposit}/receipts/{receipt}', [\App\Http\Controllers\Api\DepositController::class,'removeReceipt'])->whereNumber('deposit')->whereNumber('receipt');
         });
         // M14: company-isolated purchases, private receipts and job budget aggregates.
-        Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
+        Route::middleware(['company.access'])->group(function (): void {
             Route::get('/expenses', [\App\Http\Controllers\Api\ExpenseController::class,'index']);
             Route::get('/expenses/{expense}', [\App\Http\Controllers\Api\ExpenseController::class,'show'])->whereNumber('expense');
             Route::get('/expenses/{expense}/receipts/{receipt}', [\App\Http\Controllers\Api\ExpenseController::class,'receipt'])->whereNumber('expense')->whereNumber('receipt')->middleware('throttle:30,1');
@@ -405,8 +405,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::patch('/expenses/{expense}', [\App\Http\Controllers\Api\ExpenseController::class,'update'])->whereNumber('expense');
             Route::post('/expenses/{expense}/receipts', [\App\Http\Controllers\Api\ExpenseController::class,'upload'])->whereNumber('expense')->middleware('throttle:20,1');
             Route::delete('/expenses/{expense}/receipts/{receipt}', [\App\Http\Controllers\Api\ExpenseController::class,'removeReceipt'])->whereNumber('expense')->whereNumber('receipt');
-            Route::post('/expenses/{expense}/approve', [\App\Http\Controllers\Api\ExpenseController::class,'approve'])->whereNumber('expense')->middleware('throttle:10,1');
-            Route::post('/expenses/{expense}/request-reimbursement', [\App\Http\Controllers\Api\ExpenseController::class,'requestReimbursement'])->whereNumber('expense')->middleware('throttle:6,1');
+             Route::post('/expenses/{expense}/request-reimbursement', [\App\Http\Controllers\Api\ExpenseController::class,'requestReimbursement'])->whereNumber('expense')->middleware('throttle:6,1');
             Route::post('/expenses/ai/voice', [\App\Http\Controllers\Api\ExpenseAiController::class,'voice'])->middleware('throttle:6,1');
             Route::post('/expenses/ai/receipt', [\App\Http\Controllers\Api\ExpenseAiController::class,'receipt'])->middleware('throttle:6,1');
         });
