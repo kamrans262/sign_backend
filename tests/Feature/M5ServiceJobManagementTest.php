@@ -237,4 +237,29 @@ class M5ServiceJobManagementTest extends TestCase
         $this->actingAs($owner);
         $this->get('/admin/jobs')->assertForbidden();
     }
+
+    public function test_job_references_restart_per_company_and_are_shared_with_admin_creation(): void
+    {
+        $owner = $this->account('number-owner@example.test');
+        $first = $this->company($owner, 'Sign2Digital');
+        $second = $this->company($owner, 'Silver Tools');
+        $firstClient = $this->client($first);
+        $secondClient = $this->client($second);
+
+        $this->asTenant($owner, $first);
+        $this->postJson('/api/v1/jobs', $this->draft($firstClient))
+            ->assertCreated()->assertJsonPath('data.job.reference_number', 'JOB-S-001');
+        $this->postJson('/api/v1/jobs', $this->draft($firstClient))
+            ->assertCreated()->assertJsonPath('data.job.reference_number', 'JOB-S-002');
+
+        $this->asTenant($owner, $second);
+        $this->postJson('/api/v1/jobs', $this->draft($secondClient))
+            ->assertCreated()->assertJsonPath('data.job.reference_number', 'JOB-S-001');
+
+        $this->assertDatabaseHas('companies', ['id' => $first->id, 'job_sequence' => 2]);
+        $this->assertDatabaseHas('companies', ['id' => $second->id, 'job_sequence' => 1]);
+        $this->assertDatabaseCount('service_jobs', 3);
+        $this->getJson('/api/v1/jobs?category=active')->assertOk()
+            ->assertJsonCount(1, 'data.jobs');
+    }
 }
