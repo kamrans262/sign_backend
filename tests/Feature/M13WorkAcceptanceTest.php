@@ -18,6 +18,18 @@ class M13WorkAcceptanceTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function saveRenderedPdfFixture(string $filename,string $bytes): void
+    {
+        if(getenv('M22_RENDER_PDFS')!=='1')return;
+        $folder=storage_path('app/m22-render');
+        if(!is_dir($folder) && !mkdir($folder,0770,true) && !is_dir($folder)) {
+            throw new \RuntimeException('Could not create M22 render folder.');
+        }
+        if(file_put_contents($folder.'/'.$filename,$bytes)===false) {
+            throw new \RuntimeException('Could not save M22 PDF fixture.');
+        }
+    }
+
     private function setupTenant(string $label): array
     {
         $user=User::factory()->create([
@@ -109,8 +121,9 @@ class M13WorkAcceptanceTest extends TestCase
             'revision'=>1,'confirm'=>true,
         ])->assertStatus(409);
         $this->approve($id,2);
-        $this->get('/api/v1/work-acceptances/'.$id.'/pdf/approved')->assertOk()
-            ->assertHeader('Content-Type','application/pdf');
+        $acceptancePdf=$this->get('/api/v1/work-acceptances/'.$id.'/pdf/approved')
+            ->assertOk()->assertHeader('Content-Type','application/pdf')->getContent();
+        $this->saveRenderedPdfFixture('m22-work-acceptance.pdf',$acceptancePdf);
         $this->patchJson('/api/v1/work-acceptances/'.$id,[
             'revision'=>2,'completed_work'=>'Unauthorized changes.',
         ])->assertStatus(409);
@@ -175,6 +188,7 @@ class M13WorkAcceptanceTest extends TestCase
             ->value('managed_document_id');
         $signed=$this->get('/api/v1/work-acceptances/'.$id.'/pdf/signed')
             ->assertOk()->getContent();
+        $this->saveRenderedPdfFixture('m22-work-acceptance-signed.pdf',$signed);
         $this->assertStringStartsWith('%PDF-',$signed);
         $this->get('/api/v1/work-acceptances/'.$id.'/signature')
             ->assertOk()->assertHeader('Content-Type','image/png');
