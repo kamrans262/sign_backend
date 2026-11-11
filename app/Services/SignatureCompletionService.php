@@ -60,7 +60,7 @@ final class SignatureCompletionService
                 }
                 try {
                     SignedPdfService::validatePng($bytes);
-                } catch (\\InvalidArgumentException $error) {
+                } catch (\InvalidArgumentException $error) {
                     throw new HttpException(503, 'Verified issuer signature is invalid.');
                 }
                 array_unshift($signers, [
