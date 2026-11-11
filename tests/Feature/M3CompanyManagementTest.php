@@ -591,4 +591,37 @@ class M3CompanyManagementTest extends TestCase
             ->assertSee('Back to Users');
         $this->assertSame(1, substr_count($history->getContent(), '<span>Users</span>'));
     }
+
+    public function test_active_members_and_admins_cannot_create_extra_companies(): void
+    {
+        $owner = $this->account('qa-company-owner@example.test');
+        $member = $this->account('qa-company-member@example.test');
+        $id = $this->createCompany($owner, 'Original Company');
+        $company = Company::findOrFail($id);
+        $company->users()->attach($member->id, [
+            'role' => 'admin', 'status' => 'active', 'permissions' => '[]',
+        ]);
+        $member->forceFill(['active_company_id' => $id])->save();
+        Sanctum::actingAs($member);
+        $this->postJson('/api/v1/companies', [
+            'name' => 'Unauthorized Company',
+        ])->assertForbidden();
+        $this->assertDatabaseCount('companies', 1);
+        $this->assertSame($id, (int) $member->fresh()->active_company_id);
+
+        $company->users()->updateExistingPivot($member->id, ['role' => 'member']);
+        $this->postJson('/api/v1/companies', [
+            'name' => 'Unauthorized Member Company',
+        ])->assertForbidden();
+        $this->assertDatabaseCount('companies', 1);
+
+        Sanctum::actingAs($owner);
+        $this->postJson('/api/v1/companies', [
+            'name' => 'Authorized Second Company',
+        ])->assertCreated();
+        $this->assertDatabaseCount('companies', 2);
+        $this->assertDatabaseHas('company_user', [
+            'company_id' => $id, 'user_id' => $owner->id, 'role' => 'owner',
+        ]);
+    }
 }
