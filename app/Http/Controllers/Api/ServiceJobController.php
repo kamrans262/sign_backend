@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Company;
+use App\Services\DocumentCatalogService;
 use App\Models\ServiceJob;
 use App\Support\AuditLogger;
 use Illuminate\Http\JsonResponse;
@@ -208,14 +209,67 @@ class ServiceJobController extends Controller
                 ->where('service_job_id',$target->id)->orderByDesc('id')->limit(100)
                 ->get(['id','number','status','revision'])
             : collect();
+        $canSeeDocuments = $this->canReadReports($request);
+        $companyId = (int) $target->company_id;
+        $jobId = (int) $target->id;
+        // Only server-verified IDs and metadata are returned. Private files
+        // and note bodies remain behind their own permission-checked routes.
+        $signedQuotes = $canSeeQuotes
+            ? DB::table('signed_document_artifacts as a')
+                ->join('service_quotes as q', function ($join): void {
+                    $join->on('q.id','=','a.service_quote_id')
+                        ->on('q.company_id','=','a.company_id');
+                })
+                ->where('a.company_id',$companyId)
+                ->where('q.service_job_id',$jobId)
+                ->orderByDesc('a.id')->limit(100)
+                ->get(['a.id','a.service_quote_id','a.signed_pdf_sha256','a.created_at'])
+            : collect();
+        $addenda = $canSeeDocuments
+            ? DB::table('addenda')->where('company_id',$companyId)
+                ->where('service_job_id',$jobId)->where('status','!=','archived')
+                ->orderByDesc('id')->limit(100)
+                ->get(['id','number','title','status','total_minor'])
+            : collect();
+        $documents = $canSeeDocuments
+            ? collect(app(DocumentCatalogService::class)->listing($companyId,[
+                'job_id'=>$jobId,'per_page'=>100,
+              ])['documents'])->filter(fn(array $d)=>$canSeeQuotes ||
+                  !in_array($d['kind'],['quote','signed','addendum'],true))->values()
+            : collect();
+        $purchases = $canSeeDocuments
+            ? DB::table('job_expenses')->where('company_id',$companyId)
+                ->where('service_job_id',$jobId)->orderByDesc('id')->limit(100)
+                ->get(['id','category','status','expense_date','amount_minor'])
+            : collect();
+        $time = DB::table('job_labour_entries')->where('company_id',$companyId)
+            ->where('service_job_id',$jobId)->whereNull('voided_at')
+            ->orderByDesc('id')->limit(100)
+            ->get(['id','worker_name_snapshot','task','duration_minutes',
+                'cost_minor','status']);
+        $deposits = $canSeeDocuments
+            ? DB::table('job_deposits')->where('company_id',$companyId)
+                ->where('service_job_id',$jobId)->where('status','!=','void')
+                ->orderByDesc('id')->limit(100)
+                ->get(['id','reference_number','amount_minor','status'])
+            : collect();
+        $invoices = $canSeeDocuments
+            ? DB::table('service_invoices')->where('company_id',$companyId)
+                ->where('service_job_id',$jobId)->where('status','!=','void')
+                ->orderByDesc('id')->limit(100)
+                ->get(['id','invoice_number','status','total_minor'])
+            : collect();
         $snapshot = app(\App\Services\JobDetailsSnapshot::class)->forJob(
-            $target, $canSeeQuotes, $this->canReadReports($request));
+            $target, $canSeeQuotes, $canSeeDocuments);
         return response()->json(['data' => array_merge([
             'job' => $this->payload($target),
             'sections' => [
-                'quotes' => $quotes, 'signed_quotes' => [], 'addenda' => [], 'documents' => [],
-                'photos' => $photos, 'notes' => $notes, 'purchases' => [], 'time' => [],
-                'deposits' => [], 'site_reports' => $reports, 'acceptance' => $acceptances, 'invoices' => [],
+                'quotes' => $quotes, 'signed_quotes' => $signedQuotes,
+                'addenda' => $addenda, 'documents' => $documents,
+                'photos' => $photos, 'notes' => $notes,
+                'purchases' => $purchases, 'time' => $time,
+                'deposits' => $deposits, 'site_reports' => $reports,
+                'acceptance' => $acceptances, 'invoices' => $invoices,
             ],
         ], $snapshot)]);
     }
