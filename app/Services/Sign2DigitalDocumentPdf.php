@@ -36,50 +36,62 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         return preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/', ' ', (string) $converted) ?? '';
     }
 
-    public function Header(): void
+    public static function drawHeader(\FPDF $pdf,string $documentName,
+        string $reference,string $businessName=''): void
     {
-        $this->SetDrawColor(228, 234, 240);
-        $this->SetLineWidth(.4);
-        $this->Rect(14, 13, 182, 40);
+        $pdf->SetDrawColor(228, 234, 240);
+        $pdf->SetLineWidth(.4);
+        $pdf->Rect(14, 13, 182, 40);
         $logo = public_path('admin-assets/logo.png');
         $size = is_file($logo) ? @getimagesize($logo) : false;
         if (is_array($size) && ($size['mime'] ?? '') === 'image/png'
             && $size[0] > 0 && $size[1] > 0) {
             $ratio = $size[0] / $size[1];
             $w = min(48.0, 15.0 * $ratio);
-            $this->Image($logo, 20, 18, $w, $w / $ratio, 'PNG');
+            $pdf->Image($logo, 20, 18, $w, $w / $ratio, 'PNG');
         } else {
-            $this->SetXY(20, 20);
-            $this->SetTextColor(22, 98, 130);
-            $this->SetFont('Arial', 'B', 17);
-            $this->Cell(95, 8, 'Sign2Digital');
+            $pdf->SetXY(20, 20);
+            $pdf->SetTextColor(22, 98, 130);
+            $pdf->SetFont('Arial', 'B', 17);
+            $pdf->Cell(95, 8, 'Sign2Digital');
         }
-        if ($this->businessName !== '') {
-            $this->SetXY(20, 39);
-            $this->SetTextColor(138, 154, 168);
-            $this->SetFont('Arial', '', 9);
-            $this->Cell(99, 6, self::text($this->businessName));
+        if ($businessName !== '') {
+            $pdf->SetXY(20, 39);
+            $pdf->SetTextColor(138, 154, 168);
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell(99, 6, self::text($businessName));
         }
-        $this->SetXY(124, 20);
-        $this->SetTextColor(18, 37, 54);
-        $this->SetFont('Arial', 'B', 15);
-        $this->Cell(66, 8, self::text($this->documentName), 0, 2, 'R');
-        $this->SetTextColor(138, 154, 168);
-        $this->SetFont('Arial', '', 10);
-        $this->Cell(66, 6, self::text($this->reference), 0, 2, 'R');
-        $this->SetY(58);
+        $pdf->SetXY(124, 20);
+        $pdf->SetTextColor(18, 37, 54);
+        $pdf->SetFont('Arial', 'B', 15);
+        $pdf->Cell(66, 8, self::text($documentName), 0, 2, 'R');
+        $pdf->SetTextColor(138, 154, 168);
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(66, 6, self::text($reference), 0, 2, 'R');
+        $pdf->SetY(58);
+    }
+
+    public static function drawFooter(\FPDF $pdf): void
+    {
+        $pdf->SetY(-16);
+        $pdf->SetDrawColor(228, 234, 240);
+        $pdf->Line(20, $pdf->GetY(), 190, $pdf->GetY());
+        $pdf->Ln(3);
+        $pdf->SetTextColor(138, 154, 168);
+        $pdf->SetFont('Arial', '', 8);
+        $pdf->Cell(125, 6, 'Sign2Digital', 0, 0, 'L');
+        $pdf->Cell(45, 6, 'Page '.$pdf->PageNo().'/{nb}', 0, 0, 'R');
+    }
+
+    public function Header(): void
+    {
+        self::drawHeader($this,$this->documentName,
+            $this->reference,$this->businessName);
     }
 
     public function Footer(): void
     {
-        $this->SetY(-16);
-        $this->SetDrawColor(228, 234, 240);
-        $this->Line(20, $this->GetY(), 190, $this->GetY());
-        $this->Ln(3);
-        $this->SetTextColor(138, 154, 168);
-        $this->SetFont('Arial', '', 8);
-        $this->Cell(125, 6, 'Sign2Digital', 0, 0, 'L');
-        $this->Cell(45, 6, 'Page '.$this->PageNo().'/{nb}', 0, 0, 'R');
+        self::drawFooter($this);
     }
 
     public function metadata(string $label, string $value): void
