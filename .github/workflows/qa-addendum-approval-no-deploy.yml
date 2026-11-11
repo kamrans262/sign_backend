@@ -1,0 +1,32 @@
+name: M10 Addendum Approval Backend Regression
+
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-addendum-approval-no-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  addendum-approval-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Verify approval API syntax and routes
+        run: |
+          php -l app/Http/Controllers/Api/AddendumController.php
+          php -l app/Services/AddendumService.php
+          php artisan route:list --path=api/v1/addenda
+      - name: Verify approved immutable addenda, original PDF and revisions
+        run: php artisan test --filter='M(7QuoteApproval|8SigningCompletion|9DocumentManagement|10AddendaManagement)Test'
