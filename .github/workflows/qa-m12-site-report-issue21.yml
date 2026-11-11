@@ -5,6 +5,7 @@ on:
     branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
     paths:
       - '.github/workflows/qa-m12-site-report-issue21.yml'
+      - 'tests/Feature/M12ReportsManagementTest.php'
   workflow_dispatch:
 
 permissions:
