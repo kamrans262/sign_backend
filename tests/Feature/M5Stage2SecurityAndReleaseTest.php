@@ -94,7 +94,7 @@ class M5Stage2SecurityAndReleaseTest extends TestCase
             'updated_by' => $owner->id,
             'category' => 'active',
             'stage' => 'planning',
-            'reference_number' => sprintf('JOB-%08d', $id),
+            'reference_number' => 'JOB-F-001',
             'progress_percentage' => 0,
         ]);
         $this->patchJson('/api/v1/jobs/'.$id, [
@@ -107,7 +107,7 @@ class M5Stage2SecurityAndReleaseTest extends TestCase
             'id' => $id,
             'company_id' => $company->id,
             'created_by' => $owner->id,
-            'reference_number' => sprintf('JOB-%08d', $id),
+            'reference_number' => 'JOB-F-001',
             'description' => 'Updated description',
         ]);
     }
