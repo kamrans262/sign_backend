@@ -105,8 +105,8 @@ final class M22ProfileSecuritySupportTest extends TestCase
         $user=$this->actor();
         $other=$user->createToken('iPhone mobile session');
         $this->getJson('/api/v1/me/security')->assertOk()
-            ->assertJsonPath('data.two_factor_available',false)
-            ->assertJsonPath('data.two_factor_enabled',null);
+            ->assertJsonPath('data.two_factor_available',true)
+            ->assertJsonPath('data.two_factor_enabled',false);
         $id=$other->accessToken->id;
         $this->deleteJson('/api/v1/me/sessions/'.$id,['password'=>'bad'])
             ->assertUnprocessable();
