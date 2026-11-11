@@ -24,6 +24,9 @@ final class ExpenseService
     public function canApprove(Company $company, ?\App\Models\User $actor): bool
     {
         if ($actor === null || !$actor->is_active) return false;
+        // Platform administrators already review company expenses in the
+        // existing management panel; preserve that authorized workflow.
+        if ($actor->is_platform_admin) return true;
         $member = $company->users()->where('users.id', $actor->id)
             ->wherePivot('status', 'active')->first();
         if (!$member) return false;
