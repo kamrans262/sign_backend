@@ -1,0 +1,76 @@
+name: M22 PDF Family & Signed Acceptance QA
+
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-m22-pdf-family.yml'
+      - 'app/Services/Sign2DigitalDocumentPdf.php'
+      - 'app/Services/WorkAcceptanceResponsePdf.php'
+      - 'app/Services/WorkAcceptanceService.php'
+      - 'app/Services/WorkAcceptanceCustomerService.php'
+      - 'app/Services/SiteReportService.php'
+      - 'tests/Feature/M12ReportsManagementTest.php'
+      - 'tests/Feature/M13WorkAcceptanceTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m22-pdf-family
+  cancel-in-progress: true
+
+jobs:
+  pdf-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Check PHP syntax
+        run: |
+          php -l app/Services/Sign2DigitalDocumentPdf.php
+          php -l app/Services/WorkAcceptanceResponsePdf.php
+          php -l app/Services/WorkAcceptanceService.php
+          php -l app/Services/WorkAcceptanceCustomerService.php
+          php -l app/Services/SiteReportService.php
+      - name: PDF, signature, job-photo and immutability regression tests
+        env:
+          M22_RENDER_PDFS: '1'
+        run: php artisan test --filter='M(12ReportsManagement|13WorkAcceptance)Test'
+      - name: Render real generated PDFs and inspect pages and colors
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils python3-pil
+          mkdir -p storage/app/m22-render/png
+          for kind in site-report meeting-minutes work-acceptance work-acceptance-signed; do
+            f="storage/app/m22-render/m22-$kind.pdf"
+            test -s "$f"
+            pdfinfo "$f" | grep '^Pages:'
+            pdftotext "$f" - | grep -q 'Sign2Digital'
+            pdftoppm -f 1 -l 1 -r 120 -png -singlefile "$f" "storage/app/m22-render/png/$kind"
+          done
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          for name in ('site-report','meeting-minutes','work-acceptance','work-acceptance-signed'):
+              im=Image.open(Path('storage/app/m22-render/png')/(name+'.png')).convert('RGB')
+              colors=im.getdata()
+              blue=sum(1 for r,g,b in colors if 17<=r<=27 and 90<=g<=108 and 120<=b<=145)
+              assert im.width>700 and im.height>900, (name,im.size)
+              assert blue>300, (name,'expected approved blue section/header',blue)
+              print(name, im.size, 'blue pixels',blue)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: m22-rendered-pdf-fixtures
+          path: storage/app/m22-render/
+          if-no-files-found: ignore
