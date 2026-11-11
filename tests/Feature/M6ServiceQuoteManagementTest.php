@@ -234,8 +234,8 @@ class M6ServiceQuoteManagementTest extends TestCase
         // Fileinfo recognizes these MP4 containers as audio/x-m4a or
         // video/mp4 depending on the ftyp brand and platform.
         foreach ([
-            'm4a' => "\\x00\\x00\\x00\\x18ftypM4A \\x00\\x00\\x00\\x00M4A isom",
-            'mp4' => "\\x00\\x00\\x00\\x18ftypisom\\x00\\x00\\x00\\x00isommp42",
+            'm4a' => "\x00\x00\x00\x18ftypM4A \x00\x00\x00\x00M4A isom",
+            'mp4' => "\x00\x00\x00\x18ftypisom\x00\x00\x00\x00isommp42",
         ] as $extension => $source) {
             $file = UploadedFile::fake()->createWithContent(
                 'voice.'.$extension, $source
