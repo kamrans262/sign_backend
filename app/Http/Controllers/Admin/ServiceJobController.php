@@ -111,16 +111,24 @@ class ServiceJobController extends Controller
         $ids = $data['team_member_ids'] ?? [];
         unset($data['team_member_ids']);
         $job = DB::transaction(function () use ($data, $ids, $request): ServiceJob {
+            // Serialize admin and mobile numbering on the same company row.
+            $company = Company::query()->whereKey($data['company_id'])
+                ->lockForUpdate()->firstOrFail();
+            $nextNumber = max((int) $company->job_sequence,
+                (int) ServiceJob::query()->where('company_id', $company->id)->count()) + 1;
+            $letters = preg_replace('/[^A-Za-z]/', '',
+                \Illuminate\Support\Str::ascii((string) $company->name));
+            $initial = strtoupper(substr($letters ?: 'X', 0, 1));
             $completed = $data['stage'] === 'completed';
             $job = ServiceJob::create(array_merge($data, [
-                'reference_number' => 'PENDING-'.bin2hex(random_bytes(8)),
+                'reference_number' => sprintf('JOB-%s-%03d', $initial, $nextNumber),
                 'category' => $completed ? 'completed' : 'active',
                 'completed_at' => $completed ? now() : null,
                 'progress_percentage' => $completed ? 100 : $data['progress_percentage'],
                 'created_by' => $request->user()->id,
                 'updated_by' => $request->user()->id,
             ]));
-            $job->update(['reference_number' => sprintf('JOB-%08d', $job->id)]);
+            $company->update(['job_sequence' => $nextNumber]);
             $job->assignees()->sync($ids);
             AuditLogger::record('admin.job.created', $request->user(), $job,
                 Company::findOrFail($job->company_id), request: $request);
