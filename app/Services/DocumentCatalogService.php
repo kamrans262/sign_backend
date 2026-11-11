@@ -385,6 +385,8 @@ final class DocumentCatalogService
                         'number'=>$data['number']??'DOCUMENT','status'=>'file',
                         'current_version'=>1,'created_at'=>now(),'updated_at'=>now(),
                     ]);
+                    app(M23BillingService::class)->recordCreate(
+                        $companyId,'managed_upload',$id,$request->user()->id);
                     $version=1; $event='created';
                 } else {
                     $item=$this->resolve($companyId,$key);

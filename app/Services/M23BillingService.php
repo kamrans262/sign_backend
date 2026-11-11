@@ -24,7 +24,7 @@ final class M23BillingService
     ];
     public const ISSUE_TYPES = [
         'quote','invoice','report','general_document',
-        'addendum','work_acceptance','note_document',
+        'addendum','work_acceptance','note_document','managed_upload',
     ];
 
     public function settings(): object
