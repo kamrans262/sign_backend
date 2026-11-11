@@ -125,7 +125,7 @@ final class SignatureRequestController extends Controller
             'business_signature_png_base64' => ['required_with:business_authorization','string','max:410000'],
             'business_signature_method' => ['required_with:business_authorization', Rule::in(['draw','type','upload'])],
             'business_signature_typed_name' => ['nullable','string','max:255'],
-            'business_consent_accepted' => ['required_with:business_authorization','accepted'],
+            'business_consent_accepted' => ['required_with:business_authorization', Rule::in([true, 1, '1'])],
         ]);
         if ($data['delivery'] === 'email' &&
             in_array((string) config('mail.default'), ['log','array','null'], true)) {
