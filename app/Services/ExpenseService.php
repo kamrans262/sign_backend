@@ -165,13 +165,22 @@ final class ExpenseService
             'tags'=>['sometimes','array','max:12'],
             'tags.*'=>['string','max:60','distinct'],
             'lock_version'=>[$id!==null?'required':'nullable','integer','min:1'],
+            'request_key'=>['sometimes','string','min:16','max:100',
+                'regex:/^[A-Za-z0-9_.:-]+$/D'],
         ]);
         $cents=self::cents($data['amount']);
         $job=ServiceJob::query()->where('company_id',$company->id)
             ->findOrFail((int)$data['job_id']);
         abort_if($job->category==='archived',409,'Archived job cannot receive expenses.');
         $actor=$request->user()?->id;
-        $row=DB::transaction(function()use($company,$job,$data,$cents,$id,$actor):object {
+        $key=$id===null?($data['request_key']??null):null;
+        unset($data['request_key']);
+        $fingerprintData=$data;
+        ksort($fingerprintData);
+        $fingerprint=hash('sha256',json_encode($fingerprintData,JSON_THROW_ON_ERROR));
+        $replayed=false;
+        $row=DB::transaction(function()use($company,$job,$data,$cents,$id,
+            $actor,$key,$fingerprint,&$replayed):object {
             $values=['category'=>$data['category'],
                 'supplier'=>trim((string)($data['supplier']??''))?:null,
                 'description'=>trim((string)($data['description']??''))?:null,
@@ -180,10 +189,25 @@ final class ExpenseService
                 'tags'=>json_encode($data['tags']??[],JSON_THROW_ON_ERROR),
                 'updated_by'=>$actor,'updated_at'=>now()];
             if($id===null) {
+                if($key!==null){
+                    DB::table('companies')->where('id',$company->id)
+                        ->lockForUpdate()->firstOrFail();
+                    $prior=DB::table('job_expenses')
+                        ->where('company_id',$company->id)
+                        ->where('request_key',$key)->first();
+                    if($prior!==null){
+                        abort_unless(hash_equals((string)$prior->request_fingerprint,
+                            $fingerprint),409,'Expense creation request key was already used.');
+                        $replayed=true;
+                        return $this->find($company->id,(int)$prior->id);
+                    }
+                }
                 $new=DB::table('job_expenses')->insertGetId(array_merge($values,[
                     'company_id'=>$company->id,'service_job_id'=>$job->id,
                     'created_by'=>$actor,'created_at'=>now(),
                     'status'=>'to_review','lock_version'=>1,
+                    'request_key'=>$key,
+                    'request_fingerprint'=>$key===null?null:$fingerprint,
                 ]));
                 $row=$this->find($company->id,$new);
                 $this->event($row,'created',$actor);
@@ -205,7 +229,8 @@ final class ExpenseService
             $this->event($row,'updated',$actor,['version'=>$row->lock_version]);
             return $row;
         });
-        AuditLogger::record($id===null?'mobile.expense.created':'mobile.expense.updated',
+        if(!$replayed)AuditLogger::record(
+            $id===null?'mobile.expense.created':'mobile.expense.updated',
             $request->user(),null,$company,['expense_id'=>$row->id],$request);
         return $this->payload($row);
     }
