@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Company;
+use App\Services\DocumentCatalogService;
 use App\Support\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -45,6 +46,17 @@ class ClientController extends Controller
         if (in_array($member->pivot->role, ['owner', 'admin'], true)) return true;
         $permissions = json_decode((string) $member->pivot->permissions, true);
         return is_array($permissions) && in_array('jobs.read', $permissions, true);
+    }
+
+    private function canReadDocuments(Request $request): bool
+    {
+        $company = $this->company($request);
+        $member = $company->users()->where('users.id', $request->user()->id)
+            ->wherePivot('status', 'active')->first();
+        if (!$member) return false;
+        if (in_array($member->pivot->role, ['owner', 'admin'], true)) return true;
+        $permissions = json_decode((string) $member->pivot->permissions, true);
+        return is_array($permissions) && in_array('documents.read', $permissions, true);
     }
 
     private function profile(Client $client, bool $canReadJobs = false): array
@@ -156,11 +168,63 @@ class ClientController extends Controller
                 'due_date' => $job->due_date?->format('Y-m-d'),
             ])->values()
             : [];
+        $companyId = (int) $target->company_id;
+        $canReadDocuments = $this->canReadDocuments($request);
+        $documents = $canReadDocuments
+            ? collect(app(DocumentCatalogService::class)->listing($companyId, [
+                'client_id' => (int) $target->id, 'per_page' => 100,
+            ])['documents'])->filter(fn (array $document) => $canReadQuotes ||
+                !in_array($document['kind'], ['quote', 'signed', 'addendum'], true))->values()
+            : collect();
+        $invoices = $canReadDocuments && $canReadJobs
+            ? DB::table('service_invoices')->where('company_id', $companyId)
+                ->where('client_id', $target->id)->where('status', '!=', 'void')
+                ->latest('id')->limit(100)
+                ->get(['id', 'invoice_number', 'status', 'total_minor',
+                    'currency', 'invoice_date', 'service_job_id'])
+                ->map(fn ($invoice) => [
+                    'id' => (int) $invoice->id,
+                    'number' => $invoice->invoice_number,
+                    'status' => $invoice->status,
+                    'total_minor' => (int) $invoice->total_minor,
+                    'currency' => $invoice->currency,
+                    'invoice_date' => $invoice->invoice_date,
+                    'job_id' => (int) $invoice->service_job_id,
+                ])->values()
+            : collect();
+        // Private job notes are available only to users authorized to read jobs.
+        // Never include note bodies in customer-facing public document links.
+        $notes = $canReadJobs
+            ? DB::table('job_notes as n')
+                ->join('service_jobs as j', function ($join): void {
+                    $join->on('j.id', '=', 'n.service_job_id')
+                        ->on('j.company_id', '=', 'n.company_id');
+                })
+                ->where('n.company_id', $companyId)
+                ->where('j.client_id', $target->id)
+                ->whereNull('n.archived_at')->latest('n.id')->limit(100)
+                ->get(['n.id', 'n.title', 'n.body', 'n.created_at',
+                    'n.service_job_id'])
+                ->map(fn ($note) => [
+                    'id' => 'note-'.$note->id,
+                    'title' => $note->title, 'description' => $note->body,
+                    'created_at' => $note->created_at,
+                    'job_id' => (int) $note->service_job_id,
+                ])->values()
+            : collect();
+        if (trim((string) $target->notes) !== '') {
+            $notes->prepend([
+                'id' => 'client-note-'.$target->id, 'title' => 'Client note',
+                'description' => $target->notes,
+                'created_at' => $target->updated_at?->toIso8601String(),
+                'job_id' => null,
+            ]);
+        }
         return response()->json(['data' => [
             'client' => $this->profile($target, $canReadJobs),
-            'jobs' => $jobs, 'quotes' => $quotes, 'documents' => [],
-            'invoices' => [], 'notes_history' => [],
-        ]]);
+            'jobs' => $jobs, 'quotes' => $quotes, 'documents' => $documents,
+            'invoices' => $invoices, 'notes_history' => $notes,
+        ]], 200, ['Cache-Control' => 'private, no-store']);
     }
 
     public function store(Request $request): JsonResponse
