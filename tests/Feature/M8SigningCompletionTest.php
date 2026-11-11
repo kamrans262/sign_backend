@@ -180,6 +180,94 @@ class M8SigningCompletionTest extends TestCase
         $this->assertDatabaseCount('signed_document_artifacts',0);
     }
 
+    public function test_optional_business_signature_is_verified_before_remote_customer_signing(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client] = $this->tenant();
+        [$quote,$source] = $this->approvedQuote($client);
+        $context = $this->getJson('/api/v1/quotes/'.$quote->id.'/business-signature-context')
+            ->assertOk()->json('data.context');
+
+        $issued = $this->postJson('/api/v1/quotes/'.$quote->id.'/signature-requests', [
+            'signer_name' => 'Signing Customer',
+            'signer_email' => 'customer@example.test',
+            'delivery' => 'link',
+            'business_authorization' => $context['authorization'],
+            'business_signature_png_base64' => base64_encode($this->signaturePng()),
+            'business_signature_method' => 'draw',
+            'business_consent_accepted' => true,
+        ])->assertCreated();
+        $record = Signing::firstOrFail();
+        $this->assertSame($context['request_id'], $record->request_uuid);
+        $this->assertSame($context['document_id'], $record->document_uuid);
+        $this->assertSame($owner->id, $record->business_user_id);
+        $this->assertNotNull($record->business_signed_at);
+        $this->assertSame(hash('sha256', $this->signaturePng()),
+            $record->business_signature_sha256);
+        $this->assertSame($this->signaturePng(),
+            Storage::disk('local')->get($record->business_signature_path));
+
+        $token = basename(parse_url($issued->json('data.secure_link'), PHP_URL_PATH));
+        $this->get('/sign/'.$token)->assertOk()
+            ->assertSee('Business Signature')
+            ->assertSee('Business Owner');
+        $this->postJson('/api/v1/quotes/'.$quote->id.'/signature-requests', [
+            'signer_name' => 'Signing Customer',
+            'signer_email' => 'customer@example.test',
+            'delivery' => 'link',
+        ])->assertStatus(409);
+
+        $completed = $this->postJson('/api/public/signing/'.$token.'/submit',
+            $this->remote($record, $token))->assertCreated()->json();
+        $artifact = SignedDocumentArtifact::firstOrFail();
+        $this->assertSame(['Business', 'Customer'],
+            array_column($artifact->evidence['signers'], 'role'));
+        $signedPdf = base64_decode($completed['signedPdfBase64'], true);
+        $this->assertSame(hash('sha256', $signedPdf), $artifact->signed_pdf_sha256);
+        $this->assertSame($source, Storage::disk('local')->get($quote->approved_pdf_path));
+        $this->assertDatabaseHas('signature_requests',
+            ['id'=>$record->id, 'status'=>'signed']);
+        $this->assertDatabaseCount('signed_document_artifacts', 1);
+    }
+
+    public function test_remote_issuer_signature_context_and_evidence_cannot_be_forged(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client] = $this->tenant();
+        [$quote,$source] = $this->approvedQuote($client);
+        $context = $this->getJson('/api/v1/quotes/'.$quote->id.'/business-signature-context')
+            ->assertOk()->json('data.context');
+        $request = [
+            'signer_name'=>'Signing Customer',
+            'signer_email'=>'customer@example.test',
+            'delivery'=>'link',
+            'business_authorization'=>$context['authorization'],
+            'business_signature_png_base64'=>base64_encode($this->signaturePng()),
+            'business_signature_method'=>'type',
+            'business_signature_typed_name'=>'Someone Else',
+            'business_consent_accepted'=>true,
+        ];
+        $this->postJson('/api/v1/quotes/'.$quote->id.'/signature-requests', $request)
+            ->assertUnprocessable();
+        $this->postJson('/api/v1/quotes/'.$quote->id.'/signature-requests', [
+            ...$request,
+            'business_signature_method'=>'draw',
+            'business_authorization'=>'tampered-token',
+        ])->assertUnprocessable();
+        $this->assertDatabaseCount('signature_requests', 0);
+
+        $issued = $this->postJson('/api/v1/quotes/'.$quote->id.'/signature-requests', [
+            ...$request,
+            'business_signature_method'=>'draw',
+        ])->assertCreated();
+        $record = Signing::firstOrFail();
+        Storage::disk('local')->put($record->business_signature_path, 'corrupted');
+        $token = basename(parse_url($issued->json('data.secure_link'), PHP_URL_PATH));
+        $this->postJson('/api/public/signing/'.$token.'/submit',
+            $this->remote($record, $token))->assertStatus(503);
+        $this->assertDatabaseCount('signed_document_artifacts', 0);
+    }
+
     private function strokes(): array
     {
         return [[
