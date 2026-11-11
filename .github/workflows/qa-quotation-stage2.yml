@@ -1,0 +1,39 @@
+name: Stage 2 Quotation Signature Status Backend Verification
+
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-quotation-stage2.yml'
+      - 'app/Services/SignatureWorkflowService.php'
+      - 'tests/Feature/M8SigningCompletionTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign2digital-quotation-stage2-backend
+  cancel-in-progress: true
+
+jobs:
+  m8-signature-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, pdo_mysql, mbstring, openssl, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Lint status API and signing regression tests
+        run: |
+          php -l app/Services/SignatureWorkflowService.php
+          php -l tests/Feature/M8SigningCompletionTest.php
+          php -l app/Http/Controllers/Api/SignatureRequestController.php
+          php -l app/Services/SignatureCompletionService.php
+      - name: M8 quote signing, issuer activity and PDF regression
+        run: php artisan test --filter='M8(SigningCompletion|SignatureRequestFoundation|BrowserAcceptance)Test'
