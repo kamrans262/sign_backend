@@ -128,7 +128,7 @@ class ServiceJobController extends Controller
                 'created_by' => $request->user()->id,
                 'updated_by' => $request->user()->id,
             ]));
-            $company->update(['job_sequence' => $nextNumber]);
+            $company->forceFill(['job_sequence' => $nextNumber])->save();
             $job->assignees()->sync($ids);
             AuditLogger::record('admin.job.created', $request->user(), $job,
                 Company::findOrFail($job->company_id), request: $request);
