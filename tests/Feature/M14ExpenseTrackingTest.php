@@ -217,4 +217,30 @@ class M14ExpenseTrackingTest extends TestCase
         ]);
     }
 
+
+    public function test_other_category_requires_custom_name_and_round_trips_with_history(): void
+    {
+        [$owner, $company, $client, $job] = $this->tenant('Custom Expense');
+        $request = [
+            'job_id' => $job, 'category' => 'other',
+            'expense_date' => '2026-11-05', 'amount' => '16.25',
+        ];
+        $this->postJson('/api/v1/expenses', $request)->assertUnprocessable()
+            ->assertJsonValidationErrors('custom_category');
+        $created = $this->postJson('/api/v1/expenses', array_merge($request, [
+            'custom_category' => '  Vehicle hire  ',
+        ]))->assertCreated()->assertJsonPath('data.expense.custom_category', 'Vehicle hire');
+        $id = (int) $created->json('data.expense.id');
+        $this->getJson('/api/v1/expenses/'.$id)->assertOk()
+            ->assertJsonPath('data.expense.custom_category', 'Vehicle hire');
+        $this->getJson('/api/v1/expenses')->assertOk()
+            ->assertJsonPath('data.records.0.custom_category', 'Vehicle hire');
+        $this->patchJson('/api/v1/expenses/'.$id, array_merge($request, [
+            'category' => 'material', 'custom_category' => 'Ignored',
+            'lock_version' => 1,
+        ]))->assertOk()->assertJsonPath('data.expense.custom_category', null);
+        $this->assertDatabaseHas('job_expenses', [
+            'id' => $id, 'category' => 'material', 'custom_category' => null,
+        ]);
+    }
 }
