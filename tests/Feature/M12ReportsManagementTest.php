@@ -117,6 +117,57 @@ class M12ReportsManagementTest extends TestCase
         $this->get('/api/v1/reports/'.$id.'/pdf')->assertStatus(409);
     }
 
+    public function test_custom_title_other_condition_and_risk_survive_revision_and_approval(): void
+    {
+        Storage::fake('local');
+        [$actor,$company,$client,$job]=$this->tenant('Custom Fields M12');
+        $draft=[
+            'job_id'=>$job,'kind'=>'site_report',
+            'title'=>'Custom north roof inspection',
+            'report_date'=>'2026-11-12','prepared_by'=>'Site Inspector',
+            'location'=>'North roof',
+            'weather'=>'Other: Fog and low visibility',
+            'content'=>[
+                'sections'=>[
+                    'siteProgress'=>'Roof repairs 50 percent complete',
+                    'issues'=>'Other: Fall protection required near edge',
+                    'notes'=>'Existing safety observations preserved',
+                ],
+                'action_items'=>[[
+                    'description'=>'Secure the ladder',
+                    'assignee'=>'Original task owner',
+                    'due_date'=>'2026-12-01',
+                ]],
+            ],
+        ];
+        $id=(int)$this->postJson('/api/v1/reports',$draft)
+            ->assertCreated()->json('data.report.id');
+        $this->patchJson('/api/v1/reports/'.$id,[
+            'revision'=>1,'title'=>$draft['title'],
+            'weather'=>$draft['weather'],
+            'content'=>$draft['content'],
+        ])->assertOk()->assertJsonPath('data.report.revision',2);
+        $this->getJson('/api/v1/reports/'.$id)
+            ->assertJsonPath('data.report.title','Custom north roof inspection')
+            ->assertJsonPath('data.report.weather','Other: Fog and low visibility')
+            ->assertJsonPath('data.report.content.sections.issues',
+                'Other: Fall protection required near edge')
+            ->assertJsonPath('data.report.content.action_items.0.assignee',
+                'Original task owner')
+            ->assertJsonPath('data.report.content.action_items.0.due_date',
+                '2026-12-01');
+        $approved=$this->postJson('/api/v1/reports/'.$id.'/approve',[
+            'confirm'=>true,'revision'=>2,
+        ])->assertOk()->assertJsonPath('data.report.status','approved');
+        $this->assertGreaterThan(0,
+            (int)$approved->json('data.report.managed_document_id'));
+        $this->get('/api/v1/reports/'.$id.'/pdf')
+            ->assertOk()->assertHeader('Content-Type','application/pdf');
+        $this->patchJson('/api/v1/reports/'.$id,[
+            'revision'=>2,'title'=>'Illegal edit',
+        ])->assertStatus(409);
+    }
+
     public function test_stale_editor_and_ai_revision_are_rejected(): void
     {
         Storage::fake('local');
