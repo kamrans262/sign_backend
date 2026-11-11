@@ -27,7 +27,7 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         $this->AliasNbPages();
     }
 
-    public static function text(string $text): string
+    public static function pdfString(string $text): string
     {
         $converted = iconv(
             'UTF-8', 'Windows-1252//TRANSLIT//IGNORE',
@@ -59,15 +59,15 @@ final class Sign2DigitalDocumentPdf extends \FPDF
             $pdf->SetXY(20, 39);
             $pdf->SetTextColor(138, 154, 168);
             $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell(99, 6, self::text($businessName));
+            $pdf->Cell(99, 6, self::pdfString($businessName));
         }
         $pdf->SetXY(124, 20);
         $pdf->SetTextColor(18, 37, 54);
         $pdf->SetFont('Arial', 'B', 15);
-        $pdf->Cell(66, 8, self::text($documentName), 0, 2, 'R');
+        $pdf->Cell(66, 8, self::pdfString($documentName), 0, 2, 'R');
         $pdf->SetTextColor(138, 154, 168);
         $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(66, 6, self::text($reference), 0, 2, 'R');
+        $pdf->Cell(66, 6, self::pdfString($reference), 0, 2, 'R');
         $pdf->SetY(58);
     }
 
@@ -99,10 +99,10 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         if ($value === '') return;
         $this->SetTextColor(138, 154, 168);
         $this->SetFont('Arial', 'B', 9);
-        $this->MultiCell(0, 5, self::text($label));
+        $this->MultiCell(0, 5, self::pdfString($label));
         $this->SetTextColor(18, 37, 54);
         $this->SetFont('Arial', '', 10);
-        $this->MultiCell(0, 6, self::text($value));
+        $this->MultiCell(0, 6, self::pdfString($value));
         $this->Ln(2);
     }
 
@@ -114,11 +114,11 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         $this->SetFillColor(22, 98, 130);
         $this->SetTextColor(255, 255, 255);
         $this->SetFont('Arial', 'B', 10);
-        $this->Cell(0, 9, self::text($heading), 0, 1, 'L', true);
+        $this->Cell(0, 9, self::pdfString($heading), 0, 1, 'L', true);
         $this->Ln(3);
         $this->SetTextColor(18, 37, 54);
         $this->SetFont('Arial', '', 10);
-        $this->MultiCell(0, 6, self::text($body));
+        $this->MultiCell(0, 6, self::pdfString($body));
         $this->Ln(2);
     }
 
@@ -127,6 +127,6 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         $this->Ln(6);
         $this->SetTextColor(138, 154, 168);
         $this->SetFont('Arial', 'I', 8);
-        $this->MultiCell(0, 5, self::text($note));
+        $this->MultiCell(0, 5, self::pdfString($note));
     }
 }
