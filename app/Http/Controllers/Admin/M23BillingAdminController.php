@@ -98,18 +98,36 @@ final class M23BillingAdminController extends Controller
 
     private function planPayload(Request $request): array
     {
-        return $request->validate([
+        $data=$request->validate([
             'code'=>['required','string','max:48','regex:/^[a-z0-9_-]+$/'],
             'name'=>['required','string','max:120'],
             'period'=>['required',Rule::in(['monthly','yearly'])],
             'currency'=>['required',Rule::in(['CHF'])],
-            'amount_minor'=>['required','integer','between:0,1000000000'],
+            'amount_minor'=>['required_without:price_chf','nullable','integer',
+                'between:0,1000000000'],
+            'price_chf'=>['required_without:amount_minor','nullable',
+                'regex:/^[0-9]{1,8}(\\.[0-9]{1,2})?$/D'],
             'description'=>['nullable','string','max:500'],
             'features'=>['nullable','array','max:12'],
             'features.*'=>['string','distinct',Rule::in(M23BillingService::FEATURES)],
             'document_limit'=>['nullable','integer','between:0,1000000'],
             'stripe_price_id'=>['nullable','string','max:255','regex:/^price_[A-Za-z0-9]+$/'],
         ]);
+        if(isset($data['price_chf'])) {
+            // Never use floats for money: convert the admin-entered CHF price
+            // to integer minor units before Stripe comparison and storage.
+            $parts=explode('.',(string)$data['price_chf'],2);
+            $cents=((int)$parts[0])*100+
+                (int)str_pad($parts[1]??'',2,'0');
+            if($cents>1000000000) {
+                throw ValidationException::withMessages([
+                    'price_chf'=>'Price cannot exceed CHF 10,000,000.00.',
+                ]);
+            }
+            $data['amount_minor']=$cents;
+        }
+        unset($data['price_chf']);
+        return $data;
     }
 
     public function savePlan(Request $request,?int $plan=null): RedirectResponse

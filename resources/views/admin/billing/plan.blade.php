@@ -22,7 +22,7 @@
       <option value="{{ $value }}" @selected(old('period',$plan->period??'monthly')===$value)>{{ $label }}</option>
       @endforeach</select></div>
     <div class="field"><label for="currency">Currency</label><select class="input" id="currency" name="currency" @disabled($inUse)><option value="CHF">CHF</option></select></div>
-    <div class="field"><label for="amount_minor">Price in CHF cents</label><input class="input" id="amount_minor" name="amount_minor" type="number" min="0" max="1000000000" required value="{{ old('amount_minor',$plan->amount_minor??'') }}" @disabled($inUse)></div>
+    <div class="field"><label for="price_chf">Subscription price (CHF)</label><input class="input" id="price_chf" name="price_chf" type="number" min="0" max="10000000" step="0.01" required value="{{ old('price_chf',number_format(($plan->amount_minor??0)/100,2,'.','')) }}" @disabled($inUse)></div>
     <div class="field"><label for="document_limit">Plan document limit (blank = unlimited)</label><input class="input" id="document_limit" name="document_limit" type="number" min="0" max="1000000" value="{{ old('document_limit',$plan->document_limit??'') }}" @disabled($inUse)></div>
     <div class="field"><label for="stripe_price_id">Stripe Price ID (optional; payment stays disabled)</label>
       <input class="input" id="stripe_price_id" name="stripe_price_id" maxlength="255" placeholder="price_..." value="{{ old('stripe_price_id',$plan->stripe_price_id??'') }}" @disabled($inUse)></div>

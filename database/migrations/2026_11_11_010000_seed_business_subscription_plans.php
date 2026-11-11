@@ -23,7 +23,7 @@ return new class extends Migration
                 ],
                 'yearly' => [
                     'amount'=>29000,
-                    'description'=>'Complete Business access billed yearly. Save CHF 58 compared with twelve monthly payments.',
+                    'description'=>'One yearly payment for complete Business access.',
                 ],
             ] as $period=>$offer) {
                 if (DB::table('m23_plans')->where('code','business')

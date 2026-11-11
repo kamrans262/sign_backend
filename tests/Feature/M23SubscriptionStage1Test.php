@@ -93,7 +93,7 @@ final class M23SubscriptionStage1Test extends TestCase
 
         $this->actingAs($admin)->patch('/admin/billing/plans/'.$month->id,[
             'code'=>'business','name'=>'Business','period'=>'monthly',
-            'currency'=>'CHF','amount_minor'=>3400,
+            'currency'=>'CHF','price_chf'=>'34.00',
             'description'=>'Pricing revised after client review',
             'features'=>['unlimitedProjects','quotes','invoices','expenses'],
             'document_limit'=>120,
