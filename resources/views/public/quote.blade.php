@@ -208,6 +208,13 @@
       <h2>General Terms &amp; Conditions</h2>
       <p>{{ trim((string) $quote->terms) === '' ? 'No terms and conditions have been provided.' : $quote->terms }}</p>
     </section>
+    @if(!empty($businessSignatureDataUrl))
+      <section class="payment-card" aria-label="Business Signature" style="margin-top:20px;padding:20px">
+        <h2 class="section-title">Business Signature</h2>
+        <p class="payment-hint">Signed by {{ $signing->business_signer_name }} on {{ $signing->business_signed_at?->format('j F Y, H:i') }}. Awaiting your signature.</p>
+        <img src="{{ $businessSignatureDataUrl }}" alt="Verified business signature" style="display:block;max-width:260px;max-height:100px;object-fit:contain;margin-top:12px">
+      </section>
+    @endif
     @if(isset($signing) && isset($signingToken))
       @include('public.signing-form')
     @endif
