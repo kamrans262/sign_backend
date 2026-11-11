@@ -47,6 +47,27 @@ final class SignatureCompletionService
             if ($mode === 'remote' && count($signers) !== 1) {
                 throw new HttpException(422,'Exactly one authorized customer signature is required.');
             }
+            // Remote two-party signing uses a verified issuer signature captured
+            // before delivery. Customer completion supplies the second signature.
+            if ($mode === 'remote' && $signing->business_signature_path !== null) {
+                $path = $signing->business_signature_path;
+                $digest = (string) $signing->business_signature_sha256;
+                $bytes = Storage::disk('local')->get($path);
+                if (!is_string($bytes) || !preg_match('/^[a-f0-9]{64}$/D', $digest) ||
+                    !hash_equals($digest, hash('sha256', $bytes)) ||
+                    $signing->business_user_id === null || !$signing->business_signed_at) {
+                    throw new HttpException(503, 'Verified issuer signature is unavailable.');
+                }
+                try {
+                    SignedPdfService::validatePng($bytes);
+                } catch (\\InvalidArgumentException $error) {
+                    throw new HttpException(503, 'Verified issuer signature is invalid.');
+                }
+                array_unshift($signers, [
+                    'role' => 'Business', 'name' => $signing->business_signer_name,
+                    'method' => $signing->business_signature_method, 'png' => $bytes,
+                ]);
+            }
 
             $source=$this->workflow->approvedBytes($quote);
             $signedAt=now()->utc();
@@ -103,7 +124,8 @@ final class SignatureCompletionService
                         : hash('sha256',json_encode($signer['strokes'],
                             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
                 ],$signers),
-                'business_user_id'=>$businessUserId,
+                'business_user_id'=>$businessUserId ?? $signing->business_user_id,
+                'business_signed_at_utc'=>$signing->business_signed_at?->toIso8601String(),
             ];
             $artifact=SignedDocumentArtifact::create([
                 'signature_request_id'=>$signing->id,
@@ -117,7 +139,8 @@ final class SignatureCompletionService
                 'created_at'=>$signedAt,
             ]);
             $signing->update(['status'=>'signed','signed_at'=>$signedAt]);
-            $this->workflow->event($signing,'document_signed',$request,$businessUserId,
+            $this->workflow->event($signing,'document_signed',$request,
+                $mode === 'in_person' ? $businessUserId : null,
                 ['signed_pdf_sha256'=>$sha,'mode'=>$mode]);
             $this->workflow->event($signing,'document_completed',$request,$businessUserId);
             AuditLogger::record('signature.document.completed',$request->user(),
