@@ -76,6 +76,8 @@ class M15LabourTrackingTest extends TestCase
         $this->patchJson('/api/v1/labour/entries/'.$id,array_merge(
             $this->entry($owner->id,$job,'20.00'),['lock_version'=>1],
         ))->assertStatus(409);
+        $this->getJson('/api/v1/labour/entries/'.$id)->assertOk()
+            ->assertJsonPath('data.can_approve', true);
         $this->postJson('/api/v1/labour/entries/'.$id.'/approve',[
             'confirm'=>true,
         ])->assertOk()->assertJsonPath('data.entry.status','approved');
