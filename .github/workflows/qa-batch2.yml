@@ -1,0 +1,44 @@
+name: Sign2Digital QA Batch 2 Laravel
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-batch2.yml'
+      - 'routes/api.php'
+      - 'app/Http/Controllers/Api/ExpenseController.php'
+      - 'app/Http/Controllers/Api/LabourController.php'
+      - 'app/Services/ExpenseService.php'
+      - 'app/Services/JobDetailsSnapshot.php'
+      - 'tests/Feature/M14ExpenseTrackingTest.php'
+      - 'tests/Feature/M15LabourTrackingTest.php'
+      - 'tests/Feature/M5JobDetailsLiveSummaryTest.php'
+      - 'tests/Feature/M11JobMediaTest.php'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sign2digital-qa-batch2-backend
+  cancel-in-progress: true
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: PHP syntax and route checks
+        run: |
+          php -l app/Http/Controllers/Api/ExpenseController.php
+          php -l app/Http/Controllers/Api/LabourController.php
+          php -l app/Services/ExpenseService.php
+          php -l app/Services/JobDetailsSnapshot.php
+          php artisan route:list --path=api/v1/expenses
+          php artisan route:list --path=api/v1/labour/entries
+      - name: Expense review, labour review, job money, private photos
+        run: php artisan test tests/Feature/M14ExpenseTrackingTest.php tests/Feature/M15LabourTrackingTest.php tests/Feature/M5JobDetailsLiveSummaryTest.php tests/Feature/M11JobMediaTest.php
