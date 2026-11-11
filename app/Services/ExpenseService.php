@@ -242,9 +242,6 @@ final class ExpenseService
         ]);
         $row=$this->find($company->id,$id);
         abort_unless($row->status==='to_review',409,'Reviewed expenses are immutable.');
-        abort_if(DB::table('job_expense_receipts')->where('company_id',$company->id)
-            ->where('job_expense_id',$id)->whereNull('removed_at')->count()>=10,
-            422,'Maximum 10 receipts per expense.');
         $file=$data['file'];$bytes=file_get_contents($file->getRealPath());
         abort_unless(is_string($bytes)&&strlen($bytes)>=8&&
             strlen($bytes)<=10*1024*1024,422,'Invalid receipt size.');
@@ -260,11 +257,23 @@ final class ExpenseService
             ($mime==='application/pdf'?'.pdf':($mime==='image/png'?'.png':'.jpg'));
         $disk=Storage::disk('local');
         abort_unless($disk->put($path,$bytes),503,'Unable to save receipt.');
+        $replayed=false;
         try {
-            $receiptId=DB::transaction(function()use($company,$id,$request,$file,$path,$mime,$bytes,$sha):int {
+            $receiptId=DB::transaction(function()use($company,$id,$request,$file,$path,$mime,$bytes,$sha,&$replayed):int {
                 $locked=DB::table('job_expenses')->where('company_id',$company->id)
                     ->where('id',$id)->lockForUpdate()->firstOrFail();
                 abort_unless($locked->status==='to_review',409);
+                // A timed-out upload retried with identical bytes is the same
+                // receipt; preserve the existing artifact and audit event.
+                $prior=DB::table('job_expense_receipts')
+                    ->where('company_id',$company->id)
+                    ->where('job_expense_id',$id)
+                    ->where('sha256',$sha)->whereNull('removed_at')->first();
+                if($prior!==null && (int)$prior->byte_size===strlen($bytes)
+                    && $prior->mime_type===$mime){
+                    $replayed=true;
+                    return (int)$prior->id;
+                }
                 abort_if(DB::table('job_expense_receipts')->where('job_expense_id',$id)
                     ->whereNull('removed_at')->count()>=10,422);
                 $key=DB::table('job_expense_receipts')->insertGetId([
@@ -279,6 +288,7 @@ final class ExpenseService
                 return $key;
             });
         } catch(\Throwable $e) { $disk->delete($path);throw $e; }
+        if($replayed)$disk->delete($path);
         return ['id'=>$receiptId,'sha256'=>$sha,'receipts'=>$this->receipts($company->id,$id)];
     }
 
