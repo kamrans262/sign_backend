@@ -22,7 +22,10 @@ final class M23BillingService
         'siteReports', 'eSignature', 'invoices', 'expenses',
         'labour', 'equipment', 'reminders', 'emailSupport',
     ];
-    public const ISSUE_TYPES = ['quote','invoice','report','general_document'];
+    public const ISSUE_TYPES = [
+        'quote','invoice','report','general_document',
+        'addendum','work_acceptance','note_document',
+    ];
 
     public function settings(): object
     {
