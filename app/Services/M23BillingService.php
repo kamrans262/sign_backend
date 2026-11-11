@@ -18,7 +18,8 @@ use Illuminate\Validation\ValidationException;
 final class M23BillingService
 {
     public const FEATURES = [
-        'unlimitedProjects', 'aiDocuments', 'eSignature', 'invoices',
+        'unlimitedProjects', 'clientManagement', 'quotes', 'aiDocuments',
+        'siteReports', 'eSignature', 'invoices', 'expenses',
         'labour', 'equipment', 'reminders', 'emailSupport',
     ];
     public const ISSUE_TYPES = ['quote','invoice','report','general_document'];
@@ -168,13 +169,17 @@ final class M23BillingService
         $features=json_decode((string)$plan->features,true);
         if(!is_array($features))$features=[];
         $labels=[
-            'unlimitedProjects'=>'Unlimited projects',
+            'unlimitedProjects'=>'Unlimited projects & job management',
+            'clientManagement'=>'Client management',
+            'quotes'=>'Quotes & approvals',
             'aiDocuments'=>'AI document generation',
-            'eSignature'=>'eSignature & work acceptance',
+            'siteReports'=>'Site reports & meeting minutes',
+            'eSignature'=>'eSignatures & work acceptance',
             'invoices'=>'Invoices & deposits',
-            'labour'=>'Labour & time tracking',
+            'expenses'=>'Purchases & expense tracking',
+            'labour'=>'Time & labour tracking',
             'equipment'=>'Equipment management',
-            'reminders'=>'Reminder & advanced search',
+            'reminders'=>'Reminders & global search',
             'emailSupport'=>'Email support',
         ];
         $precision=2; // CHF currently the sole configured currency.

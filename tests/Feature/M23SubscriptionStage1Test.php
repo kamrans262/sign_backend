@@ -58,13 +58,54 @@ final class M23SubscriptionStage1Test extends TestCase
             ->assertJsonPath('data.demo_only',false)
             ->assertJsonPath('data.price_label',null);
         $this->getJson('/api/v1/billing/plans')->assertOk()
-            ->assertJsonCount(0,'data.plans');
+            ->assertJsonCount(2,'data.plans')
+            ->assertJsonPath('data.plans.0.code','business')
+            ->assertJsonPath('data.plans.0.period','monthly')
+            ->assertJsonPath('data.plans.0.price_label','CHF 29.00 / month')
+            ->assertJsonPath('data.plans.0.can_checkout',false)
+            ->assertJsonPath('data.plans.1.period','yearly')
+            ->assertJsonPath('data.plans.1.price_label','CHF 290.00 / year')
+            ->assertJsonPath('data.plans.1.can_checkout',false);
         $this->getJson('/api/v1/billing/history')->assertOk()
             ->assertJsonCount(0,'data.invoices');
         $this->postJson('/api/v1/billing/checkout',[
             'plan_id'=>999,
             'request_id'=>'11111111-1111-4111-8111-111111111111',
         ])->assertStatus(503);
+        $this->assertDatabaseCount('m23_company_subscriptions',0);
+    }
+
+
+    public function test_published_business_plans_are_editable_in_admin_before_subscribers_and_do_not_charge(): void
+    {
+        $admin=$this->actor(true);
+        $month=DB::table('m23_plans')->where('code','business')
+            ->where('period','monthly')->firstOrFail();
+        $year=DB::table('m23_plans')->where('code','business')
+            ->where('period','yearly')->firstOrFail();
+        $this->assertSame('published',$month->status);
+        $this->assertSame('published',$year->status);
+        $this->assertNull($month->document_limit);
+        $this->assertNull($year->stripe_price_id);
+        $this->assertSame(12,count(json_decode($month->features,true)));
+        $this->assertSame(1,DB::table('m23_plan_revisions')
+            ->where('plan_id',$month->id)->count());
+
+        $this->actingAs($admin)->patch('/admin/billing/plans/'.$month->id,[
+            'code'=>'business','name'=>'Business','period'=>'monthly',
+            'currency'=>'CHF','amount_minor'=>3400,
+            'description'=>'Pricing revised after client review',
+            'features'=>['unlimitedProjects','quotes','invoices','expenses'],
+            'document_limit'=>120,
+        ])->assertRedirect();
+        $updated=DB::table('m23_plans')->where('id',$month->id)->firstOrFail();
+        $this->assertSame(3400,(int)$updated->amount_minor);
+        $this->assertSame('published',$updated->status);
+        $this->assertSame(2,(int)$updated->revision);
+        $this->assertSame(2,DB::table('m23_plan_revisions')
+            ->where('plan_id',$month->id)->count());
+        $this->assertSame(29000,(int)DB::table('m23_plans')
+            ->where('id',$year->id)->value('amount_minor'));
         $this->assertDatabaseCount('m23_company_subscriptions',0);
     }
 
@@ -127,31 +168,32 @@ final class M23SubscriptionStage1Test extends TestCase
         $this->actingAs($admin)->get('/admin/billing')->assertOk()
             ->assertSee('Subscriptions & Billing');
         $this->actingAs($admin)->post('/admin/billing/plans',[
-            'code'=>'business', 'name'=>'Business', 'period'=>'monthly',
+            'code'=>'client_review', 'name'=>'Client Review', 'period'=>'monthly',
             'currency'=>'CHF', 'amount_minor'=>2000,
             'description'=>'Business essentials',
             'features'=>['invoices','eSignature'],
         ])->assertRedirect();
-        $plan=DB::table('m23_plans')->first();
+        $plan=DB::table('m23_plans')->where('code','client_review')->firstOrFail();
         $this->assertSame('draft',$plan->status);
         $this->assertDatabaseHas('m23_plan_revisions',[
             'plan_id'=>$plan->id,'revision'=>1,'status'=>'draft',
         ]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         Sanctum::actingAs($owner);
-        $this->getJson('/api/v1/billing/plans')->assertJsonCount(0,'data.plans');
+        $this->getJson('/api/v1/billing/plans')->assertJsonCount(2,'data.plans');
         $this->actingAs($admin)->post('/admin/billing/plans/'.$plan->id.'/status',[
             'status'=>'published',
         ])->assertRedirect();
         Sanctum::actingAs($owner);
         $this->getJson('/api/v1/billing/plans')->assertOk()
-            ->assertJsonCount(1,'data.plans')
-            ->assertJsonPath('data.plans.0.price_label','CHF 20.00 / month')
-            ->assertJsonPath('data.plans.0.can_checkout',false);
+            ->assertJsonCount(3,'data.plans')
+            ->assertJsonPath('data.plans.2.price_label','CHF 20.00 / month')
+            ->assertJsonPath('data.plans.2.can_checkout',false);
         $this->assertDatabaseHas('m23_plan_revisions',[
             'plan_id'=>$plan->id,'revision'=>2,'status'=>'published',
         ]);
-        $this->assertDatabaseCount('m23_plan_revisions',2);
+        $this->assertSame(2,DB::table('m23_plan_revisions')
+            ->where('plan_id',$plan->id)->count());
         $this->getJson('/api/v1/billing/overview')->assertJsonPath('data.status','free');
     }
 

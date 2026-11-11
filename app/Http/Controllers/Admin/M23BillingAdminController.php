@@ -105,7 +105,7 @@ final class M23BillingAdminController extends Controller
             'currency'=>['required',Rule::in(['CHF'])],
             'amount_minor'=>['required','integer','between:0,1000000000'],
             'description'=>['nullable','string','max:500'],
-            'features'=>['nullable','array','max:8'],
+            'features'=>['nullable','array','max:12'],
             'features.*'=>['string','distinct',Rule::in(M23BillingService::FEATURES)],
             'document_limit'=>['nullable','integer','between:0,1000000'],
             'stripe_price_id'=>['nullable','string','max:255','regex:/^price_[A-Za-z0-9]+$/'],
