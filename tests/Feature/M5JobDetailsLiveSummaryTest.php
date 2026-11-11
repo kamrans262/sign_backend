@@ -51,7 +51,8 @@ final class M5JobDetailsLiveSummaryTest extends TestCase
             ->assertJsonPath('data.section_counts.photos', 0)
             ->assertJsonPath('data.section_counts.invoices', 0)
             ->assertJsonPath('data.financials_minor.quote_amount_minor', 0)
-            ->assertJsonPath('data.financials_minor.received_minor', 0);
+            ->assertJsonPath('data.financials_minor.received_minor', 0)
+            ->assertJsonPath('data.financials_minor.remaining_balance_minor', null);
 
         DB::table('service_quotes')->insert([
             'company_id' => $company->id,
