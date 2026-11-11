@@ -46,16 +46,38 @@ class QuoteAiController extends Controller
                 ]];
                 $content = 'Read these handwritten service work notes. Treat unclear text as missing.';
             } else {
-                if (!in_array($mime,[
-                    'audio/mp4','audio/x-m4a','audio/m4a','audio/mpeg','audio/mp3',
-                    'audio/wav','audio/x-wav','audio/webm','video/webm','application/ogg','audio/ogg',
-                ],true)) {
+                // Match the validated voice paths used by invoices, deposits
+                // and jobs. Fileinfo can report a genuine M4A as video/mp4,
+                // so a MIME-only allowlist incorrectly rejects the recording.
+                $bytes = file_get_contents($file->getRealPath());
+                if (!is_string($bytes) || strlen($bytes) < 16 ||
+                    strlen($bytes) > 25 * 1024 * 1024) {
+                    throw ValidationException::withMessages(['file'=>'Invalid voice recording.']);
+                }
+                $mp4 = substr($bytes, 4, 4) === 'ftyp';
+                $wav = substr($bytes, 0, 4) === 'RIFF' &&
+                    substr($bytes, 8, 4) === 'WAVE';
+                $aac = ord($bytes[0]) === 255 &&
+                    (ord($bytes[1]) & 0xF6) === 0xF0;
+                $mp3 = substr($bytes, 0, 3) === 'ID3' ||
+                    (ord($bytes[0]) === 255 && (ord($bytes[1]) & 0xE0) === 0xE0 && !$aac);
+                $webm = substr($bytes, 0, 4) === "\x1A\x45\xDF\xA3";
+                $ogg = substr($bytes, 0, 4) === 'OggS';
+                $filename = match (true) {
+                    $mp4 => 'quote-recording.m4a',
+                    $wav => 'quote-recording.wav',
+                    $aac => 'quote-recording.aac',
+                    $mp3 => 'quote-recording.mp3',
+                    $webm => 'quote-recording.webm',
+                    $ogg => 'quote-recording.ogg',
+                    default => null,
+                };
+                if ($filename === null) {
                     throw ValidationException::withMessages(['file'=>'Unsupported voice recording format.']);
                 }
                 try {
                     $audio = Http::withToken($key)->timeout(90)
-                        ->attach('file', file_get_contents($file->getRealPath()),
-                            'quote-recording.m4a')
+                        ->attach('file', $bytes, $filename)
                         ->post('https://api.openai.com/v1/audio/transcriptions',[
                             'model'=>'gpt-4o-mini-transcribe',
                         ]);
