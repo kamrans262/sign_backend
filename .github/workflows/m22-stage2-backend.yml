@@ -28,6 +28,9 @@ jobs:
           php -l app/Http/Controllers/Api/M22SupportController.php
           php -l app/Http/Controllers/Admin/M22SupportAdminController.php
           php -l tests/Feature/M22Stage2SecurityReleaseTest.php
+          php -l app/Services/M24TwoFactorService.php
+          php -l app/Http/Controllers/Api/M24TwoFactorController.php
+          php -l tests/Feature/M24TwoFactorSecurityTest.php
           php artisan migrate:fresh --force
           php artisan view:cache
           php artisan route:list --path=api/v1/me
@@ -35,7 +38,7 @@ jobs:
           php artisan route:list --path=admin/support
       - name: M22 stages 1 and 2 security and integration
         run: |
-          php artisan test tests/Feature/M22ProfileSecuritySupportTest.php tests/Feature/M22Stage2SecurityReleaseTest.php
+          php artisan test tests/Feature/M22ProfileSecuritySupportTest.php tests/Feature/M22Stage2SecurityReleaseTest.php tests/Feature/M24TwoFactorSecurityTest.php
       - name: Existing authentication and notifications regressions
         run: |
           php artisan test tests/Feature/M2EmailOtpAuthTest.php tests/Feature/M20RemindersNotificationsTest.php
@@ -75,4 +78,4 @@ jobs:
       - name: Production-engine schema and privacy acceptance
         run: |
           php artisan migrate:fresh --force
-          php artisan test tests/Feature/M22ProfileSecuritySupportTest.php tests/Feature/M22Stage2SecurityReleaseTest.php
+          php artisan test tests/Feature/M22ProfileSecuritySupportTest.php tests/Feature/M22Stage2SecurityReleaseTest.php tests/Feature/M24TwoFactorSecurityTest.php
