@@ -90,6 +90,7 @@ final class SignatureWorkflowService
     {
         $types = [
             'signature_requested' => 'signatureRequested',
+            'business_signed' => 'businessSigned',
             'document_sent' => 'documentSent',
             'document_viewed' => 'documentViewed',
             'document_signed' => 'documentSigned',
