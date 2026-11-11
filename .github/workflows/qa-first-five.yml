@@ -1,0 +1,41 @@
+name: Sign2Digital QA First Five Laravel
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-first-five.yml'
+      - 'app/Http/Controllers/Api/CompanyManagementController.php'
+      - 'app/Http/Controllers/Api/ServiceJobController.php'
+      - 'app/Http/Controllers/Admin/ServiceJobController.php'
+      - 'app/Services/ExpenseService.php'
+      - 'database/migrations/2026_11_11_030000_add_qa_job_sequence_and_expense_other.php'
+      - 'tests/Feature/M3CompanyManagementTest.php'
+      - 'tests/Feature/M5ServiceJobManagementTest.php'
+      - 'tests/Feature/M5Stage2SecurityAndReleaseTest.php'
+      - 'tests/Feature/M14ExpenseTrackingTest.php'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Check PHP syntax and migration
+        run: |
+          php -l app/Http/Controllers/Api/CompanyManagementController.php
+          php -l app/Http/Controllers/Api/ServiceJobController.php
+          php -l app/Http/Controllers/Admin/ServiceJobController.php
+          php -l app/Services/ExpenseService.php
+          php -l database/migrations/2026_11_11_030000_add_qa_job_sequence_and_expense_other.php
+          php artisan migrate --force
+      - name: Test company, job numbering, permissions and expense Other
+        run: php artisan test tests/Feature/M3CompanyManagementTest.php tests/Feature/M5ServiceJobManagementTest.php tests/Feature/M5Stage2SecurityAndReleaseTest.php tests/Feature/M14ExpenseTrackingTest.php
