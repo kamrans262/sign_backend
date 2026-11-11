@@ -179,6 +179,8 @@ final class AddendumController extends Controller
             abort_unless($item->status==='draft' &&
                 (int)$item->revision===(int)$data['expected_revision'],409,
                 'Only the currently reviewed draft can be approved.');
+            app(\App\Services\M23BillingService::class)->recordIssue(
+                (int)$company->id,'addendum',(int)$item->id,$request->user()?->id);
             $bytes=$this->service->createPdf($item);
             $sha=hash('sha256',$bytes);
             $path='addenda/approved/'.$company->id.'/'.$item->id.'/'.
