@@ -64,6 +64,7 @@ final class LabourController extends Controller
             'entry'=>$this->service->payload($this->readable($request,$company,$entry)),
             'history'=>$this->service->history($company->id,$entry),
             'evidence'=>$this->service->evidence($company->id,$entry),
+            'can_approve'=>$this->service->isManager($company,$request->user()),
         ]);
     }
 
