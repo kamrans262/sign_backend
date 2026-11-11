@@ -218,6 +218,50 @@ class M14ExpenseTrackingTest extends TestCase
     }
 
 
+    public function test_mobile_approval_enforces_company_reviewer_permissions_and_rejects_replay(): void
+    {
+        [$owner,$company,$client,$job] = $this->tenant('Review Permissions');
+        $first = $this->create($job);
+        $this->getJson('/api/v1/expenses/'.$first)->assertOk()
+            ->assertJsonPath('data.can_approve', true);
+        $this->postJson('/api/v1/expenses/'.$first.'/approve',
+            ['confirm'=>true])->assertOk()
+            ->assertJsonPath('data.expense.status','approved');
+        $this->postJson('/api/v1/expenses/'.$first.'/approve',
+            ['confirm'=>true])->assertStatus(409);
+        $this->assertDatabaseHas('job_expense_events', [
+            'job_expense_id'=>$first, 'company_id'=>$company->id,
+            'event_type'=>'approved', 'actor_user_id'=>$owner->id,
+        ]);
+        $second = $this->create($job);
+        $member = User::factory()->create(['is_active'=>true,
+            'email_verified_at'=>now()]);
+        $company->users()->attach($member->id, [
+            'role'=>'member','status'=>'active',
+            'permissions'=>json_encode(['expenses.read']),
+        ]);
+        Sanctum::actingAs($member);
+        $this->getJson('/api/v1/expenses/'.$second)->assertOk()
+            ->assertJsonPath('data.can_approve', false);
+        $this->postJson('/api/v1/expenses/'.$second.'/approve',
+            ['confirm'=>true])->assertForbidden();
+        $company->users()->updateExistingPivot($member->id, [
+            'permissions'=>json_encode(['expenses.read','expenses.write']),
+        ]);
+        $this->getJson('/api/v1/expenses/'.$second)->assertOk()
+            ->assertJsonPath('data.can_approve', true);
+        $this->postJson('/api/v1/expenses/'.$second.'/approve',
+            ['confirm'=>true])->assertOk()
+            ->assertJsonPath('data.expense.status','approved');
+        $this->assertDatabaseHas('job_expenses', [
+            'id'=>$second,'approved_by'=>$member->id,'status'=>'approved',
+        ]);
+        [$other,$otherCompany] = $this->tenant('Foreign Reviewer');
+        $this->getJson('/api/v1/expenses/'.$second)->assertNotFound();
+        $this->postJson('/api/v1/expenses/'.$second.'/approve',
+            ['confirm'=>true])->assertNotFound();
+    }
+
     public function test_other_category_requires_custom_name_and_round_trips_with_history(): void
     {
         [$owner, $company, $client, $job] = $this->tenant('Custom Expense');
