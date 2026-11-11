@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/qa-quotation-stage2.yml'
       - 'app/Services/SignatureWorkflowService.php'
+      - 'app/Services/SignatureCompletionService.php'
+      - 'app/Http/Controllers/Api/SignatureRequestController.php'
+      - 'app/Http/Controllers/Api/PublicSignatureController.php'
       - 'tests/Feature/M8SigningCompletionTest.php'
   workflow_dispatch:
 
