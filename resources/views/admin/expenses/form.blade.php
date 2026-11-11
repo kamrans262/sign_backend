@@ -21,6 +21,25 @@
 @foreach(['material'=>'Material','fuel'=>'Fuel','tools'=>'Tools','parking'=>'Parking','meals'=>'Meals','labour'=>'Labour','other'=>'Other'] as $kind=>$label)
 <option value="{{ $kind }}" @selected(old('category',$record['category']??'material')===$kind)>{{ $label }}</option>@endforeach</select>
 @if(!$draft)<input type="hidden" name="category" value="{{ $record['category'] }}">@endif</label>
+<label id="custom-expense-category" style="display:none">Specify Expense Type
+<input class="input" name="custom_category" maxlength="120" placeholder="Enter expense type"
+ value="{{ old('custom_category',$record['custom_category']??'') }}" @readonly(!$draft)></label>
+<script>
+(function () {
+  const selector = document.querySelector('select[name="category"]');
+  const container = document.getElementById('custom-expense-category');
+  if (!selector || !container) return;
+  const field = container.querySelector('input');
+  function sync() {
+    const other = selector.value === 'other';
+    container.style.display = other ? '' : 'none';
+    field.required = other && !field.readOnly;
+    field.disabled = !other && !field.readOnly;
+  }
+  selector.addEventListener('change', sync);
+  sync();
+})();
+</script>
 <label>Supplier <input class="input" name="supplier" maxlength="255" value="{{ old('supplier',$record['supplier']??'') }}" @readonly(!$draft)></label>
 <label>Date <input class="input" type="date" name="expense_date" required value="{{ old('expense_date',$record['expense_date']??date('Y-m-d')) }}" @readonly(!$draft)></label>
 <label>Amount (CHF) <input class="input" type="text" inputmode="decimal" name="amount" required value="{{ old('amount',$editing?number_format($record['amount_minor']/100,2,'.',''):'') }}" @readonly(!$draft) placeholder="98.00"></label>

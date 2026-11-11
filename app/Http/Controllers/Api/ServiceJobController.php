@@ -291,8 +291,11 @@ class ServiceJobController extends Controller
         $replayed = false;
         $job = DB::transaction(function () use ($request, $company, $data,
             $team, $key, $fingerprint, &$replayed): ServiceJob {
+            // Serialize every job creation for a company, not just retries.
+            // This lock protects both the counter and request-key deduplication.
+            $lockedCompany = Company::query()->whereKey($company->id)
+                ->lockForUpdate()->firstOrFail();
             if ($key !== null) {
-                Company::query()->whereKey($company->id)->lockForUpdate()->firstOrFail();
                 $prior = ServiceJob::query()->where('company_id', $company->id)
                     ->where('request_key', $key)->first();
                 if ($prior !== null) {
@@ -303,18 +306,24 @@ class ServiceJobController extends Controller
                     return $prior;
                 }
             }
+            $nextNumber = max((int) $lockedCompany->job_sequence,
+                (int) ServiceJob::query()->where('company_id', $company->id)->count()) + 1;
+            $letters = preg_replace('/[^A-Za-z]/', '',
+                \Illuminate\Support\Str::ascii((string) $lockedCompany->name));
+            $initial = strtoupper(substr($letters ?: 'X', 0, 1));
+            $reference = sprintf('JOB-%s-%03d', $initial, $nextNumber);
             $job = ServiceJob::create(array_merge($data, [
                 'company_id' => $company->id,
                 'created_by' => $request->user()->id,
                 'updated_by' => $request->user()->id,
-                'reference_number' => 'PENDING-'.bin2hex(random_bytes(8)),
+                'reference_number' => $reference,
                 'category' => 'active',
                 'stage' => 'planning',
                 'progress_percentage' => 0,
                 'request_key' => $key,
                 'request_fingerprint' => $key === null ? null : $fingerprint,
             ]));
-            $job->update(['reference_number' => sprintf('JOB-%08d', $job->id)]);
+            $lockedCompany->update(['job_sequence' => $nextNumber]);
             $job->assignees()->sync($team);
             AuditLogger::record('mobile.job.created', $request->user(), $job, $company,
                 metadata: ['client_id' => $job->client_id], request: $request);

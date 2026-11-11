@@ -19,7 +19,7 @@
 <div class="table-wrap"><table><thead><tr><th>ID</th><th>Job</th><th>Supplier</th><th>Type</th><th>Date</th><th>Amount CHF</th><th>Status</th><th>Action</th></tr></thead><tbody>
 @forelse($result['records'] as $record)
 <tr><td>#{{ $record['id'] }}</td><td>{{ $record['job'] }}<div class="muted">{{ $record['job_reference'] }}</div></td>
-<td>{{ $record['supplier']?:'Not provided' }}</td><td>{{ ucfirst($record['category']) }}</td>
+<td>{{ $record['supplier']?:'Not provided' }}</td><td>{{ ($record['category']==='other' ? ($record['custom_category'] ?: 'Other') : ucfirst($record['category'])) }}</td>
 <td>{{ $record['expense_date'] }}</td><td>{{ number_format($record['amount_minor']/100,2) }}</td>
 <td><span class="pill">{{ ucwords(str_replace('_',' ',$record['status'])) }}</span></td>
 <td><a class="btn btn-small btn-outline" href="{{ route('admin.expenses.edit',$record['id']) }}">Manage</a></td></tr>

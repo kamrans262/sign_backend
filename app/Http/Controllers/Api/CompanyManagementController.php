@@ -126,6 +126,19 @@ class CompanyManagementController extends Controller
         $data = $this->validated($request, true);
         $company = DB::transaction(function () use ($request, $data): Company {
             $user = User::query()->whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            // Bootstrap remains available to users without a company. Once a user
+            // has active memberships, the active company must be owned by them.
+            // An admin/member may not create a separate tenant through this API.
+            $hasMembership = $user->companies()->wherePivot('status', 'active')
+                ->where('companies.status', 'active')->exists();
+            if ($hasMembership) {
+                $active = $user->companies()->wherePivot('status', 'active')
+                    ->where('companies.status', 'active')
+                    ->where('companies.id', $user->active_company_id)->first();
+                abort_unless($active && $active->pivot->role === 'owner'
+                    && (int) $active->owner_user_id === (int) $user->id,
+                    403, 'Only company owners may create another company.');
+            }
             $company = Company::create(array_merge($data, [
                 'owner_user_id' => $user->id,
                 'status' => 'active',

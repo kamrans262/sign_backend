@@ -37,7 +37,9 @@ final class ExpenseService
             'job'=>(string)($r->job_title??''),
             'job_reference'=>(string)($r->job_reference??''),
             'client_name'=>(string)($r->client_name??''),
-            'category'=>$r->category,'supplier'=>$r->supplier,
+            'category'=>$r->category,
+            'custom_category'=>$r->custom_category,
+            'supplier'=>$r->supplier,
             'description'=>$r->description,'expense_date'=>$r->expense_date,
             'amount_minor'=>(int)$r->amount_minor,'currency'=>'CHF',
             'tags'=>json_decode((string)($r->tags??'[]'),true)?:[],
@@ -158,6 +160,7 @@ final class ExpenseService
         $data=$request->validate([
             'job_id'=>['required','integer','min:1'],
             'category'=>['required',Rule::in(self::CATEGORIES)],
+            'custom_category'=>['required_if:category,other','nullable','string','max:120'],
             'supplier'=>['nullable','string','max:255'],
             'description'=>['nullable','string','max:12000'],
             'expense_date'=>['required','date_format:Y-m-d'],
@@ -168,6 +171,16 @@ final class ExpenseService
             'request_key'=>['sometimes','string','min:16','max:100',
                 'regex:/^[A-Za-z0-9_.:-]+$/D'],
         ]);
+        if ($data['category'] === 'other') {
+            $data['custom_category'] = trim((string) ($data['custom_category'] ?? ''));
+            if ($data['custom_category'] === '') {
+                throw ValidationException::withMessages([
+                    'custom_category' => 'Specify the expense type when Other is selected.',
+                ]);
+            }
+        } else {
+            $data['custom_category'] = null;
+        }
         $cents=self::cents($data['amount']);
         $job=ServiceJob::query()->where('company_id',$company->id)
             ->findOrFail((int)$data['job_id']);
@@ -182,6 +195,7 @@ final class ExpenseService
         $row=DB::transaction(function()use($company,$job,$data,$cents,$id,
             $actor,$key,$fingerprint,&$replayed):object {
             $values=['category'=>$data['category'],
+                'custom_category'=>$data['custom_category'],
                 'supplier'=>trim((string)($data['supplier']??''))?:null,
                 'description'=>trim((string)($data['description']??''))?:null,
                 'expense_date'=>$data['expense_date'],
@@ -210,7 +224,10 @@ final class ExpenseService
                     'request_fingerprint'=>$key===null?null:$fingerprint,
                 ]));
                 $row=$this->find($company->id,$new);
-                $this->event($row,'created',$actor);
+                $this->event($row,'created',$actor,[
+                    'category'=>$row->category,
+                    'custom_category'=>$row->custom_category,
+                ]);
                 return $row;
             }
             $current=DB::table('job_expenses')
@@ -226,7 +243,11 @@ final class ExpenseService
             $values['lock_version']=(int)$current->lock_version+1;
             DB::table('job_expenses')->where('id',$id)->update($values);
             $row=$this->find($company->id,$id);
-            $this->event($row,'updated',$actor,['version'=>$row->lock_version]);
+            $this->event($row,'updated',$actor,[
+                'version'=>$row->lock_version,
+                'category'=>$row->category,
+                'custom_category'=>$row->custom_category,
+            ]);
             return $row;
         });
         if(!$replayed)AuditLogger::record(
