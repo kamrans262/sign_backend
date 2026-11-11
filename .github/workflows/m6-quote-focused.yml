@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/m6-ai-quote-creation-2026-11-03
+      - fix/m20-admin-ui-modal-filters-2026-11-06
     paths:
       - '.github/workflows/m6-quote-focused.yml'
       - 'app/Http/Controllers/Api/ServiceQuoteController.php'
