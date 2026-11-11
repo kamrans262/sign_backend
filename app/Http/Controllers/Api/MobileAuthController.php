@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\EmailOtpChallenge;
 use App\Services\EmailOtpService;
+use App\Services\M24TwoFactorService;
 use App\Support\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -128,8 +129,17 @@ class MobileAuthController extends Controller
             ]]);
         }
 
-        // No mobile token is created before successful OTP verification.
+        // An enrolled authenticator must be verified before issuing any bearer.
         $device = trim((string) ($data['device_name'] ?? 'Sign2Digital Mobile'));
+        $mfa = app(M24TwoFactorService::class);
+        if ($purpose === 'login' && $mfa->enabled((int) $user->id)) {
+            $ticket = $mfa->createLoginTicket($user, $device);
+            AuditLogger::record('mobile.auth.2fa_required', $user, $user, request: $request);
+            return response()->json(['data' => [
+                'purpose' => 'login', 'requires_two_factor' => true,
+                'two_factor_ticket' => $ticket, 'expires_in' => 300,
+            ]], 200, ['Cache-Control' => 'private, no-store']);
+        }
         $token = $user->createToken($device, ['*'], now()->addDays(30))->plainTextToken;
         AuditLogger::record('mobile.auth.otp_verified', $user, $user, metadata: ['purpose' => $purpose], request: $request);
         return response()->json(['data' => [
@@ -160,6 +170,7 @@ class MobileAuthController extends Controller
             $user->password = $data['password'];
             $user->save();
             $user->tokens()->delete();
+            DB::table('m24_two_factor_login_challenges')->where('user_id', $user->id)->delete();
             // Resetting a password must also cancel all outstanding OTP
             // challenges issued under the previous credentials.
             EmailOtpChallenge::query()

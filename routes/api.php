@@ -12,6 +12,7 @@ Route::prefix('v1/auth')->middleware('throttle:mobile-auth')->group(function ():
     Route::post('/password/forgot', [\App\Http\Controllers\Api\MobileAuthController::class, 'forgotPassword']);
     Route::post('/otp/resend', [\App\Http\Controllers\Api\MobileAuthController::class, 'resend']);
     Route::post('/otp/verify', [\App\Http\Controllers\Api\MobileAuthController::class, 'verify']);
+    Route::post('/2fa/verify', [\App\Http\Controllers\Api\M24TwoFactorController::class, 'verifyLogin'])->middleware('throttle:8,1');
     Route::post('/password/reset', [\App\Http\Controllers\Api\MobileAuthController::class, 'resetPassword']);
 });
 
@@ -118,6 +119,10 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         // M22: user-owned account settings, security and Help & Support.
         // No company header is trusted for account-wide resources.
         Route::get('/me/security', [\App\Http\Controllers\Api\M22AccountController::class,'security']);
+    Route::post('/me/2fa/setup', [\App\Http\Controllers\Api\M24TwoFactorController::class,'setup'])->middleware('throttle:3,1');
+    Route::post('/me/2fa/confirm', [\App\Http\Controllers\Api\M24TwoFactorController::class,'confirm'])->middleware('throttle:5,1');
+    Route::post('/me/2fa/disable', [\App\Http\Controllers\Api\M24TwoFactorController::class,'disable'])->middleware('throttle:5,1');
+    Route::post('/me/2fa/recovery/regenerate', [\App\Http\Controllers\Api\M24TwoFactorController::class,'regenerate'])->middleware('throttle:3,1');
         Route::get('/me/sessions', [\App\Http\Controllers\Api\M22AccountController::class,'security']);
         Route::post('/me/password/change', [\App\Http\Controllers\Api\M22AccountController::class,'changePassword'])->middleware('throttle:5,1');
         Route::delete('/me/sessions/{session}', [\App\Http\Controllers\Api\M22AccountController::class,'revokeSession'])->whereNumber('session')->middleware('throttle:5,1');

@@ -49,10 +49,9 @@ final class M22AccountController extends Controller
                 'is_current' => $currentId !== null && (int) $token->id === $currentId,
             ])->all();
         return response()->json(['data' => [
-            // Password + email OTP is already mandatory. No separate
-            // configurable authenticator has been enrolled.
-            'two_factor_enabled' => null,
-            'two_factor_available' => false,
+            'two_factor_enabled' => app(\App\Services\M24TwoFactorService::class)
+                ->enabled((int) $user->id),
+            'two_factor_available' => true,
             'sessions' => $sessions,
         ]], 200, ['Cache-Control' => 'private, no-store']);
     }
@@ -308,6 +307,7 @@ final class M22AccountController extends Controller
             $locked->email_verified_at = now();
             $locked->save();
             $locked->tokens()->delete();
+            DB::table('m24_two_factor_login_challenges')->where('user_id',$locked->id)->delete();
             DB::table('m22_email_change_challenges')->where('id',$challenge->id)->update([
                 'consumed_at' => now(), 'updated_at' => now(),
             ]);
@@ -378,6 +378,9 @@ final class M22AccountController extends Controller
             DB::table('m22_support_tickets')->where('user_id', $locked->id)->delete();
             DB::table('m22_user_preferences')->where('user_id', $locked->id)->delete();
             DB::table('m22_email_change_challenges')->where('user_id', $locked->id)->delete();
+            DB::table('m24_two_factor_login_challenges')->where('user_id', $locked->id)->delete();
+            DB::table('m24_two_factor_recovery_codes')->where('user_id', $locked->id)->delete();
+            DB::table('m24_two_factor_credentials')->where('user_id', $locked->id)->delete();
             DB::table('email_otp_challenges')->where('user_id', $locked->id)->delete();
             DB::table('password_reset_tokens')->where('email', $locked->email)->delete();
             DB::table('company_user')->where('user_id', $locked->id)
