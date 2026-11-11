@@ -20,6 +20,24 @@ final class ExpenseController extends Controller
         return $company;
     }
 
+    private function readableCompany(Request $request): Company
+    {
+        $company = $this->company($request);
+        $user = $request->user();
+        $member = $company->users()->where('users.id', $user->id)
+            ->wherePivot('status', 'active')->first();
+        abort_unless($member !== null && ($user->is_platform_admin ||
+            in_array($member->pivot->role, ['owner','admin'], true) ||
+            (function () use ($member): bool {
+                $permissions = json_decode((string) $member->pivot->permissions, true);
+                return is_array($permissions) &&
+                    count(array_intersect($permissions, [
+                        'documents.read','expenses.read','expenses.write',
+                    ])) > 0;
+            })()),403,'Expense read permission denied.');
+        return $company;
+    }
+
     private function json(array $data,int $code=200): JsonResponse
     {
         return response()->json(['data'=>$data],$code,[
@@ -36,12 +54,12 @@ final class ExpenseController extends Controller
             'per_page'=>['nullable','integer','between:1,100'],
             'page'=>['nullable','integer','min:1'],
         ]);
-        return $this->json($this->service->listing($this->company($request)->id,$filters));
+        return $this->json($this->service->listing($this->readableCompany($request)->id,$filters));
     }
 
     public function show(Request $request,int $expense): JsonResponse
     {
-        $company=$this->company($request);
+        $company=$this->readableCompany($request);
         return $this->json([
             'expense'=>$this->service->payload($this->service->find($company->id,$expense)),
             'receipts'=>$this->service->receipts($company->id,$expense),
@@ -76,7 +94,7 @@ final class ExpenseController extends Controller
 
     public function receipt(Request $request,int $expense,int $receipt)
     {
-        $file=$this->service->receiptFile($this->company($request)->id,$expense,$receipt);
+        $file=$this->service->receiptFile($this->readableCompany($request)->id,$expense,$receipt);
         return response($file['bytes'],200,[
             'Content-Type'=>$file['mime'],
             'Content-Disposition'=>'attachment; filename="receipt-'.$receipt.
@@ -103,6 +121,6 @@ final class ExpenseController extends Controller
 
     public function totals(Request $request,int $job): JsonResponse
     {
-        return $this->json($this->service->totals($this->company($request)->id,$job));
+        return $this->json($this->service->totals($this->readableCompany($request)->id,$job));
     }
 }
