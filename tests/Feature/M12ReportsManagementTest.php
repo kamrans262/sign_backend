@@ -18,6 +18,18 @@ class M12ReportsManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function saveRenderedPdfFixture(string $filename,string $bytes): void
+    {
+        if(getenv('M22_RENDER_PDFS')!=='1')return;
+        $folder=storage_path('app/m22-render');
+        if(!is_dir($folder) && !mkdir($folder,0770,true) && !is_dir($folder)) {
+            throw new \RuntimeException('Could not create M22 render folder.');
+        }
+        if(file_put_contents($folder.'/'.$filename,$bytes)===false) {
+            throw new \RuntimeException('Could not save M22 PDF fixture.');
+        }
+    }
+
     private function tenant(string $name): array
     {
         $user=User::factory()->create(['is_active'=>true,'email_verified_at'=>now()]);
@@ -80,8 +92,9 @@ class M12ReportsManagementTest extends TestCase
             'company_id'=>$company->id,'source_type'=>'report',
             'source_id'=>$id,'issue_event'=>'first_creation',
         ]);
-        $this->get('/api/v1/reports/'.$id.'/pdf')->assertOk()
-            ->assertHeader('Content-Type','application/pdf');
+        $sitePdf=$this->get('/api/v1/reports/'.$id.'/pdf')->assertOk()
+            ->assertHeader('Content-Type','application/pdf')->getContent();
+        $this->saveRenderedPdfFixture('m22-site-report.pdf',$sitePdf);
         $this->get('/api/v1/documents/managed-'.$document.'/pdf')->assertOk();
         $this->patchJson('/api/v1/reports/'.$id,[
             'revision'=>2,
@@ -262,6 +275,9 @@ class M12ReportsManagementTest extends TestCase
         $this->postJson('/api/v1/reports/'.$id.'/approve',[
             'confirm'=>true,'revision'=>1,
         ])->assertOk();
+        $minutesPdf=$this->get('/api/v1/reports/'.$id.'/pdf')
+            ->assertOk()->getContent();
+        $this->saveRenderedPdfFixture('m22-meeting-minutes.pdf',$minutesPdf);
         $this->postJson('/api/v1/reports/'.$id.'/send',['confirm'=>true])
             ->assertOk()->assertJsonPath('data.report.status','sent');
         $this->getJson('/api/v1/reports/'.$id)->assertJsonPath(
