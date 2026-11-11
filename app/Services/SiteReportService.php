@@ -242,6 +242,8 @@ final class SiteReportService
                     'created_by'=>$actor,'number'=>'TEMP-'.Str::uuid(),'kind'=>$data['kind'],
                     'revision'=>1,'status'=>'draft','created_at'=>now(),'updated_at'=>now(),
                 ]));
+                app(M23BillingService::class)->recordCreate(
+                    (int)$company->id,'report',$newId,$actor);
                 DB::table('site_reports')->where('id',$newId)->update([
                     'number'=>($data['kind']==='meeting_minutes'?'MM-':'SR-').str_pad((string)$newId,8,'0',STR_PAD_LEFT),
                 ]);

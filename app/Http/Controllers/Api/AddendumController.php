@@ -126,6 +126,8 @@ final class AddendumController extends Controller
                 'created_by'=>$request->user()->id,
                 'updated_by'=>$request->user()->id,
             ]));
+            app(\App\Services\M23BillingService::class)->recordCreate(
+                (int)$company->id,'addendum',(int)$item->id,$request->user()->id);
             $this->service->revision($item,$request->user()->id);
             $this->service->event($item,'created',$request->user()->id);
             AuditLogger::record('mobile.addendum.created',$request->user(),$item,

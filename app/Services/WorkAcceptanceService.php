@@ -169,6 +169,8 @@ final class WorkAcceptanceService
                     'status'=>'draft','revision'=>1,
                     'created_at'=>now(),'updated_at'=>now(),
                 ]);
+                app(M23BillingService::class)->recordCreate(
+                    (int)$company->id,'work_acceptance',$id,$actor);
                 DB::table('work_acceptances')->where('id',$id)->update([
                     'number'=>'WA-'.str_pad((string)$id,8,'0',STR_PAD_LEFT),
                 ]);

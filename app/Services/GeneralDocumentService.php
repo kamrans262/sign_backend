@@ -260,6 +260,8 @@ final class GeneralDocumentService
                     'request_key'=>$v['request_key']??null,
                     'request_fingerprint'=>$fingerprint,'created_at'=>$now,'updated_at'=>$now,
                 ]);
+                app(M23BillingService::class)->recordCreate(
+                    (int)$company->id,'general_document',$created,$actor);
                 $revision=1;
             }else{
                 $row=DB::table('general_documents')->where('company_id',$company->id)

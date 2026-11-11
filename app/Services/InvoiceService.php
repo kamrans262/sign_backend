@@ -413,6 +413,8 @@ final class InvoiceService
                     'revision'=>1,'request_key'=>$key,'request_fingerprint'=>$fp,
                     'created_at'=>now(),'created_by'=>$actor,
                 ]));
+                app(M23BillingService::class)->recordCreate(
+                    (int)$company->id,'invoice',$created,$actor);
             }else{
                 $old=DB::table('service_invoices')
                     ->where('company_id',$company->id)->where('id',$id)

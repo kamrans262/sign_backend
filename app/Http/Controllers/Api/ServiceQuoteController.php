@@ -220,6 +220,8 @@ class ServiceQuoteController extends Controller
                     'reference_number'=>'PENDING-'.bin2hex(random_bytes(8)),
                     'status'=>'draft','revision'=>1,
                 ]));
+                app(\App\Services\M23BillingService::class)->recordCreate(
+                    (int)$company->id,'quote',(int)$quote->id,$request->user()->id);
                 $quote->update(['reference_number'=>sprintf('Q-%d-%06d', now()->year, $quote->id)]);
             } else {
                 // Lock and compare the latest revision inside this transaction;

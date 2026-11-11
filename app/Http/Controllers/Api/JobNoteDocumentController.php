@@ -146,12 +146,17 @@ final class JobNoteDocumentController extends Controller
         if ($title === '' || $content === '' || mb_strlen($title) > 255 || mb_strlen($content) > 20000) {
             abort(502, 'Document AI returned an invalid draft.');
         }
-        $id = DB::table('job_note_documents')->insertGetId([
-            'company_id' => $company->id, 'service_job_id' => $target->id, 'job_note_id' => $source->id,
-            'created_by' => $request->user()->id, 'document_type' => $validated['document_type'],
-            'title' => $title, 'content' => $content, 'status' => 'draft',
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
+        $id = DB::transaction(function () use ($request,$company,$target,$source,$validated,$title,$content): int {
+            $id = DB::table('job_note_documents')->insertGetId([
+                'company_id' => $company->id, 'service_job_id' => $target->id, 'job_note_id' => $source->id,
+                'created_by' => $request->user()->id, 'document_type' => $validated['document_type'],
+                'title' => $title, 'content' => $content, 'status' => 'draft',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            app(\App\Services\M23BillingService::class)->recordCreate(
+                (int)$company->id,'note_document',$id,$request->user()->id);
+            return $id;
+        });
         AuditLogger::record('mobile.job_note_document.prepared', $request->user(), null, $company,
             ['job_id' => $target->id, 'note_id' => $source->id, 'draft_id' => $id], $request);
         return $this->respond(['document' => $this->summary($this->draft($company->id, $job, $note, $id))], 201);
