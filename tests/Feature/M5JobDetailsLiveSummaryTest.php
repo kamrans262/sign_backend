@@ -101,6 +101,13 @@ final class M5JobDetailsLiveSummaryTest extends TestCase
             'category' => 'before', 'caption' => 'Before work',
         ], ['Accept' => 'application/json'])->assertCreated();
         $this->assertDatabaseCount('job_photos', 1);
+        DB::table('job_notes')->insert([
+            'company_id' => $company->id, 'service_job_id' => $job,
+            'title' => 'Tenant-private job note',
+            'body' => 'Verified private site observation.',
+            'note_type' => 'text', 'visibility' => 'private',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
 
         $this->getJson('/api/v1/jobs/'.$job)->assertOk()
             ->assertJsonPath('data.section_counts.quotes', 1)
@@ -108,12 +115,24 @@ final class M5JobDetailsLiveSummaryTest extends TestCase
             ->assertJsonPath('data.section_counts.purchases', 1)
             ->assertJsonPath('data.section_counts.deposits', 1)
             ->assertJsonPath('data.section_counts.invoices', 1)
+            ->assertJsonPath('data.sections.purchases.0.amount_minor', 10000)
+            ->assertJsonPath('data.sections.deposits.0.amount_minor', 35000)
+            ->assertJsonPath('data.sections.invoices.0.invoice_number', 'INV-JOB-ONE')
+            ->assertJsonPath('data.sections.notes.0.note_type', 'text')
+            ->assertJsonMissing(['body' => 'Verified private site observation.'])
             ->assertJsonPath('data.financials_minor.quote_amount_minor', 125000)
             ->assertJsonPath('data.financials_minor.expenses_minor', 10000)
             ->assertJsonPath('data.financials_minor.deposits_minor', 35000)
             ->assertJsonPath('data.financials_minor.invoiced_minor', 90000)
             ->assertJsonPath('data.financials_minor.received_minor', 75000)
             ->assertJsonPath('data.financials_minor.remaining_balance_minor', 15000);
+
+        $this->getJson('/api/v1/clients/'.$client->id)->assertOk()
+            ->assertJsonPath('data.invoices.0.number', 'INV-JOB-ONE')
+            ->assertJsonPath('data.quotes.0.reference_number', 'Q-JOB-DETAIL-ONE')
+            ->assertJsonPath('data.notes_history.0.title', 'Tenant-private job note')
+            ->assertJsonPath('data.notes_history.0.description', 'Verified private site observation.')
+            ->assertJsonCount(1, 'data.jobs');
     }
 
     public function test_live_job_details_are_tenant_scoped(): void
