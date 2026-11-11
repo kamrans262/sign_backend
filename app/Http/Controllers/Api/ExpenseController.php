@@ -46,6 +46,7 @@ final class ExpenseController extends Controller
             'expense'=>$this->service->payload($this->service->find($company->id,$expense)),
             'receipts'=>$this->service->receipts($company->id,$expense),
             'history'=>$this->service->history($company->id,$expense),
+            'can_approve'=>$this->service->canApprove($company, $request->user()),
         ]);
     }
 
@@ -84,6 +85,13 @@ final class ExpenseController extends Controller
             'Cache-Control'=>'private, no-store, max-age=0',
             'X-Content-Type-Options'=>'nosniff',
         ]);
+    }
+
+    public function approve(Request $request,int $expense): JsonResponse
+    {
+        $request->validate(['confirm'=>['required','accepted']]);
+        return $this->json(['expense'=>$this->service->changeStatus(
+            $request,$this->company($request),$expense,'approve')]);
     }
 
     public function requestReimbursement(Request $request,int $expense): JsonResponse
