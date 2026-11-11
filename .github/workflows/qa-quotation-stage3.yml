@@ -1,0 +1,94 @@
+name: Stage 3 Quotation Backend Release Readiness
+
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-quotation-stage3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign2digital-quotation-stage3-backend
+  cancel-in-progress: true
+
+jobs:
+  quote-sign-document-sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, pdo_mysql, mbstring, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Syntax, routes and immutable PDF checks
+        run: |
+          for file in app/Http/Controllers/Api/SignatureRequestController.php app/Http/Controllers/Api/PublicSignatureController.php app/Services/SignatureCompletionService.php app/Services/SignatureWorkflowService.php app/Models/SignatureRequest.php database/migrations/2026_11_12_010000_add_remote_business_signature_evidence.php; do php -l "$file" || exit 1; done
+          php artisan view:cache
+          php artisan route:list --path=api/v1/signature-requests
+          php artisan route:list --path=api/v1/documents
+      - name: M5-M11 quotation, signatures, documents and addenda
+        run: php artisan test --filter='M(5ServiceJobManagement|6ServiceQuoteManagement|6Stage2SecurityAndRelease|7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion|8BrowserAcceptance|9DocumentManagement|9DocumentReleaseSecurity|10AddendaManagement|11JobMedia|11QuoteLayoutParity)Test'
+
+  mysql-regression-and-migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-only
+          MYSQL_DATABASE: sign2digital_quotation_stage3
+          MYSQL_USER: sign_ci
+          MYSQL_PASSWORD: sign-ci-only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s
+          --health-timeout=4s
+          --health-retries=25
+    env:
+      DB_CONNECTION: mysql
+      DB_URL: ''
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sign2digital_quotation_stage3
+      DB_USERNAME: sign_ci
+      DB_PASSWORD: sign-ci-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, pdo_mysql, mbstring, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Prove additive issuer-signature migration on isolated MySQL
+        run: |
+          php artisan migrate --force
+          php artisan migrate:status | grep '2026_11_12_010000_add_remote_business_signature_evidence'
+          php artisan migrate --force --path=database/migrations/2026_11_12_010000_add_remote_business_signature_evidence.php
+      - name: M6-M9 MySQL authoritative PDF, signing, document history
+        run: php artisan test --filter='M(6ServiceQuoteManagement|7QuoteApproval|8SignatureRequestFoundation|8SigningCompletion|8BrowserAcceptance|9DocumentManagement|9DocumentReleaseSecurity)Test'
+
+  adjacent-modules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, mbstring, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Deposits, invoices, expenses, work acceptance and financial regressions
+        run: php artisan test --filter='M(13WorkAcceptance|14ExpenseTracking|15LabourTracking|16DepositManagement|17InvoiceManagement|17InvoiceIssuance|18GeneralDocument|19EquipmentLoan)Test'
