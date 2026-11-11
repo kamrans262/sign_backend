@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 final class PublicSignatureController extends Controller
 {
@@ -105,10 +106,21 @@ final class PublicSignatureController extends Controller
         // Reuse the exact M6/M7 mobile-like approved customer quote styling.
         // Until the trusted signed-PDF compositor is integrated, never present
         // this read-only view as a completed electronic-signing workflow.
+        $businessSignatureDataUrl = null;
+        if ($item->business_signature_path !== null) {
+            $png = Storage::disk('local')->get($item->business_signature_path);
+            if (!is_string($png) ||
+                !hash_equals((string) $item->business_signature_sha256, hash('sha256', $png))) {
+                abort(503, 'Issuer signature integrity validation failed.');
+            }
+            \App\Services\SignedPdfService::validatePng($png);
+            $businessSignatureDataUrl = 'data:image/png;base64,'.base64_encode($png);
+        }
         return response()->view('public.quote', [
             'quote' => $item->quote->loadMissing('company'),
             'signing' => $item,
             'signingToken' => $token,
+            'businessSignatureDataUrl' => $businessSignatureDataUrl,
         ], 200, [
             'Cache-Control'=>'private, no-store, max-age=0',
             'X-Robots-Tag'=>'noindex, nofollow',
