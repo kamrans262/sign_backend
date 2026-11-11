@@ -13,6 +13,7 @@ class ServiceJob extends Model
         'reference_number', 'title', 'description', 'address',
         'start_date', 'due_date', 'budget_chf', 'progress_percentage',
         'stage', 'category', 'completed_at', 'archived_at',
+        'request_key', 'request_fingerprint',
     ];
 
     protected function casts(): array

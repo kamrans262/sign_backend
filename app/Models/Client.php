@@ -13,7 +13,7 @@ class Client extends Model
     protected $fillable = [
         'company_id', 'full_name', 'company_name', 'address',
         'country_iso_code', 'dialing_code', 'phone_number',
-        'email', 'notes', 'source',
+        'email', 'notes', 'source', 'request_key', 'request_fingerprint',
     ];
 
     public function serviceQuotes(): \Illuminate\Database\Eloquent\Relations\HasMany
