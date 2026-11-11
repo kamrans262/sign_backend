@@ -224,9 +224,31 @@ class ServiceJobController extends Controller
     {
         $company = $this->company($request);
         $data = $this->fields($request);
+        $validatedKey = $request->validate([
+            'request_key' => ['sometimes', 'string', 'min:16', 'max:100',
+                'regex:/^[A-Za-z0-9_.:-]+$/D'],
+        ]);
+        $key = $validatedKey['request_key'] ?? null;
+        $fingerprintData = $data;
+        ksort($fingerprintData);
+        $fingerprint = hash('sha256', json_encode($fingerprintData, JSON_THROW_ON_ERROR));
         $team = $data['team_member_ids'] ?? [];
         unset($data['team_member_ids']);
-        $job = DB::transaction(function () use ($request, $company, $data, $team): ServiceJob {
+        $replayed = false;
+        $job = DB::transaction(function () use ($request, $company, $data,
+            $team, $key, $fingerprint, &$replayed): ServiceJob {
+            if ($key !== null) {
+                Company::query()->whereKey($company->id)->lockForUpdate()->firstOrFail();
+                $prior = ServiceJob::query()->where('company_id', $company->id)
+                    ->where('request_key', $key)->first();
+                if ($prior !== null) {
+                    abort_unless($prior->category !== 'archived' &&
+                        hash_equals((string) $prior->request_fingerprint, $fingerprint),
+                        409, 'Job creation request key was already used.');
+                    $replayed = true;
+                    return $prior;
+                }
+            }
             $job = ServiceJob::create(array_merge($data, [
                 'company_id' => $company->id,
                 'created_by' => $request->user()->id,
@@ -234,18 +256,19 @@ class ServiceJobController extends Controller
                 'reference_number' => 'PENDING-'.bin2hex(random_bytes(8)),
                 'category' => 'active',
                 'stage' => 'planning',
-                // New jobs always begin at 0, regardless of caller fields.
                 'progress_percentage' => 0,
+                'request_key' => $key,
+                'request_fingerprint' => $key === null ? null : $fingerprint,
             ]));
             $job->update(['reference_number' => sprintf('JOB-%08d', $job->id)]);
             $job->assignees()->sync($team);
             AuditLogger::record('mobile.job.created', $request->user(), $job, $company,
                 metadata: ['client_id' => $job->client_id], request: $request);
             return $job;
-        });
+        }, 3);
         return response()->json(['data' => ['job' => $this->payload(
             $job->load(['client', 'assignees:id,name'])
-        )]], 201);
+        )]], $replayed ? 200 : 201);
     }
 
     public function update(Request $request, int $job): JsonResponse
