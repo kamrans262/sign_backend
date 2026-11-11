@@ -165,13 +165,13 @@ final class M23SubscriptionStage1Test extends TestCase
         $owner=$this->actor();
         $company=$this->company($owner);
         $billing=app(M23BillingService::class);
-        foreach (['addendum','work_acceptance','note_document'] as $type) {
+        foreach (['addendum','work_acceptance','note_document','managed_upload'] as $type) {
             $billing->recordIssue($company->id,$type,101,$owner->id);
             $billing->recordIssue($company->id,$type,101,$owner->id);
         }
-        $this->assertDatabaseCount('m23_document_usage',3);
+        $this->assertDatabaseCount('m23_document_usage',4);
         $this->getJson('/api/v1/billing/usage')->assertOk()
-            ->assertJsonPath('data.allowance.used',3)
+            ->assertJsonPath('data.allowance.used',4)
             ->assertJsonPath('data.allowance.remaining',0);
         $this->getJson('/api/v1/billing/eligibility')->assertOk()
             ->assertJsonPath('data.enforcement_enabled',false)

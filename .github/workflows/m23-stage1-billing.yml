@@ -36,7 +36,7 @@ jobs:
         run: php artisan test tests/Feature/M23SubscriptionStage1Test.php
       - name: Existing document issue and security regressions
         run: |
-          php artisan test tests/Feature/M7QuoteApprovalTest.php tests/Feature/M12ReportsManagementTest.php tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php tests/Feature/M22ProfileSecuritySupportTest.php
+          php artisan test tests/Feature/M7QuoteApprovalTest.php tests/Feature/M9DocumentManagementTest.php tests/Feature/M12ReportsManagementTest.php tests/Feature/M17InvoiceIssuanceTest.php tests/Feature/M18GeneralDocumentIssueTest.php tests/Feature/M22ProfileSecuritySupportTest.php
 
   mysql-billing:
     runs-on: ubuntu-latest

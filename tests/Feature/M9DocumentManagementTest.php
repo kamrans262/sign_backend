@@ -74,6 +74,11 @@ class M9DocumentManagementTest extends TestCase
         Storage::fake('local');
         $this->tenant();
         $id=$this->create();
+        $numericId=(int)substr($id,strlen('managed-'));
+        $this->assertDatabaseHas('m23_document_usage',[
+            'source_type'=>'managed_upload','source_id'=>$numericId,
+            'issue_event'=>'first_creation',
+        ]);
         $old=DB::table('managed_document_versions')->first();
         $this->post('/api/v1/documents/'.$id.'/versions',[
             'file'=>$this->upload(self::PDF_B),
@@ -91,6 +96,8 @@ class M9DocumentManagementTest extends TestCase
             ->assertOk()->assertJsonCount(1,'data.attachments');
         $this->get('/api/v1/documents/'.$id.'/pdf')->assertOk()
             ->assertContent(self::PDF_B);
+        // Versions and attachments must not consume another free creation.
+        $this->assertDatabaseCount('m23_document_usage',1);
     }
 
     public function test_modified_private_pdf_is_rejected(): void
