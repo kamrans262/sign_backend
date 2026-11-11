@@ -1,0 +1,31 @@
+name: M12 Site Report Existing API QA
+
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-m12-site-report-issue21.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  site-report-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Report validation, private PDF, approvals and routes
+        run: |
+          php -l app/Http/Controllers/Api/SiteReportController.php
+          php -l app/Services/SiteReportService.php
+          php artisan route:list --path=api/v1/reports
+          php artisan test --filter='M(9DocumentManagement|12ReportsManagement)Test'
