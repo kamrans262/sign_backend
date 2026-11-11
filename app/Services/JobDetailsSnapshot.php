@@ -28,18 +28,22 @@ final class JobDetailsSnapshot
                 ->whereIn('status', ['approved', 'sent'])
                 ->where('currency', 'CHF')->sum('total_minor')
             : null;
-        $expenseMinor = (int) $query('job_expenses')
-            ->whereIn('status', ['approved', 'reimbursed'])
-            ->where('currency', 'CHF')->sum('amount_minor');
+        $expenseMinor = $canReadDocuments
+            ? (int) $query('job_expenses')
+                ->whereIn('status', ['approved', 'reimbursed'])
+                ->where('currency', 'CHF')->sum('amount_minor')
+            : null;
 
         $approvedLabour = $query('job_labour_entries')
             ->where('status', 'approved')->where('currency', 'CHF');
         $labourMinor = (clone $approvedLabour)->whereNull('cost_minor')->exists()
             ? null : (int) $approvedLabour->sum('cost_minor');
 
-        $depositMinor = (int) $query('job_deposits')
-            ->where('status', 'received')->where('currency', 'CHF')
-            ->sum('amount_minor');
+        $depositMinor = $canReadDocuments
+            ? (int) $query('job_deposits')
+                ->where('status', 'received')->where('currency', 'CHF')
+                ->sum('amount_minor')
+            : null;
 
         // M17 invoice amounts exclude drafts and voids. Payment rows have
         // their own status and cannot be inferred from a sent invoice.
@@ -60,7 +64,7 @@ final class JobDetailsSnapshot
                 ->whereIn('invoices.status', ['approved', 'sent', 'issued'])
                 ->sum('payments.amount_minor')
             : null;
-        $receivedMinor = $paymentMinor === null
+        $receivedMinor = $paymentMinor === null || $depositMinor === null
             ? null : $depositMinor + $paymentMinor;
         $remainingMinor = $invoiceMinor === null || $receivedMinor === null
             ? null : max(0, $invoiceMinor - $receivedMinor);
@@ -92,11 +96,13 @@ final class JobDetailsSnapshot
                 : null,
             'photos' => $query('job_photos')->whereNull('archived_at')->count(),
             'notes' => $query('job_notes')->whereNull('archived_at')->count(),
-            'purchases' => $query('job_expenses')->count(),
+            'purchases' => $canReadDocuments
+                ? $query('job_expenses')->count() : null,
             'time' => $query('job_labour_entries')
                 ->whereNull('voided_at')->count(),
-            'deposits' => $query('job_deposits')
-                ->where('status', '!=', 'void')->count(),
+            'deposits' => $canReadDocuments
+                ? $query('job_deposits')->where('status', '!=', 'void')->count()
+                : null,
             'site_reports' => $canReadDocuments
                 ? $query('site_reports')->count() : null,
             'acceptance' => $canReadDocuments
