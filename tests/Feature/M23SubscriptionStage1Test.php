@@ -160,6 +160,24 @@ final class M23SubscriptionStage1Test extends TestCase
         ]);
     }
 
+    public function test_addenda_acceptances_and_note_conversions_count_once(): void
+    {
+        $owner=$this->actor();
+        $company=$this->company($owner);
+        $billing=app(M23BillingService::class);
+        foreach (['addendum','work_acceptance','note_document'] as $type) {
+            $billing->recordIssue($company->id,$type,101,$owner->id);
+            $billing->recordIssue($company->id,$type,101,$owner->id);
+        }
+        $this->assertDatabaseCount('m23_document_usage',3);
+        $this->getJson('/api/v1/billing/usage')->assertOk()
+            ->assertJsonPath('data.allowance.used',3)
+            ->assertJsonPath('data.allowance.remaining',0);
+        $this->getJson('/api/v1/billing/eligibility')->assertOk()
+            ->assertJsonPath('data.enforcement_enabled',false)
+            ->assertJsonPath('data.eligible',true);
+    }
+
     public function test_admin_plan_publication_and_no_unverified_paid_access(): void
     {
         $owner=$this->actor();
