@@ -204,8 +204,9 @@ final class M24TwoFactorService
     public function disable(User $user, string $password, string $code, Request $request): array
     {
         $this->password($user, $password);
-        return DB::transaction(function () use ($user, $code, $request): array {
-            User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($user, $password, $code, $request): array {
+            $locked = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $this->password($locked, $password);
             $row = DB::table('m24_two_factor_credentials')
                 ->where('user_id', $user->id)->lockForUpdate()->first();
             if (!$row || !$this->consumeProof($user, $code, $row)) {
@@ -222,8 +223,9 @@ final class M24TwoFactorService
     public function regenerate(User $user, string $password, string $code, Request $request): array
     {
         $this->password($user, $password);
-        return DB::transaction(function () use ($user, $code, $request): array {
-            User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($user, $password, $code, $request): array {
+            $locked = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $this->password($locked, $password);
             $row = DB::table('m24_two_factor_credentials')
                 ->where('user_id', $user->id)->lockForUpdate()->first();
             if (!$row || !$this->consumeProof($user, $code, $row)) {
