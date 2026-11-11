@@ -323,7 +323,7 @@ class ServiceJobController extends Controller
                 'request_key' => $key,
                 'request_fingerprint' => $key === null ? null : $fingerprint,
             ]));
-            $lockedCompany->update(['job_sequence' => $nextNumber]);
+            $lockedCompany->forceFill(['job_sequence' => $nextNumber])->save();
             $job->assignees()->sync($team);
             AuditLogger::record('mobile.job.created', $request->user(), $job, $company,
                 metadata: ['client_id' => $job->client_id], request: $request);
