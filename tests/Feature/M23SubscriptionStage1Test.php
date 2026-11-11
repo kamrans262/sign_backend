@@ -245,6 +245,56 @@ final class M23SubscriptionStage1Test extends TestCase
             ->assertJsonPath('data.status','free');
     }
 
+    public function test_each_account_gets_three_free_creations_and_approval_does_not_count_twice(): void
+    {
+        $owner=$this->actor();
+        $company=$this->company($owner);
+        $member=User::factory()->create([
+            'is_active'=>true,'email_verified_at'=>now(),
+        ]);
+        $company->users()->attach($member->id,[
+            'role'=>'member','status'=>'active',
+            'permissions'=>json_encode(['documents.write','documents.read']),
+        ]);
+        $billing=app(M23BillingService::class);
+        foreach(range(1,3) as $n){
+            $billing->recordCreate($company->id,'general_document',$n,$owner->id);
+        }
+        // An approval and PDF retry must not consume an extra free creation.
+        $billing->recordIssue($company->id,'general_document',1,$member->id);
+        $this->assertSame(3,$billing->allowance($company->id,$owner->id)['used']);
+        $this->assertSame(0,$billing->allowance($company->id,$member->id)['used']);
+        $this->assertDatabaseCount('m23_document_usage',3);
+
+        $this->withHeader('X-Company-Id',(string)$company->id);
+        $this->getJson('/api/v1/billing/overview')
+            ->assertJsonPath('data.allowance.scope','account')
+            ->assertJsonPath('data.allowance.remaining',0);
+
+        // Enforcement starts only in this isolated test, not in production.
+        DB::table('m23_billing_settings')->where('id',1)
+            ->update(['enforcement_enabled'=>true]);
+        try {
+            $billing->recordCreate($company->id,'invoice',10,$owner->id);
+            $this->fail('Owner fourth creation must be refused.');
+        } catch(HttpResponseException $e) {
+            $this->assertSame(402,$e->getResponse()->getStatusCode());
+        }
+        foreach(range(1,3) as $n){
+            $billing->recordCreate($company->id,'report',100+$n,$member->id);
+        }
+        $this->assertSame(3,$billing->allowance($company->id,$member->id)['used']);
+        $this->assertSame(3,$billing->allowance($company->id,$owner->id)['used']);
+        Sanctum::actingAs($member);
+        $this->getJson('/api/v1/billing/overview')
+            ->assertJsonPath('data.allowance.used',3)
+            ->assertJsonPath('data.allowance.remaining',0);
+        $this->assertDatabaseCount('m23_document_usage',6);
+        $this->assertDatabaseMissing('m23_document_usage',[
+            'company_id'=>$company->id,'source_type'=>'invoice','source_id'=>10,
+        ]);
+    }
+
     public function test_configured_paid_document_quota_uses_current_verified_period_and_rejects_overage(): void
     {
         $owner=$this->actor();
@@ -268,6 +318,7 @@ final class M23SubscriptionStage1Test extends TestCase
         DB::table('m23_document_usage')->insert([
             'company_id'=>$company->id,'source_type'=>'quote','source_id'=>901,
             'issue_event'=>'first_issuance','actor_user_id'=>$owner->id,
+            'quota_account_user_id'=>$owner->id,
             'issued_at'=>now()->subMonths(2),
             'created_at'=>now(),'updated_at'=>now(),
         ]);

@@ -78,7 +78,7 @@ class M12ReportsManagementTest extends TestCase
         // Only successful, durable report approval consumes a document.
         $this->assertDatabaseHas('m23_document_usage',[
             'company_id'=>$company->id,'source_type'=>'report',
-            'source_id'=>$id,'issue_event'=>'first_issuance',
+            'source_id'=>$id,'issue_event'=>'first_creation',
         ]);
         $this->get('/api/v1/reports/'.$id.'/pdf')->assertOk()
             ->assertHeader('Content-Type','application/pdf');
