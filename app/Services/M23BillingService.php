@@ -66,15 +66,31 @@ final class M23BillingService
                 || now()->lessThan($subscription->trial_ends_at));
     }
 
-    public function used(int $companyId): int
+    /**
+     * Free entitlements belong to the registering account, not to a shared
+     * company. A paid subscription remains company-wide. The actor is always
+     * derived from the authenticated request, never client input.
+     */
+    private function accountUserId(int $companyId,?int $actorId): int
     {
-        return DB::table('m23_document_usage')->where('company_id',$companyId)->count();
+        $owner=DB::table('companies')->where('id',$companyId)
+            ->value('owner_user_id');
+        if($owner===null)abort(404,'Company not found.');
+        return $actorId??(int)$owner;
     }
 
-    public function allowance(int $companyId): array
+    public function used(int $companyId,?int $actorId=null): int
     {
+        $account=$this->accountUserId($companyId,$actorId);
+        return DB::table('m23_document_usage')->where('company_id',$companyId)
+            ->where('quota_account_user_id',$account)->count();
+    }
+
+    public function allowance(int $companyId,?int $actorId=null): array
+    {
+        $account=$this->accountUserId($companyId,$actorId);
         $settings=$this->settings();
-        $used=$this->used($companyId);
+        $used=$this->used($companyId,$account);
         $subscription=$this->subscription($companyId);
         $grant=$this->grant($companyId);
         $verified=$this->hasVerifiedPlan($subscription);
@@ -103,6 +119,7 @@ final class M23BillingService
         $withinQuota=$verified ? $paidEligible : ($used<$limit);
         $eligible=!(bool)$settings->enforcement_enabled || $hasGrant || $withinQuota;
         return [
+            'scope'=>'account',
             'limit'=>$limit,
             'used'=>$used,
             'remaining'=>max(0,$limit-$used),
@@ -120,41 +137,53 @@ final class M23BillingService
         ];
     }
 
-    public function eligibility(Company $company): array
+    public function eligibility(Company $company,?int $actorId=null): array
     {
-        return $this->allowance((int)$company->id);
+        return $this->allowance((int)$company->id,$actorId);
+    }
+
+    /** Debit a new document at first saved draft, never on every edit. */
+    public function recordCreate(int $companyId,string $type,int $sourceId,?int $actorId): void
+    {
+        $this->recordDocument($companyId,$type,$sourceId,$actorId,'first_creation');
     }
 
     /**
-     * Invoke only inside the same DB transaction as a REAL first issuance.
-     * The company lock serializes writers across document types. One source
-     * document is charged at most once, even across revision/PDF retries.
+     * Backwards-compatible issuance safety net for legacy drafts created
+     * before the creation ledger existed. Never charge an already-created
+     * source again when it is approved, signed, shared or reissued.
      */
     public function recordIssue(int $companyId,string $type,int $sourceId,?int $actorId): void
+    {
+        $this->recordDocument($companyId,$type,$sourceId,$actorId,'first_issuance');
+    }
+
+    private function recordDocument(int $companyId,string $type,int $sourceId,
+        ?int $actorId,string $event): void
     {
         if(!in_array($type,self::ISSUE_TYPES,true) || $sourceId<1){
             throw ValidationException::withMessages(['document'=>'Invalid document usage source.']);
         }
-        // The enclosing issuance transaction is mandatory; nested transactions
-        // are supported. Without an outer transaction records are still atomic.
-        DB::transaction(function() use($companyId,$type,$sourceId,$actorId):void {
+        DB::transaction(function() use($companyId,$type,$sourceId,$actorId,$event):void {
             DB::table('companies')->where('id',$companyId)->lockForUpdate()->firstOrFail();
             $exists=DB::table('m23_document_usage')
                 ->where('company_id',$companyId)->where('source_type',$type)
-                ->where('source_id',$sourceId)->where('issue_event','first_issuance')->exists();
+                ->where('source_id',$sourceId)->exists();
             if($exists)return;
-            $policy=$this->allowance($companyId);
+            $account=$this->accountUserId($companyId,$actorId);
+            $policy=$this->allowance($companyId,$account);
             if($policy['subscription_required']){
                 throw new HttpResponseException(response()->json([
-                    'message'=>'Subscription required to issue another document.',
+                    'message'=>'Subscription required to create another document.',
                     'code'=>'subscription_required',
                     'data'=>['allowance'=>$policy],
                 ],402,['Cache-Control'=>'private, no-store']));
             }
             DB::table('m23_document_usage')->insert([
                 'company_id'=>$companyId,'source_type'=>$type,
-                'source_id'=>$sourceId,'issue_event'=>'first_issuance',
+                'source_id'=>$sourceId,'issue_event'=>$event,
                 'actor_user_id'=>$actorId,
+                'quota_account_user_id'=>$account,
                 'issued_at'=>now(),'created_at'=>now(),'updated_at'=>now(),
             ]);
         },3);
@@ -204,10 +233,10 @@ final class M23BillingService
         ];
     }
 
-    public function overview(Company $company): array
+    public function overview(Company $company,?int $actorId=null): array
     {
         $companyId=(int)$company->id;
-        $policy=$this->allowance($companyId);
+        $policy=$this->allowance($companyId,$actorId);
         $subscription=$this->subscription($companyId);
         $verified=$this->hasVerifiedPlan($subscription);
         $providerState=$subscription !== null
@@ -249,17 +278,19 @@ final class M23BillingService
         ];
     }
 
-    public function usage(Company $company): array
+    public function usage(Company $company,?int $actorId=null): array
     {
         $id=(int)$company->id;
-        $allowance=$this->allowance($id);
+        $account=$this->accountUserId($id,$actorId);
+        $allowance=$this->allowance($id,$account);
+        $usage=DB::table('m23_document_usage')->where('company_id',$id)
+            ->where('quota_account_user_id',$account);
         return [
             'company_id'=>$id, 'allowance'=>$allowance,
-            'by_type'=>DB::table('m23_document_usage')->where('company_id',$id)
-                ->select('source_type')->selectRaw('count(*) as total')
-                ->groupBy('source_type')->pluck('total','source_type')->all(),
-            'recent'=>DB::table('m23_document_usage')->where('company_id',$id)
-                ->orderByDesc('id')->limit(50)
+            'by_type'=>(clone $usage)->select('source_type')
+                ->selectRaw('count(*) as total')->groupBy('source_type')
+                ->pluck('total','source_type')->all(),
+            'recent'=>(clone $usage)->orderByDesc('id')->limit(50)
                 ->get(['source_type','source_id','issued_at'])->all(),
         ];
     }

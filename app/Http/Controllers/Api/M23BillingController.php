@@ -29,7 +29,7 @@ final class M23BillingController extends Controller
 
     public function overview(Request $request): JsonResponse
     {
-        return $this->respond($this->billing->overview($this->company($request)));
+        return $this->respond($this->billing->overview($this->company($request),(int)$request->user()->id));
     }
 
     public function plans(Request $request): JsonResponse
@@ -44,12 +44,12 @@ final class M23BillingController extends Controller
 
     public function usage(Request $request): JsonResponse
     {
-        return $this->respond($this->billing->usage($this->company($request)));
+        return $this->respond($this->billing->usage($this->company($request),(int)$request->user()->id));
     }
 
     public function eligibility(Request $request): JsonResponse
     {
-        return $this->respond($this->billing->eligibility($this->company($request)));
+        return $this->respond($this->billing->eligibility($this->company($request),(int)$request->user()->id));
     }
 
     public function history(Request $request): JsonResponse
