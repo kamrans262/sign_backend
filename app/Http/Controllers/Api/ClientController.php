@@ -231,15 +231,41 @@ class ClientController extends Controller
     {
         $company = $this->company($request);
         $fields = $this->fields($request);
-        $client = DB::transaction(function () use ($request, $company, $fields): Client {
+        $validatedKey = $request->validate([
+            'request_key' => ['sometimes', 'string', 'min:16', 'max:100',
+                'regex:/^[A-Za-z0-9_.:-]+$/D'],
+        ]);
+        $key = $validatedKey['request_key'] ?? null;
+        ksort($fields);
+        $fingerprint = hash('sha256', json_encode($fields, JSON_THROW_ON_ERROR));
+        $replayed = false;
+        $client = DB::transaction(function () use ($request, $company, $fields,
+            $key, $fingerprint, &$replayed): Client {
+            if ($key !== null) {
+                // The company lock serializes concurrent submissions, while
+                // the DB unique index also protects writers outside this API.
+                Company::query()->whereKey($company->id)->lockForUpdate()->firstOrFail();
+                $prior = Client::withTrashed()->where('company_id', $company->id)
+                    ->where('request_key', $key)->first();
+                if ($prior !== null) {
+                    abort_unless($prior->deleted_at === null &&
+                        hash_equals((string) $prior->request_fingerprint, $fingerprint),
+                        409, 'Client creation request key was already used.');
+                    $replayed = true;
+                    return $prior;
+                }
+            }
             $client = Client::create(array_merge($fields, [
                 'company_id' => $company->id, 'source' => 'manual',
+                'request_key' => $key,
+                'request_fingerprint' => $key === null ? null : $fingerprint,
             ]));
             AuditLogger::record('mobile.client.created', $request->user(), $client, $company,
                 request: $request);
             return $client;
-        });
-        return response()->json(['data' => ['client' => $this->profile($client)]], 201);
+        }, 3);
+        return response()->json(['data' => ['client' => $this->profile($client)]],
+            $replayed ? 200 : 201);
     }
 
     public function update(Request $request, int $client): JsonResponse
