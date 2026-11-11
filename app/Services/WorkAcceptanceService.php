@@ -310,6 +310,8 @@ final class WorkAcceptanceService
                 abort_unless($locked->status==='draft' &&
                     (int)$locked->revision===(int)$request->input('revision'),409,
                     'Report already approved or revised.');
+                app(M23BillingService::class)->recordIssue(
+                    (int)$company->id,'work_acceptance',$id,$request->user()?->id);
                 $bytes=$this->basePdf($locked);
                 abort_unless(strlen($bytes)<=5*1024*1024,422,
                     'Reduce selected photos to keep the frozen source PDF under 5 MB.');
