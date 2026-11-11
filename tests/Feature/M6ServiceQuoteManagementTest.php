@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -204,6 +205,66 @@ class M6ServiceQuoteManagementTest extends TestCase
         $result->assertJsonPath('data.snapshot.items.0.quantity',3);
         $this->assertArrayNotHasKey('unit_price',$result->json('data.snapshot.items.0'));
         $this->assertArrayNotHasKey('vat',$result->json('data.snapshot'));
+    }
+
+
+    public function test_quote_voice_accepts_m4a_and_mp4_detected_by_audio_signatures(): void
+    {
+        $owner = $this->owner('quote-voice@example.test');
+        $company = $this->company($owner, 'M6 Voice');
+        $this->asTenant($owner, $company);
+        config(['services.openai.key' => 'test-key']);
+        Http::fake([
+            'https://api.openai.com/v1/audio/transcriptions' => Http::response([
+                'text' => 'Install 3 new windows',
+            ], 200),
+            'https://api.openai.com/v1/chat/completions' => Http::response([
+                'choices' => [['message' => ['content' => json_encode([
+                    'items' => [[
+                        'title' => 'Install windows',
+                        'description' => 'Three new windows',
+                        'quantity' => 3,
+                        'dimensions' => null,
+                    ]],
+                    'location' => null, 'notes' => null, 'currency' => 'GBP',
+                ])]]],
+            ], 200),
+        ]);
+
+        // Fileinfo recognizes these MP4 containers as audio/x-m4a or
+        // video/mp4 depending on the ftyp brand and platform.
+        foreach ([
+            'm4a' => "\\x00\\x00\\x00\\x18ftypM4A \\x00\\x00\\x00\\x00M4A isom",
+            'mp4' => "\\x00\\x00\\x00\\x18ftypisom\\x00\\x00\\x00\\x00isommp42",
+        ] as $extension => $source) {
+            $file = UploadedFile::fake()->createWithContent(
+                'voice.'.$extension, $source
+            );
+            $this->post('/api/v1/quotes/prepare/audio', ['file' => $file], [
+                'Accept' => 'application/json',
+            ])->assertOk()
+              ->assertJsonPath('data.snapshot.stage', 'completed')
+              ->assertJsonPath('data.snapshot.items.0.title', 'Install windows')
+              ->assertJsonPath('data.snapshot.items.0.quantity', 3);
+        }
+        Http::assertSentCount(4); // Both transcription and extraction for both files.
+    }
+
+    public function test_quote_voice_rejects_non_audio_bytes_before_openai(): void
+    {
+        $owner = $this->owner('invalid-quote-voice@example.test');
+        $company = $this->company($owner, 'M6 Bad Voice');
+        $this->asTenant($owner, $company);
+        config(['services.openai.key' => 'test-key']);
+        Http::fake();
+
+        $file = UploadedFile::fake()->createWithContent(
+            'voice.m4a', 'This is not an audio recording. The filename is misleading.'
+        );
+        $this->post('/api/v1/quotes/prepare/audio', ['file' => $file], [
+            'Accept' => 'application/json',
+        ])->assertUnprocessable()->assertJsonValidationErrors('file');
+        Http::assertNothingSent();
     }
 
     public function test_admin_management_uses_real_records_and_protects_company_assignment():void
