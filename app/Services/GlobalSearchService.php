@@ -18,11 +18,11 @@ final class GlobalSearchService
         'quotes' => ['service_quotes', 'client_name', 'reference_number', 'reference_number', 'status', 'client_id', 'service_job_id', 'NULL', 'quotes.read'],
         'documents' => ['managed_documents', 'title', 'number', 'number', 'status', 'client_id', 'service_job_id', 'category', 'documents.read'],
         'general_documents' => ['general_documents', 'title', 'number', 'number', 'status', 'client_id', 'service_job_id', 'document_type', 'documents.read'],
-        'invoices' => ['service_invoices', 'invoice_number', 'client_name_snapshot', 'invoice_number', 'status', 'client_id', 'service_job_id', 'invoice_type', 'documents.read'],
-        'expenses' => ['job_expenses', 'supplier', 'category', 'category', 'status', 'NULL', 'service_job_id', 'NULL', 'documents.read'],
+        'invoices' => ['service_invoices', 'invoice_number', 'client_name_snapshot', 'invoice_number', 'status', 'client_id', 'service_job_id', 'invoice_type', 'invoices.read'],
+        'expenses' => ['job_expenses', 'supplier', 'category', 'category', 'status', 'NULL', 'service_job_id', 'NULL', 'expenses.read'],
         'equipment' => ['equipment_assets', 'name', 'code', 'code', 'status', 'NULL', 'NULL', 'NULL', 'equipment.read'],
-        'deposits' => ['job_deposits', 'client_name_snapshot', 'reference_number', 'reference_number', 'status', 'NULL', 'service_job_id', 'NULL', 'documents.read'],
-        'reports' => ['site_reports', 'title', 'number', 'number', 'status', 'client_id', 'service_job_id', 'kind', 'documents.read'],
+        'deposits' => ['job_deposits', 'client_name_snapshot', 'reference_number', 'reference_number', 'status', 'NULL', 'service_job_id', 'NULL', 'invoices.read'],
+        'reports' => ['site_reports', 'title', 'number', 'number', 'status', 'client_id', 'service_job_id', 'kind', 'reports.read'],
         'reminders' => ['m20_reminders', 'title', 'type', 'type', 'status', 'NULL', 'NULL', 'NULL', 'reminders.read'],
     ];
 
