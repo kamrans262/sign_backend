@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\ServiceJob;
 use App\Models\User;
+use App\Services\JobProgressCalculator;
 use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,8 +35,10 @@ class ServiceJobController extends Controller
                 ->orWhereHas('client', fn ($client) => $client->where('full_name', 'like', '%'.$needle.'%')
                     ->orWhere('company_name', 'like', '%'.$needle.'%')));
         }
+        $jobs = $query->paginate(20)->withQueryString();
         return view('admin.jobs.index', [
-            'jobs' => $query->paginate(20)->withQueryString(),
+            'jobs' => $jobs,
+            'progressByJob' => app(JobProgressCalculator::class)->forJobs($jobs->getCollection()),
             'companies' => Company::query()->orderBy('name')->get(['id', 'name']),
             'search' => $needle,
             'companyFilter' => (int) ($filters['company_id'] ?? 0),
@@ -62,8 +65,10 @@ class ServiceJobController extends Controller
 
     public function edit(int $job): View
     {
+        $record = ServiceJob::query()->with('assignees')->findOrFail($job);
         return view('admin.jobs.form', array_merge($this->options(), [
-            'job' => ServiceJob::query()->with('assignees')->findOrFail($job),
+            'job' => $record,
+            'jobProgress' => app(JobProgressCalculator::class)->forJobs([$record])[$record->id],
         ]));
     }
 
@@ -80,7 +85,7 @@ class ServiceJobController extends Controller
             'due_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'budget_chf' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
             'stage' => ['required', Rule::in(['planning','in_progress','completed'])],
-            'progress_percentage' => ['required', 'numeric', 'between:0,100'],
+            'progress_percentage' => ['prohibited'], // derived from verified activity
             'team_member_ids' => ['sometimes', 'array', 'max:100'],
             'team_member_ids.*' => ['integer', 'min:1', 'distinct'],
         ]);
@@ -124,7 +129,6 @@ class ServiceJobController extends Controller
                 'reference_number' => sprintf('JOB-%s-%03d', $initial, $nextNumber),
                 'category' => $completed ? 'completed' : 'active',
                 'completed_at' => $completed ? now() : null,
-                'progress_percentage' => $completed ? 100 : $data['progress_percentage'],
                 'created_by' => $request->user()->id,
                 'updated_by' => $request->user()->id,
             ]));
@@ -148,7 +152,6 @@ class ServiceJobController extends Controller
             $completed = $data['stage'] === 'completed';
             $data['category'] = $completed ? 'completed' : 'active';
             $data['completed_at'] = $completed ? ($target->completed_at ?? now()) : null;
-            if ($completed) $data['progress_percentage'] = 100;
             $data['updated_by'] = $request->user()->id;
             $target->update($data);
             $target->assignees()->sync($ids);
