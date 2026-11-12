@@ -92,8 +92,12 @@ class M5ServiceJobManagementTest extends TestCase
             ->assertJsonCount(0, 'data.sections.quotes')
             ->assertJsonCount(0, 'data.sections.invoices');
         $this->patchJson('/api/v1/jobs/'.$id, [
-            'stage' => 'completed', 'progress_percentage' => 100,
-        ])->assertOk()->assertJsonPath('data.job.category', 'completed');
+            'progress_percentage' => 50,
+        ])->assertUnprocessable();
+        $this->patchJson('/api/v1/jobs/'.$id, [
+            'stage' => 'completed',
+        ])->assertOk()->assertJsonPath('data.job.category', 'completed')
+            ->assertJsonPath('data.job.progress_percentage', 100);
         $this->getJson('/api/v1/jobs?category=completed')->assertOk()
             ->assertJsonCount(1, 'data.jobs');
         $this->deleteJson('/api/v1/jobs/'.$id)->assertOk();
