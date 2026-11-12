@@ -22,7 +22,8 @@ class EnsureCompanyPermission
         $member = $company->users()->where('users.id', $actor->id)
             ->wherePivot('status', 'active')->first();
         if (!$member) abort(403, 'Company permission denied.');
-        if (in_array($member->pivot->role, ['owner', 'admin'], true)) return $next($request);
+        // Owners retain full control; admins must follow assigned module grants.
+        if ($member->pivot->role === 'owner') return $next($request);
         $permissions = json_decode((string) $member->pivot->permissions, true);
         if (!is_array($permissions) || !in_array($permission, $permissions, true)) {
             abort(403, 'Company permission denied.');
