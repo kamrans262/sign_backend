@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\CompanyRolePermissions;
+
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,8 +26,12 @@ class EnsureCompanyPermission
         if (!$member) abort(403, 'Company permission denied.');
         // Owners retain full control; admins must follow assigned module grants.
         if ($member->pivot->role === 'owner') return $next($request);
-        $permissions = json_decode((string) $member->pivot->permissions, true);
-        if (!is_array($permissions) || !in_array($permission, $permissions, true)) {
+        $permissions = CompanyRolePermissions::resolve(
+            $member->pivot->company_role_id ? (int) $member->pivot->company_role_id : null,
+            (int) $company->id, (string) $member->pivot->role,
+            $member->pivot->permissions
+        );
+        if (!in_array($permission, $permissions, true)) {
             abort(403, 'Company permission denied.');
         }
         return $next($request);
