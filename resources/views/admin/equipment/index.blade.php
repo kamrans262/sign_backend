@@ -21,7 +21,7 @@
 <div class="table-wrap"><table><thead><tr><th>Code</th><th>Equipment</th><th>Company</th><th>Status</th><th>Hours</th><th>Current Loan</th><th>Manage</th></tr></thead><tbody>
 @forelse($result['records'] as $record)
 <tr><td>{{ $record['code'] }}</td><td>{{ $record['name'] }}<div class="muted">{{ $record['brand'] }} · {{ $record['model'] }}</div></td>
-<td>#{{ $record['company_id']??'' }}</td><td><span class="pill">{{ ucwords(str_replace('_',' ',$record['status'])) }}</span></td>
+<td>{{ \App\Support\AdminCompanyNames::label($record['company_id'] ?? null) }}</td><td><span class="pill">{{ ucwords(str_replace('_',' ',$record['status'])) }}</span></td>
 <td>{{ number_format($record['hours'],2) }}</td><td>{{ $record['current_loan_id']?'Loan #'.$record['current_loan_id']:'None' }}</td>
 <td><a class="btn btn-small btn-outline" href="{{ route('admin.equipment.edit',$record['id']) }}">Manage</a></td></tr>
 @empty<tr><td colspan="7" class="empty">No equipment registered.</td></tr>@endforelse
