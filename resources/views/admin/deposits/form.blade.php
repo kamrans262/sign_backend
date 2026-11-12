@@ -16,10 +16,10 @@
 @foreach($companies as $company)<option value="{{ $company->id }}" @selected(old('company_id')==$company->id)>{{ $company->name }}</option>@endforeach</select></label>
 @endif
 <label>Job <select class="input" name="job_id" required @disabled($editing)><option value="">Select Job</option>
-@foreach($jobs as $job)<option value="{{ $job->id }}" @selected(old('job_id',$record['job_id']??'')==$job->id)>{{ $job->reference_number }} · {{ $job->title }} (Company #{{ $job->company_id }})</option>@endforeach
+@foreach($jobs as $job)<option value="{{ $job->id }}" @selected(old('job_id',$record['job_id']??'')==$job->id)>{{ $job->reference_number }} · {{ $job->title }} ({{ \App\Support\AdminCompanyNames::label($job->company_id) }})</option>@endforeach
 </select>@if($editing)<input type="hidden" name="job_id" value="{{ $record['job_id'] }}">@endif</label>
 <label>Approved Quote (optional) <select class="input" name="quote_id" @disabled($editing)><option value="">No quote linkage</option>
-@foreach($quotes as $quote)<option value="{{ $quote->id }}" @selected(old('quote_id',$record['quote_id']??'')==$quote->id)>{{ $quote->reference_number }} · Job #{{ $quote->service_job_id }} (Company #{{ $quote->company_id }})</option>@endforeach
+@foreach($quotes as $quote)<option value="{{ $quote->id }}" @selected(old('quote_id',$record['quote_id']??'')==$quote->id)>{{ $quote->reference_number }} · Job #{{ $quote->service_job_id }} ({{ \App\Support\AdminCompanyNames::label($quote->company_id) }})</option>@endforeach
 </select>@if($editing && $record['quote_id'])<input type="hidden" name="quote_id" value="{{ $record['quote_id'] }}">@endif</label>
 <label>Client Name (from job) <input class="input" name="client_name" value="{{ old('client_name',$record['client_name']??'') }}" maxlength="255" placeholder="Leave blank to use saved job client" @readonly(!$pending)></label>
 <label>Deposit Date <input class="input" type="date" name="deposit_date" required value="{{ old('deposit_date',$record['deposit_date']??date('Y-m-d')) }}" @readonly(!$pending)></label>
