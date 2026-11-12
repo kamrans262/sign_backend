@@ -6,10 +6,12 @@ on:
       - '.github/workflows/qa-job-contract-sidebar-ai-pdf.yml'
       - 'app/Services/JobDetailsSnapshot.php'
       - 'app/Services/GeneralDocumentIssueService.php'
-      - 'resources/views/admin/layout.blade.php'
+      - 'resources/views/admin/**'
+      - 'app/Support/AdminCompanyNames.php'
       - 'tests/Feature/M5JobDetailsLiveSummaryTest.php'
       - 'tests/Feature/M18GeneralDocumentIssueTest.php'
       - 'tests/Feature/AdminSidebarNavigationTest.php'
+      - 'tests/Feature/AdminCompanyDisplayNamesTest.php'
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,6 +35,8 @@ jobs:
           php -l tests/Feature/M5JobDetailsLiveSummaryTest.php
           php -l tests/Feature/M18GeneralDocumentIssueTest.php
           php -l tests/Feature/AdminSidebarNavigationTest.php
+          php -l app/Support/AdminCompanyNames.php
+          php -l tests/Feature/AdminCompanyDisplayNamesTest.php
           php artisan view:cache
       - name: Focused job ledger, admin navigation and immutable PDF tests
-        run: php artisan test --filter='(M5JobDetailsLiveSummaryTest|M18GeneralDocumentIssueTest|AdminSidebarNavigationTest)'
+        run: php artisan test --filter='(M5JobDetailsLiveSummaryTest|M18GeneralDocumentIssueTest|AdminSidebarNavigationTest|AdminCompanyDisplayNamesTest)'
