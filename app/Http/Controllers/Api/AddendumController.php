@@ -255,6 +255,8 @@ final class AddendumController extends Controller
             'signer_email'=>['required','email','max:255'],
             'expires_in_days'=>['nullable','integer','between:1,7'],
             'delivery'=>['required',Rule::in(['link','email'])],
+            // Explicitly approved reissue: invalidate an unsent ready link before emailing.
+            'replace_ready_link'=>['sometimes','boolean'],
         ]);
         if ($data['delivery']==='email' &&
             in_array((string)config('mail.default'),['log','array','null'],true)) {
@@ -272,10 +274,28 @@ final class AddendumController extends Controller
                 mb_strtolower(trim((string)$source->quote->client_email)) ===
                 mb_strtolower(trim($data['signer_email'])),422,
                 'Signer email must match the original verified customer.');
-            abort_if(AddendumSigningRequest::query()->where('addendum_id',$source->id)
+            $active=AddendumSigningRequest::query()->where('addendum_id',$source->id)
                 ->whereIn('status',['ready','sent','viewed'])
-                ->where('expires_at','>',now())->exists(),409,
-                'An active signing request already exists.');
+                ->where('expires_at','>',now())->lockForUpdate()->first();
+            if ($active !== null) {
+                $replace=$data['delivery']==='email' &&
+                    ($data['replace_ready_link']??false) === true &&
+                    $active->status==='ready' && $active->sent_at===null &&
+                    $active->viewed_at===null && $active->revoked_at===null &&
+                    (int)$active->approved_revision===(int)$source->revision &&
+                    hash_equals((string)$source->approved_pdf_sha256,
+                        (string)$active->approved_pdf_sha256) &&
+                    mb_strtolower((string)$active->signer_email) ===
+                        mb_strtolower(trim($data['signer_email']));
+                abort_unless($replace,409,
+                    'An active signing request already exists. Use the existing receipt or explicitly replace an unsent link.');
+                // The original raw link token is never stored. Reissuing an
+                // unsent ready link rotates it and invalidates the old token.
+                // Sent/viewed links are NEVER silently replaced or resent.
+                $active->update(['status'=>'revoked','revoked_at'=>now()]);
+                $this->service->event($source,'signature_link_replaced',
+                    $request->user()->id,['signing_request_id'=>$active->id]);
+            }
             $signer=AddendumSigningRequest::create([
                 'addendum_id'=>$source->id,'company_id'=>$company->id,
                 'created_by'=>$request->user()->id,
