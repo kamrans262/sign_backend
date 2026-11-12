@@ -32,18 +32,18 @@ $selectedAddenda=old('addenda_ids',$editing?$invoice['source_addenda_ids']:[]);
 <label>Job / Project <select class="input" name="job_id" required @disabled($editing)>
 <option value="">Select Job</option>
 @foreach($jobs as $job)<option value="{{ $job->id }}" @selected(old('job_id',$invoice['job_id']??'')==$job->id)>
-{{ $job->reference_number }} · {{ $job->title }} (Company #{{ $job->company_id }})</option>@endforeach
+{{ $job->reference_number }} · {{ $job->title }} ({{ \App\Support\AdminCompanyNames::label($job->company_id) }})</option>@endforeach
 </select>@if($editing)<input type="hidden" name="job_id" value="{{ $invoice['job_id'] }}">@endif</label>
 <label>Approved Quote (optional) <select name="quote_id" class="input" @disabled($editing)>
 <option value="">Not linked to a quote</option>
 @foreach($quotes as $quote)<option value="{{ $quote->id }}" @selected(old('quote_id',$invoice['quote_id']??'')==$quote->id)>
-{{ $quote->reference_number }} · Job #{{ $quote->service_job_id }} · Company #{{ $quote->company_id }}</option>@endforeach
+{{ $quote->reference_number }} · Job #{{ $quote->service_job_id }} · {{ \App\Support\AdminCompanyNames::label($quote->company_id) }}</option>@endforeach
 </select>@if($editing && $invoice['quote_id'])<input type="hidden" name="quote_id" value="{{ $invoice['quote_id'] }}">@endif</label>
 <label>Signed Addenda (optional, final invoices only)
 <select class="input" name="addenda_ids[]" multiple size="5">
 @foreach($addenda as $addendum)
 <option value="{{ $addendum->id }}" @selected(in_array($addendum->id,array_map('intval',$selectedAddenda)))>
-{{ $addendum->number }} · {{ $addendum->title }} · Job #{{ $addendum->service_job_id }} (Company #{{ $addendum->company_id }})
+{{ $addendum->number }} · {{ $addendum->title }} · Job #{{ $addendum->service_job_id }} ({{ \App\Support\AdminCompanyNames::label($addendum->company_id) }})
 </option>
 @endforeach
 </select><small>Hold Ctrl / Command to select multiple signed addenda. Already invoiced items are rejected.</small></label>
