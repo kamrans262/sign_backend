@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/m3-company-management-2026-11-03
+      - fix/m20-admin-ui-modal-filters-2026-11-06
     paths:
       - '.github/workflows/m3-company-focused.yml'
       - 'app/Http/Controllers/Api/CompanyManagementController.php'
@@ -11,6 +12,9 @@ on:
       - 'app/Http/Controllers/Admin/CompanyController.php'
       - 'routes/web.php'
       - 'app/Http/Middleware/EnsureCompanyPermission.php'
+      - 'app/Http/Controllers/Api/GlobalSearchController.php'
+      - 'app/Services/GlobalSearchService.php'
+      - 'database/migrations/2026_11_13_010000_backfill_legacy_admin_permissions.php'
       - 'app/Models/Company.php'
       - 'app/Models/CompanyInvitation.php'
       - 'app/Mail/CompanyInvitationMail.php'
