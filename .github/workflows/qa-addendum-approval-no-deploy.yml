@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/qa-addendum-approval-no-deploy.yml'
       - 'app/Services/AddendumService.php'
+      - 'app/Http/Controllers/Api/AddendumController.php'
       - 'app/Services/Sign2DigitalAddendumPdf.php'
       - 'tests/Feature/M10AddendaManagementTest.php'
   workflow_dispatch:
