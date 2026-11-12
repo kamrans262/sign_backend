@@ -195,13 +195,47 @@ final class InvoiceDocumentService
         $pdf->SetTextColor(...$ink);
         $pdf->SetFont('Arial','',9);
         foreach($s['items'] as $item) {
-            if($pdf->GetY()>250){$pdf->AddPage();$tableHeader();}
             $pdf->SetTextColor(...$ink);
             $pdf->SetFont('Arial','',9);
-            $pdf->Cell(90,9,self::label($item['description'],115),'B',0,'L');
-            $pdf->Cell(16,9,(string)$item['quantity'],'B',0,'R');
-            $pdf->Cell(33,9,number_format($item['unit_price_minor']/100,2,'.',"'"),'B',0,'R');
-            $pdf->Cell(33,9,number_format($item['total_minor']/100,2,'.',"'"),'B',1,'R');
+            $description=self::label((string)$item['description'],1000);
+            // FPDF Cell() does not wrap text. Measure each word to keep
+            // every description inside its quotation-style Description column.
+            $lines=[''];
+            foreach(preg_split('/\s+/u',$description)?:[] as $word) {
+                if($word==='')continue;
+                $last=count($lines)-1;
+                $candidate=$lines[$last]===''?$word:$lines[$last].' '.$word;
+                if($pdf->GetStringWidth($candidate)<=86){
+                    $lines[$last]=$candidate;
+                }elseif($lines[$last]===''){
+                    // A single long unbroken token must still fit its cell.
+                    $chunk='';
+                    foreach(str_split($word) as $char){
+                        if($chunk!=='' && $pdf->GetStringWidth($chunk.$char)>86){
+                            $lines[$last]=$chunk;
+                            $lines[]='';
+                            $last=count($lines)-1;
+                            $chunk='';
+                        }
+                        $chunk.=$char;
+                    }
+                    $lines[$last]=$chunk;
+                }else{
+                    $lines[]=$word;
+                }
+            }
+            $height=max(9,count($lines)*5+4);
+            if($pdf->GetY()+$height>270){$pdf->AddPage();$tableHeader();}
+            $x=$pdf->GetX();$y=$pdf->GetY();
+            $pdf->Cell(90,$height,'','B');
+            $pdf->SetXY($x+2,$y+2);
+            foreach($lines as $line){
+                $pdf->Cell(86,5,$line,0,2,'L');
+            }
+            $pdf->SetXY($x+90,$y);
+            $pdf->Cell(16,$height,(string)$item['quantity'],'B',0,'R');
+            $pdf->Cell(33,$height,number_format($item['unit_price_minor']/100,2,'.',"'"),'B',0,'R');
+            $pdf->Cell(33,$height,number_format($item['total_minor']/100,2,'.',"'"),'B',1,'R');
         }
 
         if($pdf->GetY()>220)$pdf->AddPage();
