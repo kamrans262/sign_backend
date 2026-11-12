@@ -255,6 +255,59 @@ final class M10AddendaManagementTest extends TestCase
         $this->getJson('/api/public/addenda/'.$token)->assertStatus(410);
     }
 
+    public function test_explicit_email_delivery_replaces_only_an_unsent_link_and_returns_no_token(): void
+    {
+        $this->withoutMiddleware(\\Illuminate\\Routing\\Middleware\\ThrottleRequests::class);
+        Storage::fake('local');
+        [$owner,$company,$client]=$this->tenant();
+        [$artifact]=$this->signedOriginal($company,$client);
+        $id=$this->postJson('/api/v1/addenda',$this->body($artifact->id))
+            ->assertCreated()->json('data.addendum.id');
+        $this->postJson('/api/v1/addenda/'.$id.'/approve',[
+            'confirmed'=>true,'expected_revision'=>1,
+        ])->assertOk();
+        $request=[
+            'signer_name'=>'Original Customer',
+            'signer_email'=>'customer@example.test',
+            'delivery'=>'link',
+        ];
+        $old=$this->postJson('/api/v1/addenda/'.$id.'/signature-requests',
+            $request)->assertCreated()->json('data.secure_link');
+        $oldToken=basename(parse_url($old,PHP_URL_PATH));
+        $this->get('/api/public/addenda/'.$oldToken)->assertOk();
+
+        config(['mail.default'=>'smtp']);
+        \\Illuminate\\Support\\Facades\\Mail::shouldReceive('raw')->once();
+        // Changing a link into an email must NEVER silently revoke the old URL.
+        $this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
+            ...$request,'delivery'=>'email',
+        ])->assertStatus(409);
+        $sent=$this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
+            ...$request,'delivery'=>'email','replace_ready_link'=>true,
+        ])->assertCreated()
+            ->assertJsonPath('data.request.status','sent')
+            ->assertJsonPath('data.secure_link',null)
+            ->assertJsonPath('data.transport_accepted',true)
+            ->assertJsonPath('data.delivered',false);
+        $this->assertNotNull($sent->json('data.request.sent_at'));
+        $this->assertDatabaseHas('addenda',['id'=>$id,'status'=>'sent']);
+        $this->assertDatabaseHas('addendum_signing_requests',[
+            'addendum_id'=>$id,'status'=>'revoked',
+        ]);
+        $this->assertDatabaseHas('addendum_signing_requests',[
+            'addendum_id'=>$id,'status'=>'sent',
+        ]);
+        $this->assertDatabaseHas('addendum_events',[
+            'addendum_id'=>$id,'event_type'=>'signature_link_replaced',
+        ]);
+        $this->assertDatabaseCount('addendum_signing_requests',2);
+        $this->get('/api/public/addenda/'.$oldToken)->assertStatus(410);
+        $this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
+            ...$request,'delivery'=>'email','replace_ready_link'=>true,
+        ])->assertStatus(409);
+        $this->assertDatabaseCount('addendum_signing_requests',2);
+    }
+
     public function test_tampered_original_or_approved_bytes_are_never_accepted(): void
     {
         Storage::fake('local');
