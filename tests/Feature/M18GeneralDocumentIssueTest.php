@@ -95,6 +95,18 @@ final class M18GeneralDocumentIssueTest extends TestCase
             ->assertHeader('Content-Type','application/pdf')->getContent();
         $this->assertStringStartsWith('%PDF-',$pdf);
         $this->assertSame(hash('sha256',$pdf),$first['sha256']);
+        // The new immutable PDF uses quotation blue, logo/recipient card
+        // and the customer's exact approved heading and paragraph text.
+        preg_match_all('/stream\\r?\\n(.*?)\\r?\\nendstream/s',$pdf,$streams);
+        $drawing='';
+        foreach($streams[1] as $stream){
+            $inflated=@gzuncompress($stream);
+            $drawing.=is_string($inflated)?$inflated:$stream;
+        }
+        $this->assertStringContainsString('0.086 0.384 0.510 rg',$drawing);
+        $this->assertStringContainsString('h S',$drawing);
+        $this->assertStringContainsString('Approved Notice',$drawing);
+        $this->assertStringContainsString('Review our completed work.',$drawing);
         $this->getJson('/api/v1/documents?kind=general')->assertOk()
             ->assertJsonPath('data.documents.0.has_pdf',true)
             ->assertJsonPath('data.documents.0.sha256',$first['sha256']);
