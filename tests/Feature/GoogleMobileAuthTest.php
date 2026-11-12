@@ -28,7 +28,9 @@ class GoogleMobileAuthTest extends TestCase
         $csr = openssl_csr_new(['commonName' => 'Google public key test fixture'],
             $this->privateKey);
         $certificate = openssl_csr_sign($csr, null, $this->privateKey, 1);
-        openssl_x509_export($certificate, $this->pem);
+        $pem = '';
+        openssl_x509_export($certificate, $pem);
+        $this->pem = $pem;
         Http::fake(['https://www.googleapis.com/oauth2/v1/certs' =>
             Http::response(['unit-test-key' => $this->pem], 200)]);
         config()->set('services.google_sign_in.web_client_id',
