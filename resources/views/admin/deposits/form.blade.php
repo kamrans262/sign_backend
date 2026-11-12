@@ -27,6 +27,26 @@
 <label>Payment Method <select class="input" name="payment_method" @disabled(!$pending) required>
 @foreach(['bank_transfer'=>'Bank Transfer','cash'=>'Cash','other'=>'Other Manual'] as $method=>$label)<option value="{{ $method }}" @selected(old('payment_method',$record['payment_method']??'bank_transfer')===$method)>{{ $label }}</option>@endforeach
 </select>@if(!$pending)<input type="hidden" name="payment_method" value="{{ $record['payment_method'] }}">@endif</label>
+<label id="deposit-custom-payment-row">Custom Payment Method (for Other Manual)
+<input class="input" name="payment_method_custom" maxlength="120"
+  value="{{ old('payment_method_custom',$record['payment_method_custom']??'') }}"
+  placeholder="Enter the payment method" @readonly(!$pending)></label>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const method = document.querySelector('select[name="payment_method"]');
+  const field = document.querySelector('input[name="payment_method_custom"]');
+  const row = document.getElementById('deposit-custom-payment-row');
+  if (!method || !field || !row) return;
+  function refresh() {
+    const custom = method.value === 'other';
+    row.hidden = !custom;
+    field.disabled = !custom;
+    if (!custom) field.value = '';
+  }
+  method.addEventListener('change', refresh);
+  refresh();
+});
+</script>
 <label>Reference Number <input class="input" name="reference_number" maxlength="120" value="{{ old('reference_number',$record['reference_number']??'') }}" @readonly(!$pending)></label>
 <label>Notes <textarea class="input" name="notes" maxlength="12000" rows="3" @readonly(!$pending)>{{ old('notes',$record['notes']??'') }}</textarea></label>
 @if($pending)<div><button class="btn btn-primary">{{ $editing?'Update Deposit':'Create Pending Deposit' }}</button></div>@endif
