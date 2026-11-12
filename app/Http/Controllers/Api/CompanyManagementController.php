@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\CompanyInvitation;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Support\CompanyRolePermissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,13 +26,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class CompanyManagementController extends Controller
 {
-    private const PERMISSIONS = [
-        'clients.read', 'clients.write', 'jobs.read', 'jobs.write',
-        'documents.read', 'documents.write', 'quotes.read', 'quotes.write',
-        'invoices.read', 'invoices.write', 'reports.read', 'reports.write',
-        'expenses.read', 'expenses.write', 'labour.read', 'labour.write',
-        'equipment.read', 'equipment.write',
-    ];
+    private const PERMISSIONS = CompanyRolePermissions::KEYS;
 
     private static function defaultPermissions(string $role): array
     {
@@ -67,7 +62,13 @@ class CompanyManagementController extends Controller
     private function profile(Company $company, ?User $user = null): array
     {
         $membership = $user ? $company->users()->where('users.id', $user->id)->first() : null;
-        $permissions = $membership ? json_decode((string) $membership->pivot->permissions, true) : null;
+        $roleId = $membership?->pivot->company_role_id
+            ? (int) $membership->pivot->company_role_id : null;
+        $permissions = $membership
+            ? CompanyRolePermissions::resolve($roleId, (int) $company->id,
+                (string) $membership->pivot->role, $membership->pivot->permissions)
+            : [];
+        $customRole = $roleId ? $company->customRoles()->whereKey($roleId)->first() : null;
         return [
             'id' => $company->id,
             'owner_user_id' => $company->owner_user_id,
@@ -88,7 +89,9 @@ class CompanyManagementController extends Controller
             'terms_file_name' => $company->terms_original_name,
             'status' => $company->status,
             'role' => $membership?->pivot->role,
-            'permissions' => is_array($permissions) ? $permissions : [],
+            'role_name' => $customRole?->name ?? ucfirst((string) ($membership?->pivot->role ?? '')),
+            'company_role_id' => $roleId,
+            'permissions' => $permissions,
         ];
     }
 
@@ -199,14 +202,24 @@ class CompanyManagementController extends Controller
 
     private function memberJson(User $user): array
     {
-        $permissions = json_decode((string) $user->pivot->permissions, true);
+        $companyId = (int) $user->pivot->company_id;
+        $roleId = $user->pivot->company_role_id
+            ? (int) $user->pivot->company_role_id : null;
+        $permissions = CompanyRolePermissions::resolve($roleId, $companyId,
+            (string) $user->pivot->role, $user->pivot->permissions);
+        $roleName = $roleId
+            ? \App\Models\CompanyRole::query()->where('company_id', $companyId)
+                ->whereKey($roleId)->value('name')
+            : null;
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->pivot->role,
+            'role_name' => $roleName ?? ucfirst((string) $user->pivot->role),
+            'company_role_id' => $roleId,
             'status' => $user->pivot->status,
-            'permissions' => is_array($permissions) ? $permissions : [],
+            'permissions' => $permissions,
         ];
     }
 
@@ -223,6 +236,7 @@ class CompanyManagementController extends Controller
     {
         return $request->validate([
             'role' => ['required', Rule::in($owner ? ['admin', 'member'] : ['member'])],
+            'company_role_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'permissions' => ['sometimes', 'array', 'max:20'],
             'permissions.*' => ['string', 'distinct', Rule::in(self::PERMISSIONS)],
         ]);
@@ -236,11 +250,25 @@ class CompanyManagementController extends Controller
         $data = $this->roleValidation($request, $owner);
         $member = $target->users()->where('users.id', $user)->first();
         if (!$member || $member->pivot->status !== 'active') abort(404);
-        if (!$owner && $member->pivot->role !== 'member') abort(403);
+        if (!$owner && ($member->pivot->role !== 'member' ||
+            $member->pivot->company_role_id)) abort(403);
+        $roleId = isset($data['company_role_id']) ? (int) $data['company_role_id'] : null;
+        if ($roleId !== null && !$owner) abort(403);
+        if ($roleId !== null && ($data['role'] !== 'member' ||
+            array_key_exists('permissions', $data))) {
+            throw ValidationException::withMessages([
+                'company_role_id' => 'Custom roles define their own permissions.',
+            ]);
+        }
+        $grants = $roleId !== null
+            ? CompanyRolePermissions::findForCompany($target->id, $roleId)->permissions
+            : CompanyRolePermissions::validateGrants(
+                $data['permissions'] ?? self::defaultPermissions($data['role']));
 
         $target->users()->updateExistingPivot($user, [
             'role' => $data['role'],
-            'permissions' => json_encode($data['permissions'] ?? self::defaultPermissions($data['role']), JSON_THROW_ON_ERROR),
+            'company_role_id' => $roleId,
+            'permissions' => json_encode($grants, JSON_THROW_ON_ERROR),
         ]);
         AuditLogger::record('mobile.company.member_updated', $request->user(), $member, $target,
             metadata: ['member_user_id' => $user, 'role' => $data['role']], request: $request);
@@ -256,7 +284,8 @@ class CompanyManagementController extends Controller
         if ($user === (int) $target->owner_user_id) abort(403, 'Company owner cannot be removed.');
         $member = $target->users()->where('users.id', $user)->first();
         if (!$member) abort(404);
-        if (!$owner && $member->pivot->role !== 'member') abort(403);
+        if (!$owner && ($member->pivot->role !== 'member' ||
+            $member->pivot->company_role_id)) abort(403);
 
         DB::transaction(function () use ($target, $member, $request): void {
             $target->users()->detach($member->id);
@@ -275,7 +304,12 @@ class CompanyManagementController extends Controller
             'company_id' => $invitation->company_id,
             'email' => $invitation->email,
             'role' => $invitation->role,
-            'permissions' => $invitation->permissions ?? [],
+            'company_role_id' => $invitation->company_role_id,
+            'role_name' => $invitation->customRole?->name ?? ucfirst($invitation->role),
+            'permissions' => $invitation->company_role_id
+                ? CompanyRolePermissions::resolve((int) $invitation->company_role_id,
+                    (int) $invitation->company_id, $invitation->role, null)
+                : ($invitation->permissions ?? []),
             'expires_at' => $invitation->expires_at->toIso8601String(),
             'accepted_at' => $invitation->accepted_at?->toIso8601String(),
             'revoked_at' => $invitation->revoked_at?->toIso8601String(),
