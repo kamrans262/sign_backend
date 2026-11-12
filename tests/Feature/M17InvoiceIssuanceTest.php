@@ -64,6 +64,17 @@ final class M17InvoiceIssuanceTest extends TestCase
             ->assertHeader('Content-Type','application/pdf')->baseResponse->getContent();
         $this->assertStringStartsWith('%PDF-',$body);
         $this->assertSame($first['sha256'],hash('sha256',$body));
+        // New official invoices use the quote's shared logo, blue table and
+        // full-width blue Total row (both remain embedded in the frozen PDF).
+        $this->assertGreaterThan(10000,strlen($body));
+        preg_match_all('/stream\\r?\\n(.*?)\\r?\\nendstream/s',$body,$streams);
+        $drawCommands='';
+        foreach($streams[1] as $stream) {
+            $decoded=@gzuncompress($stream);
+            $drawCommands.=is_string($decoded)?$decoded:$stream;
+        }
+        $this->assertStringContainsString('0.086 0.384 0.510 rg',$drawCommands);
+        $this->assertStringContainsString('h S',$drawCommands);
         $this->get($url.'/pdf/download')->assertOk()
             ->assertHeader('Cache-Control','max-age=0, no-store, private');
         $this->postJson($url.'/void',[
@@ -88,8 +99,14 @@ final class M17InvoiceIssuanceTest extends TestCase
         $this->assertDatabaseMissing('service_invoice_customer_links',[
             'token_sha256'=>$token]);
         $this->get($path)->assertOk()->assertSee('Invoice');
-        $this->get($path.'/pdf')->assertOk()
-            ->assertHeader('Content-Type','application/pdf');
+        $linkedPdf=$this->get($path.'/pdf')->assertOk()
+            ->assertHeader('Content-Type','application/pdf')
+            ->baseResponse->getContent();
+        $officialPdf=$this->get($url.'/pdf')->assertOk()
+            ->baseResponse->getContent();
+        // Existing customer links and attachment copies deliver the same
+        // immutable issue; a backend design update must never rewrite it.
+        $this->assertSame(hash('sha256',$officialPdf),hash('sha256',$linkedPdf));
         $this->get('/invoice-view/'.str_repeat('1',64))->assertNotFound();
         $this->travel(8)->days();
         $this->get($path)->assertNotFound();
