@@ -51,8 +51,8 @@
   <div class="field"><label for="budget_chf">Budget (CHF)</label>
     <input class="input" id="budget_chf" name="budget_chf" type="number" min="0" step="0.01" value="{{ old('budget_chf', $editing ? $job->budget_chf : '') }}">
   </div>
-  <div class="field"><label for="progress_percentage">Progress (%) *</label>
-    <input class="input" id="progress_percentage" name="progress_percentage" type="number" min="0" max="100" step="0.01" required value="{{ old('progress_percentage', $editing ? $job->progress_percentage : 0) }}">
+  <div class="field"><label>Job Progress (automatic)</label>
+    <p class="hint">{{ $editing ? $jobProgress : 0 }}% — Calculated from verified job activity, not entered manually.</p>
   </div>
   <div class="field full"><label for="team_member_ids">Team Members (hold Ctrl/Cmd to select multiple)</label>
     @php($picked = old('team_member_ids', $editing ? $job->assignees->pluck('id')->all() : []))
