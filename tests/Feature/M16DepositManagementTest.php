@@ -80,6 +80,34 @@ final class M16DepositManagementTest extends TestCase
         $this->assertDatabaseCount('job_deposits',1);
     }
 
+    public function test_custom_payment_method_is_saved_without_replacing_notes(): void
+    {
+        [$owner,$company,$client,$job]=$this->tenant('M16 Custom Method');
+        $request=array_merge($this->fields($job),[
+            'payment_method'=>'other',
+            'payment_method_custom'=>'Mobile cheque pickup',
+        ]);
+        $id=(int)$this->postJson('/api/v1/deposits',$request)
+            ->assertCreated()
+            ->assertJsonPath('data.deposit.payment_method','other')
+            ->assertJsonPath('data.deposit.payment_method_custom','Mobile cheque pickup')
+            ->json('data.deposit.id');
+        $this->getJson('/api/v1/deposits/'.$id)->assertOk()
+            ->assertJsonPath('data.deposit.payment_method_custom','Mobile cheque pickup')
+            ->assertJsonPath('data.deposit.notes','Manual bank collection');
+        $this->patchJson('/api/v1/deposits/'.$id,array_merge($request,[
+            'lock_version'=>1,'payment_method_custom'=>'Cash app transfer',
+        ]))->assertOk()
+            ->assertJsonPath('data.deposit.payment_method_custom','Cash app transfer');
+        $this->assertDatabaseHas('job_deposits',[
+            'id'=>$id,'payment_method'=>'other',
+            'payment_method_custom'=>'Cash app transfer',
+        ]);
+        $this->postJson('/api/v1/deposits',array_merge($this->fields($job),[
+            'payment_method_custom'=>'Invalid alongside bank transfer',
+        ]))->assertUnprocessable();
+    }
+
     public function test_pending_updates_require_version_and_void_retains_audit(): void
     {
         [$owner,$company,$client,$job]=$this->tenant('M16 Concurrent');
