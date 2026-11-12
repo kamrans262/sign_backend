@@ -98,59 +98,165 @@ final class GeneralDocumentIssueService
 
     private function render(array $snapshot): string
     {
+        // General/AI documents share the approved quotation's visual family,
+        // but retain every block, attachment and its immutable issue snapshot.
+        // No existing issued or signed PDF is rendered again.
         abort_unless(class_exists(\FPDF::class),503,'PDF renderer unavailable.');
-        $pdf=new \FPDF('P','mm','A4');
+        $pdf=new Sign2DigitalInvoicePdfCanvas('P','mm','A4');
         $pdf->SetTitle(self::label('Sign2Digital '.$snapshot['title'],200));
         $pdf->SetAuthor('Sign2Digital');
-        $pdf->SetMargins(20,20,20);
-        $pdf->SetAutoPageBreak(true,20);
+
+        // Approved quotation measurements: A4, 38 pt side margins, 20 pt
+        // inside the rounded logo/recipient card, blue #166282, ink #122536.
+        $left=13.4;
+        $width=183.2;
+        $inner=20.5;
+        $right=189.5;
+        $blue=[22,98,130];
+        $ink=[18,37,54];
+        $grey=[138,154,168];
+        $rule=[228,234,240];
+        $pdf->SetMargins($left,$left,$left);
+        $pdf->SetAutoPageBreak(true,19);
+        $pdf->SetDrawColor(...$rule);
+        $pdf->SetLineWidth(.25);
         $pdf->AddPage();
-        $pdf->SetTextColor(18,37,54);
-        $pdf->SetFont('Arial','B',20);
-        $pdf->MultiCell(170,10,self::label($snapshot['title'],255));
-        $pdf->SetFont('Arial','',9);
-        $pdf->SetTextColor(102,112,133);
-        $pdf->Cell(170,6,self::label($snapshot['number']),0,1);
-        $pdf->SetDrawColor(22,98,130);
-        $pdf->Line(20,$pdf->GetY()+2,190,$pdf->GetY()+2);
-        $pdf->Ln(9);
-        $pdf->SetTextColor(18,37,54);
-        $pdf->SetFont('Arial','B',10);
-        $pdf->MultiCell(170,6,self::label($snapshot['company_name'],255));
-        $pdf->SetFont('Arial','',9);
-        if($snapshot['company_address'])$pdf->MultiCell(170,5,
-            self::label($snapshot['company_address'],500));
-        if($snapshot['company_vat'])$pdf->MultiCell(170,5,
-            'VAT: '.self::label($snapshot['company_vat']));
-        if($snapshot['client_name'])$pdf->MultiCell(170,6,
-            'To: '.self::label($snapshot['client_name'],255));
-        if($snapshot['job_title'])$pdf->MultiCell(170,6,
-            'Project: '.self::label($snapshot['job_title'],255));
+
+        $logo=public_path('admin-assets/logo.png');
+        $image=is_file($logo)?@getimagesize($logo):false;
+        if(is_array($image)&&($image['mime']??'')==='image/png'
+            && $image[0]>0 && $image[1]>0){
+            $ratio=$image[0]/$image[1];
+            $logoWidth=min(46.6,15.2*$ratio);
+            $pdf->Image($logo,$inner,20.5,$logoWidth,$logoWidth/$ratio,'PNG');
+        }else{
+            $pdf->SetXY($inner,22);
+            $pdf->SetTextColor(...$blue);
+            $pdf->SetFont('Helvetica','B',17);
+            $pdf->Cell(86,9,'Sign2Digital');
+        }
+        $pdf->SetTextColor(...$ink);
+        $pdf->SetFont('Helvetica','B',18);
+        $pdf->SetXY(124,20.5);
+        $pdf->Cell($right-124,8,'Document',0,1,'R');
+        $pdf->SetTextColor(...$grey);
+        $pdf->SetFont('Helvetica','',12);
+        $pdf->SetXY(124,30);
+        $pdf->Cell($right-124,6,self::label($snapshot['number'],100),0,1,'R');
+
+        $pdf->SetTextColor(...$ink);
+        $pdf->SetFont('Helvetica','B',11);
+        $pdf->SetXY($inner,42);
+        $pdf->Cell(98,7,self::label($snapshot['company_name'],160),0,1,'L');
+        $pdf->SetFont('Helvetica','',9);
+        $pdf->SetTextColor(...$grey);
+        if($snapshot['company_address']){
+            $pdf->SetX($inner);
+            $pdf->MultiCell(94,5,self::label($snapshot['company_address'],400));
+        }
+        if($snapshot['company_vat']){
+            $pdf->SetX($inner);
+            $pdf->MultiCell(94,5,'VAT: '.self::label($snapshot['company_vat'],110));
+        }
+        $y=max(59,$pdf->GetY()+4);
+        if($snapshot['client_name']){
+            $pdf->SetXY($inner,$y);
+            $pdf->SetTextColor(...$ink);
+            $pdf->SetFont('Helvetica','B',12);
+            $pdf->Cell(94,7,'To:',0,1);
+            $pdf->SetFont('Helvetica','',11);
+            $pdf->SetTextColor(...$grey);
+            $pdf->SetX($inner);
+            $pdf->MultiCell(94,6,self::label($snapshot['client_name'],255));
+        }
+        if($snapshot['job_title']){
+            $pdf->SetTextColor(...$ink);
+            $pdf->SetFont('Helvetica','B',10);
+            $pdf->SetX($inner);
+            $pdf->MultiCell(94,6,'Project: '.self::label($snapshot['job_title'],200));
+        }
+        $leftBottom=$pdf->GetY();
+
+        // Same right-aligned metadata proportions as quotation preview.
+        $date=(string)($snapshot['approved_at']??'');
+        if($date!=='')$date=substr($date,0,10);
+        $metaY=$y;
+        foreach([
+            ['Date:', $date],
+            ['Type:',str_replace('_',' ',ucwords($snapshot['type'],'_'))],
+        ] as [$label,$value]){
+            if(trim($value)==='')continue;
+            $pdf->SetXY(131,$metaY);
+            $pdf->SetFont('Helvetica','B',10);
+            $pdf->SetTextColor(...$ink);
+            $pdf->Cell(23,6,self::label($label),0,0,'R');
+            $pdf->SetFont('Helvetica','',10);
+            $pdf->SetTextColor(...$grey);
+            $pdf->SetXY(156,$metaY);
+            $pdf->MultiCell(33.5,6,self::label($value,150),0,'R');
+            $metaY=$pdf->GetY()+3;
+        }
+
+        $headerBottom=max(74,$leftBottom+8,$metaY+5);
+        $pdf->SetDrawColor(...$rule);
+        $pdf->quotationCard($left,$left,$width,$headerBottom-$left);
+        $pdf->SetY($headerBottom+8);
+
+        // A quotation-style blue section header replaces the old text-only
+        // horizontal rule. Document title and blocks are unmodified.
+        $pdf->SetFillColor(...$blue);
+        $pdf->SetTextColor(255,255,255);
+        $pdf->SetFont('Helvetica','B',14);
+        $pdf->SetX($left);
+        $pdf->MultiCell($width,10,'  '.self::label($snapshot['title'],255),0,'L',true);
         $pdf->Ln(8);
+
         foreach($snapshot['blocks'] as $block){
-            $heading=$block['type']==='heading';
-            $bold=$heading||$block['bold'];
+            $isHeading=$block['type']==='heading';
+            $bold=$isHeading||$block['bold'];
             $italic=$block['italic'];
-            $pdf->SetFont('Arial',($bold?'B':'').($italic?'I':''),$heading?12:10);
+            $pdf->SetFont('Helvetica',($bold?'B':'').($italic?'I':''),$isHeading?14:11);
+            $pdf->SetTextColor(...($isHeading?$blue:$ink));
+            $pdf->SetX($left);
             $prefix=match($block['type']){
                 'bullet'=>'- ','numbered'=>'- ',default=>'',
             };
-            // FPDF's MultiCell wraps and paginates long paragraphs.
-            $pdf->MultiCell(170,$heading?8:6,$prefix.self::label($block['text'],4000));
-            $pdf->Ln($heading?3:4);
-        }
-        if($snapshot['attachments']){
-            $pdf->Ln(5);$pdf->SetFont('Arial','B',10);
-            $pdf->MultiCell(170,6,'Related attachments (stored separately)');
-            $pdf->SetFont('Arial','',9);
-            foreach($snapshot['attachments'] as $file){
-                $pdf->MultiCell(170,5,self::label($file['name'],90).
-                    ' / SHA-256: '.$file['sha256']);
+            // MultiCell wraps and paginates user-authored paragraphs.
+            $pdf->MultiCell($width,$isHeading?8:6.5,
+                $prefix.self::label($block['text'],4000));
+            if($isHeading){
+                $pdf->SetDrawColor(...$rule);
+                $pdf->Line($left,$pdf->GetY()+1,$left+$width,$pdf->GetY()+1);
+                $pdf->Ln(4);
+            }else{
+                $pdf->Ln(4);
             }
         }
-        $pdf->Ln(6);
-        $pdf->SetFont('Arial','I',8);
-        $pdf->MultiCell(170,5,'Approved source revision '.$snapshot['revision'].
+        if($snapshot['attachments']){
+            $pdf->Ln(5);
+            $pdf->SetFillColor(...$blue);
+            $pdf->SetTextColor(255,255,255);
+            $pdf->SetFont('Helvetica','B',11);
+            $pdf->SetX($left);
+            $pdf->Cell($width,9,'  Related attachments (stored separately)',0,1,'L',true);
+            $pdf->Ln(5);
+            foreach($snapshot['attachments'] as $file){
+                $pdf->SetTextColor(...$ink);
+                $pdf->SetFont('Helvetica','',10);
+                $pdf->SetX($left);
+                $pdf->MultiCell($width,6,self::label($file['name'],90));
+                $pdf->SetFont('Helvetica','',8);
+                $pdf->SetTextColor(...$grey);
+                $pdf->SetX($left);
+                $pdf->MultiCell($width,5,'SHA-256: '.$file['sha256']);
+                $pdf->Ln(3);
+            }
+        }
+        $pdf->Ln(8);
+        $pdf->SetTextColor(...$grey);
+        $pdf->SetFont('Helvetica','I',8);
+        $pdf->SetX($left);
+        $pdf->MultiCell($width,5,'Approved source revision '.$snapshot['revision'].
             '. An electronic signature, when supplied, is recorded in a separate signed PDF.');
         $bytes=$pdf->Output('S');
         abort_unless(is_string($bytes)&&strlen($bytes)<=5*1024*1024
