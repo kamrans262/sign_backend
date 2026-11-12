@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/m5-m11-job-details-media.yml'
       - 'app/Services/JobDetailsSnapshot.php'
+      - 'app/Services/JobProgressCalculator.php'
       - 'app/Http/Controllers/Api/ServiceJobController.php'
       - 'app/Http/Controllers/Api/ClientController.php'
       - 'app/Services/ExpenseService.php'
@@ -13,6 +14,8 @@ on:
       - 'tests/Feature/Sign2DigitalCreationRetryTest.php'
       - 'tests/Feature/M5JobDetailsLiveSummaryTest.php'
       - 'tests/Feature/M5ServiceJobManagementTest.php'
+      - 'tests/Feature/M5Stage2SecurityAndReleaseTest.php'
+      - 'tests/Feature/JobActivityProgressTest.php'
   workflow_dispatch:
 
 permissions:
@@ -35,6 +38,6 @@ jobs:
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
       - name: Lint job summary and controller
-        run: php -l app/Services/JobDetailsSnapshot.php && php -l app/Http/Controllers/Api/ServiceJobController.php && php -l tests/Feature/M5JobDetailsLiveSummaryTest.php && php -l tests/Feature/Sign2DigitalCreationRetryTest.php
+        run: php -l app/Services/JobDetailsSnapshot.php && php -l app/Services/JobProgressCalculator.php && php -l app/Http/Controllers/Api/ServiceJobController.php && php -l tests/Feature/M5JobDetailsLiveSummaryTest.php && php -l tests/Feature/JobActivityProgressTest.php && php -l tests/Feature/Sign2DigitalCreationRetryTest.php
       - name: Run persisted job details and private photo tests
-        run: php artisan test --filter='M5JobDetailsLiveSummaryTest|M5ServiceJobManagementTest|M5Stage2SecurityAndReleaseTest|M11JobMediaTest|Sign2DigitalCreationRetryTest'
+        run: php artisan test --filter='M5JobDetailsLiveSummaryTest|M5ServiceJobManagementTest|M5Stage2SecurityAndReleaseTest|M11JobMediaTest|JobActivityProgressTest|Sign2DigitalCreationRetryTest'
