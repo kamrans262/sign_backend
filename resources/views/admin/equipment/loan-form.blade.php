@@ -10,12 +10,12 @@
 @if(!$record)
 <form class="form-grid" style="padding:20px" method="post" action="{{ route('admin.equipment.loan.store') }}">@csrf
 <label>Company<select class="input" name="company_id" required><option value="">Choose Company</option>@foreach($companies as $c)<option value="{{ $c->id }}" @selected(old('company_id')==$c->id)>{{ $c->name }}</option>@endforeach</select></label>
-<label>Equipment<select class="input" name="equipment_asset_id" required><option value="">Choose Equipment</option>@foreach($assets as $a)<option value="{{ $a->id }}" @selected(old('equipment_asset_id')==$a->id)>{{ $a->code }} · {{ $a->name }} (Company #{{ $a->company_id }})</option>@endforeach</select></label>
+<label>Equipment<select class="input" name="equipment_asset_id" required><option value="">Choose Equipment</option>@foreach($assets as $a)<option value="{{ $a->id }}" @selected(old('equipment_asset_id')==$a->id)>{{ $a->code }} · {{ $a->name }} ({{ \App\Support\AdminCompanyNames::label($a->company_id) }})</option>@endforeach</select></label>
 <label>Borrower Type<select class="input" name="borrower_type"><option value="external">Other Person</option><option value="client" @selected(old('borrower_type')==='client')>Existing Client</option></select></label>
-<label>Client (required if linked)<select class="input" name="client_id"><option value="">Other Person / No Client</option>@foreach($clients as $c)<option value="{{ $c->id }}" @selected(old('client_id')==$c->id)>{{ $c->full_name }} (Company #{{ $c->company_id }})</option>@endforeach</select></label>
+<label>Client (required if linked)<select class="input" name="client_id"><option value="">Other Person / No Client</option>@foreach($clients as $c)<option value="{{ $c->id }}" @selected(old('client_id')==$c->id)>{{ $c->full_name }} ({{ \App\Support\AdminCompanyNames::label($c->company_id) }})</option>@endforeach</select></label>
 <label>Borrower Full Name<input class="input" name="borrower_name" required maxlength="255" value="{{ old('borrower_name') }}"></label>
 <label>Borrower Email (optional)<input class="input" name="borrower_email" type="email" maxlength="255" value="{{ old('borrower_email') }}"></label>
-<label>Job (optional)<select class="input" name="job_id"><option value="">No Job</option>@foreach($jobs as $j)<option value="{{ $j->id }}" @selected(old('job_id')==$j->id)>{{ $j->title }} (Company #{{ $j->company_id }})</option>@endforeach</select></label>
+<label>Job (optional)<select class="input" name="job_id"><option value="">No Job</option>@foreach($jobs as $j)<option value="{{ $j->id }}" @selected(old('job_id')==$j->id)>{{ $j->title }} ({{ \App\Support\AdminCompanyNames::label($j->company_id) }})</option>@endforeach</select></label>
 <label>Loan Date<input class="input" type="date" name="loan_date" required value="{{ old('loan_date',date('Y-m-d')) }}"></label>
 <label>Expected Return<input class="input" type="date" name="expected_return_date" required value="{{ old('expected_return_date',date('Y-m-d')) }}"></label>
 <label style="grid-column:1/-1">Notes<textarea class="input" name="notes" rows="3" maxlength="6000">{{ old('notes') }}</textarea></label>
