@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\Company;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -139,9 +141,16 @@ final class M23StripeLiveSetupCommandTest extends TestCase
     public function test_existing_stripe_checkout_prevents_mode_switch_without_erasing_it(): void
     {
         $this->setTestPrices();
+        $user=User::factory()->create();
+        $company=Company::create([
+            'owner_user_id'=>$user->id,'name'=>'Historical Test Company',
+            'country_iso_code'=>'CH','status'=>'active',
+        ]);
+        $plan=DB::table('m23_plans')->where('code','business')
+            ->where('period','monthly')->firstOrFail();
         DB::table('m23_checkout_intents')->insert([
             'request_id'=>'33333333-3333-4333-8333-333333333333',
-            'company_id'=>1,'plan_id'=>1,
+            'company_id'=>$company->id,'plan_id'=>$plan->id,
             'status'=>'pending','created_at'=>now(),'updated_at'=>now(),
         ]);
         Http::preventStrayRequests();
