@@ -170,6 +170,23 @@ final class M10AddendaManagementTest extends TestCase
         $item=Addendum::findOrFail($id);
         $frozen=Storage::disk('local')->get($item->approved_pdf_path);
         $this->assertStringStartsWith('%PDF-',$frozen);
+        // Verify the actual PDF page content, not merely the PHP template:
+        // same quotation-style document card, table, totals and signature.
+        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $frozen, $streams);
+        $pageText = '';
+        foreach ($streams[1] as $stream) {
+            $decoded = @gzuncompress($stream);
+            if (is_string($decoded)) $pageText .= "\n".$decoded;
+        }
+        $this->assertStringContainsString('Bill To:', $pageText);
+        $this->assertStringContainsString('Description', $pageText);
+        $this->assertStringContainsString('Unit Price', $pageText);
+        $this->assertStringContainsString('Subtotal', $pageText);
+        $this->assertStringContainsString('Total', $pageText);
+        $this->assertStringContainsString('Customer Signature', $pageText);
+        $this->assertStringContainsString('Original Signed Document', $pageText);
+        $this->assertStringContainsString('Original SHA-256', $pageText);
+        $this->assertStringContainsString('General Terms', $pageText);
         $this->assertSame(hash('sha256',$frozen),$item->approved_pdf_sha256);
         $this->get('/api/v1/addenda/'.$id.'/pdf')->assertOk()->assertContent($frozen);
         $this->patchJson('/api/v1/addenda/'.$id,$update)->assertStatus(409);
