@@ -576,7 +576,7 @@ class M3CompanyManagementTest extends TestCase
         $users = $this->actingAs($admin)->get('/admin/users')->assertOk()
             ->assertSee('User Management')
             ->assertSee('Email OTP Activity')
-            ->assertSee('Company Management')
+            ->assertSee('All Users')
             ->assertDontSee('Platform Console')
             ->assertDontSee('Secure Console');
         $content = $users->getContent();
