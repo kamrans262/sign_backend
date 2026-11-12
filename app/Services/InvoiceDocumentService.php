@@ -99,11 +99,17 @@ final class InvoiceDocumentService
         // Match the approved quotation PDF visual family. Only the layout is
         // revised; every value comes from the same verified immutable snapshot.
         abort_unless(class_exists(\FPDF::class),503,'PDF rendering library unavailable.');
-        $pdf=new \FPDF('P','mm','A4');
+        $pdf=new Sign2DigitalInvoicePdfCanvas('P','mm','A4');
         $pdf->SetTitle(self::label('Sign2Digital Invoice '.$s['number']));
         $pdf->SetAuthor('Sign2Digital');
         $pdf->SetAutoPageBreak(true,22);
-        $pdf->SetMargins(19,19,19);
+        // Flutter quotation: 38pt outer margins, 20pt inner card padding.
+        $pageInset=13.4056;
+        $cardInset=20.4611;
+        $cardWidth=183.1888;
+        $cardRight=$pageInset+$cardWidth;
+        $innerRight=$cardRight-7.0555;
+        $pdf->SetMargins($pageInset,$pageInset,$pageInset);
         $pdf->AddPage();
 
         // Sign2Digital quotation palette: primary #166282, ink #122536,
@@ -118,78 +124,86 @@ final class InvoiceDocumentService
         $pdf->SetTextColor(...$ink);
         $logo=public_path('admin-assets/logo.png');
         if(is_file($logo)) {
-            $pdf->Image($logo,24,24,44);
+            // Same PNG and 132x43pt box as Flutter's Quote PDF.
+            $pdf->Image($logo,$cardInset,$cardInset,46.5667,15.1694,'PNG');
         } else {
-            $pdf->SetXY(24,25);
+            $pdf->SetXY($cardInset,$cardInset);
             $pdf->Cell(62,12,'Sign2Digital',0,0,'L');
         }
-        $pdf->SetXY(122,25);
-        $pdf->Cell(69,10,'Invoice',0,1,'R');
+        $pdf->SetXY(129,$cardInset);
+        $pdf->Cell($innerRight-129,8,'Invoice',0,1,'R');
         $pdf->SetTextColor(...$grey);
-        $pdf->SetFont('Arial','',10);
-        $pdf->SetX(122);
-        $pdf->Cell(69,6,self::label($s['number']),0,1,'R');
+        $pdf->SetFont('Arial','',12);
+        $pdf->SetXY(125,$cardInset+11);
+        $pdf->Cell($innerRight-125,6,self::label($s['number']),0,1,'R');
 
         $pdf->SetTextColor(...$ink);
-        $pdf->SetXY(24,46);
+        $pdf->SetXY($cardInset,40);
         $pdf->SetFont('Arial','B',10);
         $pdf->MultiCell(88,6,self::label($s['company_name']));
         $pdf->SetFont('Arial','',9);
         $pdf->SetTextColor(...$grey);
         if($s['company_address']) {
-            $pdf->SetX(24);
+            $pdf->SetX($cardInset);
             $pdf->MultiCell(88,5,self::label($s['company_address'],450));
         }
         if($s['company_vat']) {
-            $pdf->SetX(24);
+            $pdf->SetX($cardInset);
             $pdf->MultiCell(88,5,'VAT: '.self::label($s['company_vat']));
         }
         $companyEnd=$pdf->GetY();
-        $billY=max(70,$companyEnd+6);
-        $pdf->SetXY(24,$billY);
+        $billY=max(57,$companyEnd+4);
+        $pdf->SetXY($cardInset,$billY);
         $pdf->SetTextColor(...$ink);
         $pdf->SetFont('Arial','B',12);
         $pdf->Cell(85,7,'Bill To:',0,1);
         $pdf->SetTextColor(...$grey);
         $pdf->SetFont('Arial','',10);
-        $pdf->SetX(24);
+        $pdf->SetX($cardInset);
         $pdf->MultiCell(85,6,self::label($s['client_name']));
         if($s['billing_address']) {
-            $pdf->SetX(24);
+            $pdf->SetX($cardInset);
             $pdf->MultiCell(85,5,self::label($s['billing_address'],400));
         }
         $billEnd=$pdf->GetY();
 
-        // Same right-hand label/value group as the quotation PDF.
+        // Quotation date-group dimensions: 156pt total; 72pt label, 6pt gap.
+        // Preserve invoice-only due date and project values.
         $metaY=$billY;
+        $dateGroupLeft=$innerRight-55.0333;
         foreach([
             ['Date:',(string)$s['invoice_date']],
-            ['Due:',(string)$s['due_date']],
+            ['Due Date:',(string)$s['due_date']],
             ['Project:',self::label((string)$s['job'],90)],
         ] as [$label,$value]) {
-            $pdf->SetXY(122,$metaY);
-            $pdf->SetFont('Arial','B',9);
+            $pdf->SetXY($dateGroupLeft,$metaY);
+            $pdf->SetFont('Arial','B',10);
             $pdf->SetTextColor(...$ink);
-            $pdf->Cell(27,6,$label,0,0,'R');
-            $pdf->SetFont('Arial','',9);
+            $pdf->Cell(25.4,6,$label,0,0,'R');
+            $pdf->Cell(2.1167,6,'',0,0);
+            $pdf->SetFont('Arial','',10);
             $pdf->SetTextColor(...$grey);
-            $pdf->MultiCell(42,6,$value,0,'R');
-            $metaY=$pdf->GetY()+3;
+            $pdf->MultiCell(27.5166,6,$value,0,'R');
+            $metaY=$pdf->GetY()+2.822;
         }
-        $headerBottom=max($billEnd,$metaY)+8;
+        $headerBottom=max($billEnd,$metaY)+8.4667;
         $pdf->SetDrawColor(228,234,240);
-        $pdf->Rect(19,19,172,$headerBottom-19);
-        $pdf->SetY($headerBottom+12);
+        $pdf->SetLineWidth(.247);
+        $pdf->quotationCard($pageInset,$pageInset,$cardWidth,
+            $headerBottom-$pageInset);
+        $pdf->SetY($headerBottom+4.2333);
 
-        // Approved quotation table: brand header, light grid, balanced columns.
-        $tableHeader=function()use($pdf,$blue):void {
+        // Quotation 4:1:2.2:2.2 table proportions across 38pt margins.
+        $tableWidths=[77.95,19.49,42.87,42.8788];
+        $tableHeader=function()use($pdf,$blue,$pageInset,$tableWidths):void {
+            $pdf->SetX($pageInset);
             $pdf->SetFillColor(...$blue);
             $pdf->SetTextColor(255,255,255);
-            $pdf->SetFont('Arial','B',10);
-            $pdf->Cell(90,10,'Description',0,0,'L',true);
-            $pdf->Cell(16,10,'Qty',0,0,'R',true);
-            $pdf->Cell(33,10,'Unit CHF',0,0,'R',true);
-            $pdf->Cell(33,10,'Total CHF',0,1,'R',true);
+            $pdf->SetFont('Arial','B',11);
+            $pdf->Cell($tableWidths[0],10,'Description',0,0,'L',true);
+            $pdf->Cell($tableWidths[1],10,'Qty',0,0,'R',true);
+            $pdf->Cell($tableWidths[2],10,'Unit Price',0,0,'R',true);
+            $pdf->Cell($tableWidths[3],10,'Total',0,1,'R',true);
         };
         $tableHeader();
         $pdf->SetTextColor(...$ink);
@@ -205,13 +219,13 @@ final class InvoiceDocumentService
                 if($word==='')continue;
                 $last=count($lines)-1;
                 $candidate=$lines[$last]===''?$word:$lines[$last].' '.$word;
-                if($pdf->GetStringWidth($candidate)<=86){
+                if($pdf->GetStringWidth($candidate)<=$tableWidths[0]-4){
                     $lines[$last]=$candidate;
                 }elseif($lines[$last]===''){
                     // A single long unbroken token must still fit its cell.
                     $chunk='';
                     foreach(str_split($word) as $char){
-                        if($chunk!=='' && $pdf->GetStringWidth($chunk.$char)>86){
+                        if($chunk!=='' && $pdf->GetStringWidth($chunk.$char)>$tableWidths[0]-4){
                             $lines[$last]=$chunk;
                             $lines[]='';
                             $last=count($lines)-1;
@@ -226,16 +240,17 @@ final class InvoiceDocumentService
             }
             $height=max(9,count($lines)*5+4);
             if($pdf->GetY()+$height>270){$pdf->AddPage();$tableHeader();}
+            $pdf->SetX($pageInset);
             $x=$pdf->GetX();$y=$pdf->GetY();
-            $pdf->Cell(90,$height,'','B');
+            $pdf->Cell($tableWidths[0],$height,'','B');
             $pdf->SetXY($x+2,$y+2);
             foreach($lines as $line){
-                $pdf->Cell(86,5,$line,0,2,'L');
+                $pdf->Cell($tableWidths[0]-4,5,$line,0,2,'L');
             }
-            $pdf->SetXY($x+90,$y);
-            $pdf->Cell(16,$height,(string)$item['quantity'],'B',0,'R');
-            $pdf->Cell(33,$height,number_format($item['unit_price_minor']/100,2,'.',"'"),'B',0,'R');
-            $pdf->Cell(33,$height,number_format($item['total_minor']/100,2,'.',"'"),'B',1,'R');
+            $pdf->SetXY($x+$tableWidths[0],$y);
+            $pdf->Cell($tableWidths[1],$height,(string)$item['quantity'],'B',0,'R');
+            $pdf->Cell($tableWidths[2],$height,self::money((int)$item['unit_price_minor']),'B',0,'R');
+            $pdf->Cell($tableWidths[3],$height,self::money((int)$item['total_minor']),'B',1,'R');
         }
 
         if($pdf->GetY()>220)$pdf->AddPage();
@@ -250,35 +265,45 @@ final class InvoiceDocumentService
         ];
         foreach($lines as $name=>$value) {
             $isTotal=$name==='Total';
-            $pdf->SetX(103);
-            $pdf->SetFillColor(...($isTotal?$blue:[255,255,255]));
+            $y=$pdf->GetY();
+            // Flutter quotation colors the full Total row, not only values.
+            if($isTotal){
+                $pdf->SetX($pageInset);
+                $pdf->SetFillColor(...$blue);
+                $pdf->Cell($cardWidth,9,'',0,0,'L',true);
+            }
+            $pdf->SetXY($innerRight-74.0833,$y);
             $pdf->SetTextColor(...($isTotal?[255,255,255]:$grey));
-            $pdf->SetFont('Arial',$isTotal?'B':'',$isTotal?11:9);
-            $pdf->Cell(48,9,$name,0,0,'R',$isTotal);
+            $fontSize=$pdf->GetStringWidth($name)>43 ? 8 : 10;
+            $pdf->SetFont('Arial',$isTotal?'B':'',$isTotal?11:$fontSize);
+            $pdf->Cell(43,9,$name,0,0,'R');
             $pdf->SetTextColor(...($isTotal?[255,255,255]:$ink));
-            $pdf->Cell(40,9,$value,0,1,'R',$isTotal);
+            $pdf->SetFont('Arial',$isTotal?'B':'',$isTotal?11:10);
+            $pdf->Cell(31.0833,9,$value,0,1,'R');
         }
 
-        $pdf->Ln(12);
-        if($pdf->GetY()>255)$pdf->AddPage();
+        $pdf->Ln(7.0556);
+        if($pdf->GetY()>245)$pdf->AddPage();
         $startY=$pdf->GetY();
-        $pdf->SetFont('Arial','B',12);
+        $pdf->SetFont('Arial','B',14);
         $pdf->SetTextColor(...$ink);
-        $pdf->SetX(24);
-        $pdf->Cell(162,8,'Payment Details',0,1);
-        $pdf->SetFont('Arial','',10);
-        $pdf->SetX(24);
-        $pdf->Cell(162,6,'Payment QR unavailable',0,1);
+        $pdf->SetX($cardInset);
+        $pdf->Cell($cardWidth-14.1111,8,'Payment Details',0,1);
+        $pdf->SetFont('Arial','',12);
+        $pdf->SetX($cardInset);
+        $pdf->Cell($cardWidth-14.1111,6,'Payment QR unavailable',0,1);
         $pdf->SetTextColor(...$grey);
-        $pdf->SetFont('Arial','',9);
-        $pdf->SetX(24);
-        $pdf->MultiCell(162,5,'IBAN: '.self::label((string)$s['iban']));
-        $pdf->SetX(24);
-        $pdf->MultiCell(162,5,'Reference: '.self::label($s['number']));
-        $payBottom=$pdf->GetY()+8;
+        $pdf->SetFont('Arial','',10);
+        $pdf->Ln(4);
+        $pdf->SetX($cardInset);
+        $pdf->MultiCell($cardWidth-14.1111,5,'IBAN: '.self::label((string)$s['iban']));
+        $pdf->SetX($cardInset);
+        $pdf->MultiCell($cardWidth-14.1111,5,'Reference: '.self::label($s['number']));
+        $payBottom=$pdf->GetY()+5.29;
         $pdf->SetDrawColor(228,234,240);
-        $pdf->Rect(19,$startY-4,172,$payBottom-$startY+4);
-        $pdf->SetY($payBottom+12);
+        $pdf->quotationCard($pageInset,$startY-5.29,$cardWidth,
+            $payBottom-$startY+5.29);
+        $pdf->SetY($payBottom+7.0556);
 
         // Preserve the exact notes and terms without introducing quote
         // signature fields into an invoice.
@@ -294,10 +319,10 @@ final class InvoiceDocumentService
         if($s['terms']) {
             $pdf->SetTextColor(...$ink);
             $pdf->SetFont('Arial','B',13);
-            $pdf->Cell(172,8,'General Terms & Conditions',0,1);
+            $pdf->Cell($cardWidth,8,'General Terms & Conditions',0,1);
             $pdf->SetTextColor(...$grey);
             $pdf->SetFont('Arial','',10);
-            $pdf->MultiCell(172,6,self::label($s['terms'],650));
+            $pdf->MultiCell($cardWidth,6,self::label($s['terms'],650));
         }
 
         $bytes=$pdf->Output('S');
