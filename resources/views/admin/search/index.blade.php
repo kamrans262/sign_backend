@@ -26,7 +26,7 @@
 @forelse($result['records'] as $record)
 <tr><td>{{ ucwords(str_replace('_',' ',$record['type'])) }}</td>
 <td>{{ $record['title'] }}<div class="muted">{{ $record['subtitle'] }}</div></td>
-<td>{{ $record['reference'] }}</td><td>#{{ $record['company_id'] }}</td>
+<td>{{ $record['reference'] }}</td><td>{{ \App\Support\AdminCompanyNames::label($record['company_id']) }}</td>
 <td><span class="pill">{{ ucwords(str_replace('_',' ',$record['status'])) }}</span></td>
 <td>{{ $record['date'] }}</td>
 <td><a class="btn btn-small btn-outline" href="{{ $record['url'] }}">Manage</a></td></tr>
