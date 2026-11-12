@@ -51,7 +51,7 @@
 <section class="panel"><div class="panel-header"><div><h2>Active Worker Timers</h2><p class="panel-header-hint">Server-authoritative, including paused timers</p></div></div>
 <div class="table-wrap"><table><thead><tr><th>Company</th><th>Worker</th><th>Job</th><th>Status</th><th>Elapsed</th><th>Action</th></tr></thead><tbody>
 @forelse($running as $timer)<tr>
-<td>#{{ $timer['company_id'] }}</td><td>{{ $timer['worker_name'] }}</td>
+<td>{{ \App\Support\AdminCompanyNames::label($timer['company_id']) }}</td><td>{{ $timer['worker_name'] }}</td>
 <td>{{ $timer['job'] }}</td><td>{{ ucfirst($timer['status']) }}</td>
 <td>{{ intdiv($timer['elapsed_seconds'],3600) }}h {{ intdiv($timer['elapsed_seconds']%3600,60) }}m</td>
 <td><form action="{{ route('admin.labour.timer.stop',[$timer['company_id'],$timer['worker_id']]) }}" method="post" data-confirm="Stop this worker timer and create a pending time entry?">
@@ -73,7 +73,7 @@
 @forelse($recoveries as $event)
 @php $meta=json_decode((string)$event->metadata,true)?:[]; @endphp
 <tr><td>{{ $event->worker_name??'Worker #'.$event->worker_user_id }}</td>
-<td>#{{ $event->company_id }}</td>
+<td>{{ \App\Support\AdminCompanyNames::label($event->company_id) }}</td>
 <td>{{ intdiv((int)($meta['recorded_seconds']??0),3600) }}h {{ intdiv(((int)($meta['recorded_seconds']??0))%3600,60) }}m (unbilled)</td>
 <td>{{ $meta['reason']??'Unknown' }}</td><td>{{ $event->created_at }}</td><td>User #{{ $event->actor_user_id }}</td></tr>
 @empty<tr><td colspan="6">No timer recoveries recorded.</td></tr>@endforelse
