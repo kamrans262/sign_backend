@@ -30,7 +30,7 @@
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Reference / Job</th><th>Company</th><th>Client</th><th>Stage</th><th>Due</th><th>Budget (CHF)</th><th>Action</th></tr></thead>
+      <thead><tr><th>Reference / Job</th><th>Company</th><th>Client</th><th>Stage</th><th>Due</th><th>Budget (CHF)</th><th>Progress</th><th>Action</th></tr></thead>
       <tbody>
       @forelse($jobs as $job)
         <tr>
@@ -40,6 +40,7 @@
           <td><span class="pill">{{ ucfirst(str_replace('_',' ', $job->category === 'archived' ? 'archived' : $job->effectiveStage())) }}</span></td>
           <td>{{ $job->due_date?->format('d M Y') ?? '—' }}</td>
           <td>{{ $job->budget_chf === null ? 'Not set' : number_format((float)$job->budget_chf,2) }}</td>
+          <td>{{ $progressByJob[$job->id] ?? 0 }}%</td>
           <td>
           @if($job->category === 'archived')
             <form method="post" action="{{ route('admin.jobs.restore', $job) }}">@csrf
@@ -51,7 +52,7 @@
           </td>
         </tr>
       @empty
-      <tr><td colspan="7" class="empty">No matching jobs found.</td></tr>
+      <tr><td colspan="8" class="empty">No matching jobs found.</td></tr>
       @endforelse
       </tbody>
     </table>
