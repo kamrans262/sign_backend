@@ -96,6 +96,8 @@ final class InvoiceDocumentService
 
     private function pdf(array $s): string
     {
+        // Match the approved quotation PDF visual family. Only the layout is
+        // revised; every value comes from the same verified immutable snapshot.
         abort_unless(class_exists(\FPDF::class),503,'PDF rendering library unavailable.');
         $pdf=new \FPDF('P','mm','A4');
         $pdf->SetTitle(self::label('Sign2Digital Invoice '.$s['number']));
@@ -103,48 +105,106 @@ final class InvoiceDocumentService
         $pdf->SetAutoPageBreak(true,22);
         $pdf->SetMargins(19,19,19);
         $pdf->AddPage();
-        $pdf->SetTextColor(18,37,54);
-        $pdf->SetFont('Arial','B',20);
-        $pdf->Cell(172,12,'Invoice',0,1,'R');
-        $pdf->SetFont('Arial','',10);
-        $pdf->Cell(172,6,self::label($s['number']),0,1,'R');
-        $pdf->SetDrawColor(22,98,130);
-        $pdf->SetLineWidth(.45);
-        $pdf->Line(19,$pdf->GetY()+3,191,$pdf->GetY()+3);
-        $pdf->Ln(12);
-        $pdf->SetFont('Arial','B',12);
-        $pdf->MultiCell(172,7,self::label($s['company_name']));
-        $pdf->SetFont('Arial','',10);
-        if($s['company_address'])$pdf->MultiCell(172,5,self::label($s['company_address'],450));
-        if($s['company_vat'])$pdf->MultiCell(172,5,'VAT: '.self::label($s['company_vat']));
-        $pdf->Ln(5);
-        $pdf->SetFont('Arial','B',10);
-        $pdf->Cell(86,6,'Bill to',0,0);
-        $pdf->Cell(86,6,'Invoice information',0,1);
-        $pdf->SetFont('Arial','',10);
-        $y=$pdf->GetY();
-        $pdf->MultiCell(86,6,self::label($s['client_name']));
-        if($s['billing_address'])$pdf->MultiCell(86,5,self::label($s['billing_address'],400));
-        $y2=$pdf->GetY();
-        $pdf->SetXY(105,$y);
-        $pdf->MultiCell(86,6,'Date: '.$s['invoice_date']."\nDue: ".$s['due_date'].
-            "\nProject: ".self::label($s['job'],90));
-        $pdf->SetY(max($y2,$pdf->GetY())+8);
-        $pdf->SetFillColor(227,236,240);
-        $pdf->SetFont('Arial','B',9);
-        $pdf->Cell(98,9,'Description',0,0,'L',true);
-        $pdf->Cell(20,9,'Qty',0,0,'R',true);
-        $pdf->Cell(27,9,'Unit CHF',0,0,'R',true);
-        $pdf->Cell(27,9,'Total CHF',0,1,'R',true);
-        $pdf->SetFont('Arial','',9);
-        foreach($s['items'] as $item){
-            if($pdf->GetY()>254)$pdf->AddPage();
-            $pdf->Cell(98,7,self::label($item['description'],115),0,0);
-            $pdf->Cell(20,7,(string)$item['quantity'],0,0,'R');
-            $pdf->Cell(27,7,number_format($item['unit_price_minor']/100,2,'.',"'"),0,0,'R');
-            $pdf->Cell(27,7,number_format($item['total_minor']/100,2,'.',"'"),0,1,'R');
+
+        // Sign2Digital quotation palette: primary #166282, ink #122536,
+        // placeholder #8A9AA8 and light border #E4EAF0.
+        $ink=[18,37,54];
+        $grey=[138,154,168];
+        $blue=[22,98,130];
+        $pdf->SetDrawColor(228,234,240);
+        $pdf->SetLineWidth(.3);
+
+        $pdf->SetFont('Arial','B',18);
+        $pdf->SetTextColor(...$ink);
+        $logo=public_path('admin-assets/logo.png');
+        if(is_file($logo)) {
+            $pdf->Image($logo,24,24,44);
+        } else {
+            $pdf->SetXY(24,25);
+            $pdf->Cell(62,12,'Sign2Digital',0,0,'L');
         }
-        if($pdf->GetY()>222)$pdf->AddPage();
+        $pdf->SetXY(122,25);
+        $pdf->Cell(69,10,'Invoice',0,1,'R');
+        $pdf->SetTextColor(...$grey);
+        $pdf->SetFont('Arial','',10);
+        $pdf->SetX(122);
+        $pdf->Cell(69,6,self::label($s['number']),0,1,'R');
+
+        $pdf->SetTextColor(...$ink);
+        $pdf->SetXY(24,46);
+        $pdf->SetFont('Arial','B',10);
+        $pdf->MultiCell(88,6,self::label($s['company_name']));
+        $pdf->SetFont('Arial','',9);
+        $pdf->SetTextColor(...$grey);
+        if($s['company_address']) {
+            $pdf->SetX(24);
+            $pdf->MultiCell(88,5,self::label($s['company_address'],450));
+        }
+        if($s['company_vat']) {
+            $pdf->SetX(24);
+            $pdf->MultiCell(88,5,'VAT: '.self::label($s['company_vat']));
+        }
+        $companyEnd=$pdf->GetY();
+        $billY=max(70,$companyEnd+6);
+        $pdf->SetXY(24,$billY);
+        $pdf->SetTextColor(...$ink);
+        $pdf->SetFont('Arial','B',12);
+        $pdf->Cell(85,7,'Bill To:',0,1);
+        $pdf->SetTextColor(...$grey);
+        $pdf->SetFont('Arial','',10);
+        $pdf->SetX(24);
+        $pdf->MultiCell(85,6,self::label($s['client_name']));
+        if($s['billing_address']) {
+            $pdf->SetX(24);
+            $pdf->MultiCell(85,5,self::label($s['billing_address'],400));
+        }
+        $billEnd=$pdf->GetY();
+
+        // Same right-hand label/value group as the quotation PDF.
+        $metaY=$billY;
+        foreach([
+            ['Date:',(string)$s['invoice_date']],
+            ['Due:',(string)$s['due_date']],
+            ['Project:',self::label((string)$s['job'],90)],
+        ] as [$label,$value]) {
+            $pdf->SetXY(122,$metaY);
+            $pdf->SetFont('Arial','B',9);
+            $pdf->SetTextColor(...$ink);
+            $pdf->Cell(27,6,$label,0,0,'R');
+            $pdf->SetFont('Arial','',9);
+            $pdf->SetTextColor(...$grey);
+            $pdf->MultiCell(42,6,$value,0,'R');
+            $metaY=$pdf->GetY()+3;
+        }
+        $headerBottom=max($billEnd,$metaY)+8;
+        $pdf->SetDrawColor(228,234,240);
+        $pdf->Rect(19,19,172,$headerBottom-19);
+        $pdf->SetY($headerBottom+12);
+
+        // Approved quotation table: brand header, light grid, balanced columns.
+        $tableHeader=function()use($pdf,$blue):void {
+            $pdf->SetFillColor(...$blue);
+            $pdf->SetTextColor(255,255,255);
+            $pdf->SetFont('Arial','B',10);
+            $pdf->Cell(90,10,'Description',0,0,'L',true);
+            $pdf->Cell(16,10,'Qty',0,0,'R',true);
+            $pdf->Cell(33,10,'Unit CHF',0,0,'R',true);
+            $pdf->Cell(33,10,'Total CHF',0,1,'R',true);
+        };
+        $tableHeader();
+        $pdf->SetTextColor(...$ink);
+        $pdf->SetFont('Arial','',9);
+        foreach($s['items'] as $item) {
+            if($pdf->GetY()>250){$pdf->AddPage();$tableHeader();}
+            $pdf->SetTextColor(...$ink);
+            $pdf->SetFont('Arial','',9);
+            $pdf->Cell(90,9,self::label($item['description'],115),'B',0,'L');
+            $pdf->Cell(16,9,(string)$item['quantity'],'B',0,'R');
+            $pdf->Cell(33,9,number_format($item['unit_price_minor']/100,2,'.',"'"),'B',0,'R');
+            $pdf->Cell(33,9,number_format($item['total_minor']/100,2,'.',"'"),'B',1,'R');
+        }
+
+        if($pdf->GetY()>220)$pdf->AddPage();
         $pdf->Ln(9);
         $lines=[
             'Subtotal'=>self::money($s['subtotal_minor']),
@@ -154,20 +214,58 @@ final class InvoiceDocumentService
             'Other payments at issue'=>self::money($s['received_minor']),
             'Outstanding at issue'=>self::money($s['amount_due_at_issue_minor']),
         ];
-        foreach($lines as $name=>$value){
-            $pdf->SetFont('Arial',$name==='Total'||$name==='Outstanding at issue'?'B':'',10);
-            $pdf->Cell(125,6,$name,0,0,'R');
-            $pdf->Cell(47,6,$value,0,1,'R');
+        foreach($lines as $name=>$value) {
+            $isTotal=$name==='Total';
+            $pdf->SetX(103);
+            $pdf->SetFillColor(...($isTotal?$blue:[255,255,255]));
+            $pdf->SetTextColor(...($isTotal?[255,255,255]:$grey));
+            $pdf->SetFont('Arial',$isTotal?'B':'',$isTotal?11:9);
+            $pdf->Cell(48,9,$name,0,0,'R',$isTotal);
+            $pdf->SetTextColor(...($isTotal?[255,255,255]:$ink));
+            $pdf->Cell(40,9,$value,0,1,'R',$isTotal);
         }
-        $pdf->Ln(6);
-        $pdf->SetFont('Arial','B',10);
-        $pdf->Cell(172,6,'Payment instructions',0,1);
+
+        $pdf->Ln(12);
+        if($pdf->GetY()>255)$pdf->AddPage();
+        $startY=$pdf->GetY();
+        $pdf->SetFont('Arial','B',12);
+        $pdf->SetTextColor(...$ink);
+        $pdf->SetX(24);
+        $pdf->Cell(162,8,'Payment Details',0,1);
+        $pdf->SetFont('Arial','',10);
+        $pdf->SetX(24);
+        $pdf->Cell(162,6,'Payment QR unavailable',0,1);
+        $pdf->SetTextColor(...$grey);
         $pdf->SetFont('Arial','',9);
-        $pdf->MultiCell(172,5,'IBAN: '.self::label((string)$s['iban']));
-        $pdf->MultiCell(172,5,'Reference: '.self::label($s['number']));
-        // Never draw an unverified Swiss QR code or claim that one is valid.
-        if($s['notes']){$pdf->Ln(3);$pdf->MultiCell(172,5,self::label($s['notes'],650));}
-        if($s['terms']){$pdf->Ln(3);$pdf->MultiCell(172,5,self::label($s['terms'],650));}
+        $pdf->SetX(24);
+        $pdf->MultiCell(162,5,'IBAN: '.self::label((string)$s['iban']));
+        $pdf->SetX(24);
+        $pdf->MultiCell(162,5,'Reference: '.self::label($s['number']));
+        $payBottom=$pdf->GetY()+8;
+        $pdf->SetDrawColor(228,234,240);
+        $pdf->Rect(19,$startY-4,172,$payBottom-$startY+4);
+        $pdf->SetY($payBottom+12);
+
+        // Preserve the exact notes and terms without introducing quote
+        // signature fields into an invoice.
+        if($s['notes']) {
+            $pdf->SetTextColor(...$ink);
+            $pdf->SetFont('Arial','B',11);
+            $pdf->Cell(172,8,'Notes',0,1);
+            $pdf->SetTextColor(...$grey);
+            $pdf->SetFont('Arial','',10);
+            $pdf->MultiCell(172,6,self::label($s['notes'],650));
+            $pdf->Ln(8);
+        }
+        if($s['terms']) {
+            $pdf->SetTextColor(...$ink);
+            $pdf->SetFont('Arial','B',13);
+            $pdf->Cell(172,8,'General Terms & Conditions',0,1);
+            $pdf->SetTextColor(...$grey);
+            $pdf->SetFont('Arial','',10);
+            $pdf->MultiCell(172,6,self::label($s['terms'],650));
+        }
+
         $bytes=$pdf->Output('S');
         abort_unless(is_string($bytes)&&str_starts_with($bytes,'%PDF-')
             &&str_contains(substr($bytes,-4096),'%%EOF'),503,
