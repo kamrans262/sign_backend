@@ -17,6 +17,12 @@ on:
       - 'database/migrations/2026_11_13_010000_backfill_legacy_admin_permissions.php'
       - 'app/Models/Company.php'
       - 'app/Models/CompanyInvitation.php'
+      - 'app/Models/CompanyRole.php'
+      - 'app/Models/User.php'
+      - 'app/Support/CompanyRolePermissions.php'
+      - 'app/Http/Controllers/Api/CompanyRolesController.php'
+      - 'database/migrations/2026_11_13_020000_create_company_custom_roles.php'
+      - 'tests/Feature/CompanyCustomRolesTest.php'
       - 'app/Mail/CompanyInvitationMail.php'
       - 'database/migrations/2026_11_03_200000_create_company_invitations_and_active_context.php'
       - 'resources/views/mail/company-invitation.blade.php'
@@ -72,7 +78,7 @@ jobs:
       - name: Verify M3 syntax and views
         run: php -l app/Http/Controllers/Api/CompanyManagementController.php && php -l app/Http/Controllers/Admin/CompanyController.php && php -l scripts/m3_production_preflight.php && php artisan view:cache
       - name: Test M3 only on SQLite
-        run: php artisan test --filter=M3CompanyManagementTest
+        run: php artisan test tests/Feature/M3CompanyManagementTest.php tests/Feature/CompanyCustomRolesTest.php
       - name: Test M3 only on MySQL 8
         env:
           DB_CONNECTION: mysql
@@ -82,6 +88,6 @@ jobs:
           DB_DATABASE: sign2digital_ci
           DB_USERNAME: sign_ci
           DB_PASSWORD: sign-ci-only
-        run: php artisan test --filter=M3CompanyManagementTest
+        run: php artisan test tests/Feature/M3CompanyManagementTest.php tests/Feature/CompanyCustomRolesTest.php
       - name: Verify previous M2 OTP and admin logic
         run: php artisan test --filter=M2EmailOtpAuthTest
