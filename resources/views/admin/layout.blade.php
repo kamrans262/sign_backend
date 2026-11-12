@@ -26,41 +26,40 @@
       <a class="side-link {{ request()->routeIs('admin.search.*') ? 'active' : '' }}" href="{{ route('admin.search.index') }}" @if(request()->routeIs('admin.search.*')) aria-current="page" @endif>
         <x-admin.icon name="briefcase" /><span>Global Search</span>
       </a>
-      <a class="side-link {{ request()->routeIs('admin.companies.*') ? 'active' : '' }}" href="{{ route('admin.companies.index') }}" @if(request()->routeIs('admin.companies.*')) aria-current="page" @endif>
-        <x-admin.icon name="building" /><span>Company Management</span>
+      <a class="side-link {{ request()->routeIs('admin.jobs.*') ? 'active' : '' }}" href="{{ route('admin.jobs.index') }}" @if(request()->routeIs('admin.jobs.*')) aria-current="page" @endif>
+        <x-admin.icon name="briefcase" /><span>Jobs</span>
       </a>
       <a class="side-link {{ request()->routeIs('admin.clients.*') ? 'active' : '' }}" href="{{ route('admin.clients.index') }}" @if(request()->routeIs('admin.clients.*')) aria-current="page" @endif>
-        <x-admin.icon name="users" /><span>Client Management</span>
+        <x-admin.icon name="users" /><span>Clients</span>
       </a>
-      <a class="side-link {{ request()->routeIs('admin.jobs.*') ? 'active' : '' }}" href="{{ route('admin.jobs.index') }}" @if(request()->routeIs('admin.jobs.*')) aria-current="page" @endif>
-        <x-admin.icon name="briefcase" /><span>Job Management</span>
+      <a class="side-link {{ request()->routeIs('admin.quotes.*') ? 'active' : '' }}" href="{{ route('admin.quotes.index') }}" @if(request()->routeIs('admin.quotes.*')) aria-current="page" @endif>
+        <x-admin.icon name="briefcase" /><span>Quotes</span>
       </a>
-      <a class="side-link {{ request()->routeIs('admin.job-media.*') ? 'active' : '' }}" href="{{ route('admin.job-media.index') }}" @if(request()->routeIs('admin.job-media.*'))aria-current="page"@endif><x-admin.icon name="briefcase" /><span>Photos & Notes Management</span></a>
-    <a class="side-link {{ request()->routeIs('admin.quotes.*') ? 'active' : '' }}" href="{{ route('admin.quotes.index') }}" @if(request()->routeIs('admin.quotes.*')) aria-current="page" @endif>
-        <x-admin.icon name="briefcase" /><span>Quote Management</span>
-      </a>
+      <a class="side-link {{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}" href="{{ route('admin.invoices.index') }}"><x-admin.icon name="briefcase"/><span>Invoices</span></a>
       <a class="side-link {{ request()->routeIs('admin.documents.*') ? 'active' : '' }}" href="{{ route('admin.documents.index') }}" @if(request()->routeIs('admin.documents.*')) aria-current="page" @endif>
-        <x-admin.icon name="briefcase" /><span>Document Management</span>
+        <x-admin.icon name="briefcase" /><span>Documents</span>
       </a>
-      <a class="side-link {{ request()->routeIs('admin.acceptances.*') ? 'active' : '' }}" href="{{ route('admin.acceptances.index') }}"><x-admin.icon name="briefcase"/><span>Work Acceptance Management</span></a>
-      <a class="side-link {{ request()->routeIs('admin.labour.*') ? 'active' : '' }}" href="{{ route('admin.labour.index') }}" @if(request()->routeIs('admin.labour.*'))aria-current="page"@endif><x-admin.icon name="history"/><span>Time & Labour Management</span></a>
-      <a class="side-link {{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}" href="{{ route('admin.deposits.index') }}"><x-admin.icon name="briefcase"/><span>Deposit Management</span></a>
-      <a class="side-link {{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}" href="{{ route('admin.invoices.index') }}"><x-admin.icon name="briefcase"/><span>Invoice Management</span></a>
-      <a class="side-link {{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}" href="{{ route('admin.expenses.index') }}" @if(request()->routeIs('admin.expenses.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Expenses Management</span></a>
-      <a class="side-link {{ request()->routeIs('admin.equipment.*') ? 'active' : '' }}" href="{{ route('admin.equipment.index') }}" @if(request()->routeIs('admin.equipment.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Equipment &amp; Loans Management</span></a>
-      <a class="side-link {{ request()->routeIs('admin.reminders.*') ? 'active' : '' }}" href="{{ route('admin.reminders.index') }}" @if(request()->routeIs('admin.reminders.*')) aria-current="page" @endif><x-admin.icon name="history" /><span>Reminders Management</span></a>
-      <a class="side-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}" href="{{ route('admin.notifications.index') }}" @if(request()->routeIs('admin.notifications.*')) aria-current="page" @endif><x-admin.icon name="history" /><span>Notifications &amp; Templates</span></a>
-      <a class="side-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}" href="{{ route('admin.reports.index') }}" @if(request()->routeIs('admin.reports.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Reports Management</span></a>
+      <a class="side-link {{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}" href="{{ route('admin.deposits.index') }}"><x-admin.icon name="briefcase"/><span>Deposits</span></a>
       <a class="side-link {{ request()->routeIs('admin.addenda.*') ? 'active' : '' }}" href="{{ route('admin.addenda.index') }}" @if(request()->routeIs('admin.addenda.*')) aria-current="page" @endif>
-        <x-admin.icon name="briefcase" /><span>Addenda Management</span>
+        <x-admin.icon name="briefcase" /><span>Addenda</span>
       </a>
+      <a class="side-link {{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}" href="{{ route('admin.expenses.index') }}" @if(request()->routeIs('admin.expenses.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Expenses</span></a>
+      <a class="side-link {{ request()->routeIs('admin.labour.*') ? 'active' : '' }}" href="{{ route('admin.labour.index') }}" @if(request()->routeIs('admin.labour.*'))aria-current="page"@endif><x-admin.icon name="history"/><span>Time & Labour</span></a>
+      <a class="side-link {{ request()->routeIs('admin.job-media.*') ? 'active' : '' }}" href="{{ route('admin.job-media.index') }}" @if(request()->routeIs('admin.job-media.*'))aria-current="page"@endif><x-admin.icon name="briefcase" /><span>Photos & Notes</span></a>
+      <a class="side-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}" href="{{ route('admin.reports.index') }}" @if(request()->routeIs('admin.reports.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Reports</span></a>
+      <a class="side-link {{ request()->routeIs('admin.acceptances.*') ? 'active' : '' }}" href="{{ route('admin.acceptances.index') }}"><x-admin.icon name="briefcase"/><span>Work Acceptance</span></a>
       <a class="side-link {{ request()->routeIs('admin.signatures.*') ? 'active' : '' }}" href="{{ route('admin.signatures.index') }}" @if(request()->routeIs('admin.signatures.*')) aria-current="page" @endif>
         <x-admin.icon name="history" /><span>Digital Signatures</span>
+      </a>
+      <a class="side-link {{ request()->routeIs('admin.equipment.*') ? 'active' : '' }}" href="{{ route('admin.equipment.index') }}" @if(request()->routeIs('admin.equipment.*'))aria-current="page"@endif><x-admin.icon name="briefcase"/><span>Equipment &amp; Loans</span></a>
+      <a class="side-link {{ request()->routeIs('admin.reminders.*') ? 'active' : '' }}" href="{{ route('admin.reminders.index') }}" @if(request()->routeIs('admin.reminders.*')) aria-current="page" @endif><x-admin.icon name="history" /><span>Reminders</span></a>
+      <a class="side-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}" href="{{ route('admin.notifications.index') }}" @if(request()->routeIs('admin.notifications.*')) aria-current="page" @endif><x-admin.icon name="history" /><span>Notifications &amp; Templates</span></a>
+      <a class="side-link {{ request()->routeIs('admin.companies.*') ? 'active' : '' }}" href="{{ route('admin.companies.index') }}" @if(request()->routeIs('admin.companies.*')) aria-current="page" @endif>
+        <x-admin.icon name="building" /><span>Companies</span>
       </a>
       <a class="side-link {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.mobile-auth') ? 'active' : '' }}" href="{{ route('admin.users.index') }}" @if(request()->routeIs('admin.users.*') || request()->routeIs('admin.mobile-auth')) aria-current="page" @endif>
         <x-admin.icon name="users" /><span>Users</span>
       </a>
-
       <a class="side-link {{ request()->routeIs('admin.billing.*') ? 'active' : '' }}" href="{{ route('admin.billing.index') }}" @if(request()->routeIs('admin.billing.*')) aria-current="page" @endif>
         <x-admin.icon name="briefcase" /><span>Subscriptions &amp; Billing</span>
       </a>
@@ -109,30 +108,30 @@
     <details class="mobile-menu">
       <summary><x-admin.icon name="menu" /><span>Menu</span><x-admin.icon name="chevron-down" /></summary>
       <nav aria-label="Mobile administration">
-        <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><x-admin.icon name="overview" /> Dashboard</a>
-        <a href="{{ route('admin.companies.index') }}" class="{{ request()->routeIs('admin.companies.*') ? 'active' : '' }}"><x-admin.icon name="building" /> Company Management</a>
-        <a href="{{ route('admin.billing.index') }}" class="{{ request()->routeIs('admin.billing.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Subscriptions &amp; Billing</a>
-
-        <a href="{{ route('admin.clients.index') }}" class="{{ request()->routeIs('admin.clients.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Client Management</a>
-        <a href="{{ route('admin.jobs.index') }}" class="{{ request()->routeIs('admin.jobs.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Job Management</a>
-        <a href="{{ route('admin.job-media.index') }}" class="{{ request()->routeIs('admin.job-media.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Photos & Notes Management</a>
-        <a href="{{ route('admin.quotes.index') }}" class="{{ request()->routeIs('admin.quotes.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Quote Management</a>
-        <a href="{{ route('admin.documents.index') }}" class="{{ request()->routeIs('admin.documents.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Document Management</a>
-        <a href="{{ route('admin.acceptances.index') }}" class="{{ request()->routeIs('admin.acceptances.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Work Acceptance Management</a>
-        <a href="{{ route('admin.labour.index') }}" class="{{ request()->routeIs('admin.labour.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Time & Labour Management</a>
-      <a href="{{ route('admin.deposits.index') }}" class="{{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Deposit Management</a>
-      <a href="{{ route('admin.invoices.index') }}" class="{{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Invoice Management</a>
-      <a href="{{ route('admin.expenses.index') }}" class="{{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Expenses Management</a>
-        <a href="{{ route('admin.equipment.index') }}" class="{{ request()->routeIs('admin.equipment.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Equipment &amp; Loans Management</a>
-        <a href="{{ route('admin.reminders.index') }}" class="{{ request()->routeIs('admin.reminders.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Reminders Management</a>
-        <a href="{{ route('admin.notifications.index') }}" class="{{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Notifications &amp; Templates</a>
-      <a href="{{ route('admin.reports.index') }}" class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Reports Management</a>
-        <a href="{{ route('admin.addenda.index') }}" class="{{ request()->routeIs('admin.addenda.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Addenda Management</a>
-        <a href="{{ route('admin.signatures.index') }}" class="{{ request()->routeIs('admin.signatures.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Digital Signatures</a>
-        <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') || request()->routeIs('admin.mobile-auth') ? 'active' : '' }}"><x-admin.icon name="users" /> Users</a>
-        <a href="{{ route('admin.support.index') }}" class="{{ request()->routeIs('admin.support.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Help &amp; Support</a>
-        <a href="{{ route('admin.audit') }}" class="{{ request()->routeIs('admin.audit') ? 'active' : '' }}"><x-admin.icon name="history" /> Audit Trail</a>
-      </nav>
+      <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><x-admin.icon name="overview" /> Dashboard</a>
+      <a href="{{ route('admin.search.index') }}" class="{{ request()->routeIs('admin.search.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Global Search</a>
+      <a href="{{ route('admin.jobs.index') }}" class="{{ request()->routeIs('admin.jobs.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Jobs</a>
+      <a href="{{ route('admin.clients.index') }}" class="{{ request()->routeIs('admin.clients.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Clients</a>
+      <a href="{{ route('admin.quotes.index') }}" class="{{ request()->routeIs('admin.quotes.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Quotes</a>
+      <a href="{{ route('admin.invoices.index') }}" class="{{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Invoices</a>
+      <a href="{{ route('admin.documents.index') }}" class="{{ request()->routeIs('admin.documents.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Documents</a>
+      <a href="{{ route('admin.deposits.index') }}" class="{{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Deposits</a>
+      <a href="{{ route('admin.addenda.index') }}" class="{{ request()->routeIs('admin.addenda.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Addenda</a>
+      <a href="{{ route('admin.expenses.index') }}" class="{{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Expenses</a>
+      <a href="{{ route('admin.labour.index') }}" class="{{ request()->routeIs('admin.labour.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Time & Labour</a>
+      <a href="{{ route('admin.job-media.index') }}" class="{{ request()->routeIs('admin.job-media.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Photos & Notes</a>
+      <a href="{{ route('admin.reports.index') }}" class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Reports</a>
+      <a href="{{ route('admin.acceptances.index') }}" class="{{ request()->routeIs('admin.acceptances.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Work Acceptance</a>
+      <a href="{{ route('admin.signatures.index') }}" class="{{ request()->routeIs('admin.signatures.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Digital Signatures</a>
+      <a href="{{ route('admin.equipment.index') }}" class="{{ request()->routeIs('admin.equipment.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Equipment &amp; Loans</a>
+      <a href="{{ route('admin.reminders.index') }}" class="{{ request()->routeIs('admin.reminders.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Reminders</a>
+      <a href="{{ route('admin.notifications.index') }}" class="{{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}"><x-admin.icon name="history" /> Notifications &amp; Templates</a>
+      <a href="{{ route('admin.companies.index') }}" class="{{ request()->routeIs('admin.companies.*') ? 'active' : '' }}"><x-admin.icon name="building" /> Companies</a>
+      <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') || request()->routeIs('admin.mobile-auth') ? 'active' : '' }}"><x-admin.icon name="users" /> Users</a>
+      <a href="{{ route('admin.billing.index') }}" class="{{ request()->routeIs('admin.billing.*') ? 'active' : '' }}"><x-admin.icon name="briefcase" /> Subscriptions &amp; Billing</a>
+      <a href="{{ route('admin.support.index') }}" class="{{ request()->routeIs('admin.support.*') ? 'active' : '' }}"><x-admin.icon name="users" /> Help &amp; Support</a>
+      <a href="{{ route('admin.audit') }}" class="{{ request()->routeIs('admin.audit') ? 'active' : '' }}"><x-admin.icon name="history" /> Audit Trail</a>
+    </nav>
     </details>
 
     <main id="main-content" class="main" tabindex="-1">
