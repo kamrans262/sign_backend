@@ -293,7 +293,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         });
 
         // M15: authenticated, tenant-bound time, labour, timers and cost summaries.
-        Route::middleware(['company.access','company.permission:jobs.read'])->group(function (): void {
+        Route::middleware(['company.access','company.permission:labour.read'])->group(function (): void {
             Route::get('/labour/entries', [\App\Http\Controllers\Api\LabourController::class,'index']);
             Route::get('/labour/entries/{entry}', [\App\Http\Controllers\Api\LabourController::class,'show'])->whereNumber('entry');
             Route::get('/labour/entries/{entry}/evidence/{evidence}', [\App\Http\Controllers\Api\LabourController::class,'evidenceFile'])->whereNumber('entry')->whereNumber('evidence')->middleware('throttle:30,1');
@@ -302,7 +302,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/jobs/{job}/labour-summary', [\App\Http\Controllers\Api\LabourController::class,'summary'])->whereNumber('job');
             Route::get('/jobs/{job}/cost-summary', [\App\Http\Controllers\Api\LabourController::class,'summary'])->whereNumber('job');
         });
-        Route::middleware(['company.access','company.permission:jobs.write'])->group(function (): void {
+        Route::middleware(['company.access','company.permission:labour.write','company.permission:jobs.read'])->group(function (): void {
             Route::post('/labour/entries', [\App\Http\Controllers\Api\LabourController::class,'store'])->middleware('throttle:30,1');
             Route::patch('/labour/entries/{entry}', [\App\Http\Controllers\Api\LabourController::class,'update'])->whereNumber('entry');
             Route::post('/labour/entries/{entry}/approve', [\App\Http\Controllers\Api\LabourController::class,'approve'])->whereNumber('entry')->middleware('throttle:10,1');
@@ -345,7 +345,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::post('/general-documents/{document}/send', [\App\Http\Controllers\Api\GeneralDocumentIssueController::class,'send'])->whereNumber('document')->middleware('throttle:6,1');
         });
         // M17: invoice reads and explicit manual payment ledger, no gateway.
-        Route::middleware(['company.access','company.permission:documents.read',
+        Route::middleware(['company.access','company.permission:invoices.read',
             'company.permission:jobs.read'])->group(function (): void {
             Route::get('/invoices', [\App\Http\Controllers\Api\InvoiceController::class,'index']);
             Route::get('/jobs/{job}/invoice-sources', [\App\Http\Controllers\Api\InvoiceController::class,'sources'])->whereNumber('job');
@@ -357,7 +357,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/invoices/{invoice}/reconciliation', [\App\Http\Controllers\Api\InvoiceController::class,'reconciliation'])->whereNumber('invoice');
             Route::get('/invoices/{invoice}/attachments/{attachment}', [\App\Http\Controllers\Api\InvoiceController::class,'attachment'])->whereNumber('invoice')->whereNumber('attachment')->middleware('throttle:30,1');
         });
-        Route::middleware(['company.access','company.permission:documents.write',
+        Route::middleware(['company.access','company.permission:invoices.write',
             'company.permission:jobs.read'])->group(function (): void {
             Route::post('/invoices/ai/voice', [\App\Http\Controllers\Api\InvoiceAiController::class,'voice'])
                 ->middleware('throttle:6,1');
@@ -374,14 +374,14 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::delete('/invoices/{invoice}/attachments/{attachment}', [\App\Http\Controllers\Api\InvoiceController::class,'removeAttachment'])->whereNumber('invoice')->whereNumber('attachment');
         });
         // M16: CHF manual deposits; no payment gateway or automatic bank settlement.
-        Route::middleware(['company.access','company.permission:documents.read',
+        Route::middleware(['company.access','company.permission:invoices.read',
             'company.permission:jobs.read'])->group(function (): void {
             Route::get('/deposits', [\App\Http\Controllers\Api\DepositController::class,'index']);
             Route::get('/deposits/{deposit}', [\App\Http\Controllers\Api\DepositController::class,'show'])->whereNumber('deposit');
             Route::get('/deposits/{deposit}/receipts/{receipt}', [\App\Http\Controllers\Api\DepositController::class,'receipt'])->whereNumber('deposit')->whereNumber('receipt')->middleware('throttle:30,1');
             Route::get('/jobs/{job}/deposit-summary', [\App\Http\Controllers\Api\DepositController::class,'summary'])->whereNumber('job');
         });
-        Route::middleware(['company.access','company.permission:documents.write',
+        Route::middleware(['company.access','company.permission:invoices.write',
             'company.permission:jobs.read'])->group(function (): void {
             Route::post('/deposits', [\App\Http\Controllers\Api\DepositController::class,'store'])->middleware('throttle:20,1');
             Route::post('/deposits/ai/voice', [\App\Http\Controllers\Api\DepositAiController::class,'voice'])->middleware('throttle:6,1');
@@ -394,13 +394,13 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::delete('/deposits/{deposit}/receipts/{receipt}', [\App\Http\Controllers\Api\DepositController::class,'removeReceipt'])->whereNumber('deposit')->whereNumber('receipt');
         });
         // M14: company-isolated purchases, private receipts and job budget aggregates.
-        Route::middleware(['company.access'])->group(function (): void {
+        Route::middleware(['company.access','company.permission:expenses.read','company.permission:jobs.read'])->group(function (): void {
             Route::get('/expenses', [\App\Http\Controllers\Api\ExpenseController::class,'index']);
             Route::get('/expenses/{expense}', [\App\Http\Controllers\Api\ExpenseController::class,'show'])->whereNumber('expense');
             Route::get('/expenses/{expense}/receipts/{receipt}', [\App\Http\Controllers\Api\ExpenseController::class,'receipt'])->whereNumber('expense')->whereNumber('receipt')->middleware('throttle:30,1');
             Route::get('/jobs/{job}/expense-totals', [\App\Http\Controllers\Api\ExpenseController::class,'totals'])->whereNumber('job');
         });
-        Route::middleware(['company.access','company.permission:documents.write','company.permission:jobs.read'])->group(function (): void {
+        Route::middleware(['company.access','company.permission:expenses.write','company.permission:jobs.read'])->group(function (): void {
             Route::post('/expenses', [\App\Http\Controllers\Api\ExpenseController::class,'store'])->middleware('throttle:20,1');
             Route::patch('/expenses/{expense}', [\App\Http\Controllers\Api\ExpenseController::class,'update'])->whereNumber('expense');
             Route::post('/expenses/{expense}/receipts', [\App\Http\Controllers\Api\ExpenseController::class,'upload'])->whereNumber('expense')->middleware('throttle:20,1');
@@ -440,7 +440,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             ->middleware('throttle:6,1');
 
         // M12: site reports and meeting minutes; approved PDFs are immutable M9 documents.
-        Route::middleware(['company.access','company.permission:documents.read'])->group(function (): void {
+        Route::middleware(['company.access','company.permission:reports.read'])->group(function (): void {
             Route::get('/reports', [\App\Http\Controllers\Api\SiteReportController::class,'index']);
             Route::get('/reports/{report}', [\App\Http\Controllers\Api\SiteReportController::class,'show'])->whereNumber('report');
             Route::get('/reports/{report}/photos/{photo}', [\App\Http\Controllers\Api\SiteReportController::class,'photo'])
@@ -448,7 +448,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             Route::get('/reports/{report}/pdf', [\App\Http\Controllers\Api\SiteReportController::class,'pdf'])
                 ->whereNumber('report')->middleware('throttle:30,1');
         });
-        Route::middleware(['company.access','company.permission:documents.write','company.permission:jobs.read'])->group(function (): void {
+        Route::middleware(['company.access','company.permission:reports.write','company.permission:jobs.read'])->group(function (): void {
             Route::post('/reports', [\App\Http\Controllers\Api\SiteReportController::class,'create'])
                 ->middleware('throttle:20,1');
             Route::patch('/reports/{report}', [\App\Http\Controllers\Api\SiteReportController::class,'update'])->whereNumber('report');
