@@ -9,6 +9,19 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('admin.login'));
 
+// M23: public, no-login HTTPS pages hand browser Checkout back to the app.
+// These pages NEVER certify payment. The mobile app verifies with Stripe
+// through the authenticated company-owned checkout-status API.
+Route::get('/billing/success',
+    [\App\Http\Controllers\Api\M23CheckoutBrowserReturnController::class,'success'])
+    ->middleware('throttle:30,1')->name('billing.return.success');
+Route::get('/billing/cancel',
+    [\App\Http\Controllers\Api\M23CheckoutBrowserReturnController::class,'cancel'])
+    ->middleware('throttle:30,1')->name('billing.return.cancel');
+Route::get('/billing/return',
+    [\App\Http\Controllers\Api\M23CheckoutBrowserReturnController::class,'portal'])
+    ->middleware('throttle:30,1')->name('billing.return.portal');
+
 // M8: form submissions use the Laravel web CSRF middleware; API clients
 // sign through the separate, throttled capability route.
 Route::post('/sign/{token}/submit',
