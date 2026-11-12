@@ -18,7 +18,7 @@
 <label>Job<select class="input" name="job_id" required @disabled($editing)>
 <option value="">Select Job</option>@foreach($jobs as $job)
 <option value="{{ $job->id }}" @selected(old('job_id',$record['job_id']??'')==$job->id)>
-{{ $job->reference_number }} — {{ $job->title }} (Company #{{ $job->company_id }})</option>
+{{ $job->reference_number }} — {{ $job->title }} ({{ \App\Support\AdminCompanyNames::label($job->company_id) }})</option>
 @endforeach</select>@if($editing)<input type="hidden" name="job_id" value="{{ $record['job_id'] }}">@endif</label>
 <label>Assigned Worker<select class="input" name="worker_id" required @disabled($editing)>
 <option value="">Select Employee</option>@foreach($workers as $worker)
