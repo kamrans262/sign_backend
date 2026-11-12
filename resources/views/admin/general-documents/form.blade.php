@@ -25,8 +25,8 @@ $plain=implode("\n\n",array_column($blocks,'text'));
 </select></label>
 <label>Title <input class="input" name="title" maxlength="255" required value="{{ old('title',$document['title']??'') }}"></label>
 <label>Language <select class="input" name="locale">@foreach(['en'=>'English','fr'=>'French','de'=>'German','it'=>'Italian'] as $lang=>$name)<option value="{{ $lang }}" @selected(old('locale',$document['locale']??'en')===$lang)>{{ $name }}</option>@endforeach</select></label>
-<label>Client (optional) <select class="input" name="client_id"><option value="">None</option>@foreach($clients as $client)<option value="{{ $client->id }}" @selected(old('client_id',$document['client_id']??'')==$client->id)>{{ $client->full_name }} (#{{ $client->company_id }})</option>@endforeach</select></label>
-<label>Job (optional) <select class="input" name="job_id"><option value="">None</option>@foreach($jobs as $job)<option value="{{ $job->id }}" @selected(old('job_id',$document['job_id']??'')==$job->id)>{{ $job->title }} (#{{ $job->company_id }})</option>@endforeach</select></label>
+<label>Client (optional) <select class="input" name="client_id"><option value="">None</option>@foreach($clients as $client)<option value="{{ $client->id }}" @selected(old('client_id',$document['client_id']??'')==$client->id)>{{ $client->full_name }} ({{ \App\Support\AdminCompanyNames::label($client->company_id) }})</option>@endforeach</select></label>
+<label>Job (optional) <select class="input" name="job_id"><option value="">None</option>@foreach($jobs as $job)<option value="{{ $job->id }}" @selected(old('job_id',$document['job_id']??'')==$job->id)>{{ $job->title }} ({{ \App\Support\AdminCompanyNames::label($job->company_id) }})</option>@endforeach</select></label>
 <label style="grid-column:1/-1">Document Content <textarea class="input" name="document_text" rows="13" maxlength="30000" required>{{ old('document_text',$plain) }}</textarea><small>Separate paragraphs with a blank line. M18 editor formatting is preserved through the mobile rich-text API.</small></label>
 <div><button class="btn btn-primary">Save {{ $editing?'Revision':'Draft' }}</button></div></form>
 @else
