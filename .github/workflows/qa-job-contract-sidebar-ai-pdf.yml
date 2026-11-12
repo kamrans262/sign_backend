@@ -1,0 +1,38 @@
+name: Sign2Digital Job contract balance, admin navigation and AI PDF
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-job-contract-sidebar-ai-pdf.yml'
+      - 'app/Services/JobDetailsSnapshot.php'
+      - 'app/Services/GeneralDocumentIssueService.php'
+      - 'resources/views/admin/layout.blade.php'
+      - 'tests/Feature/M5JobDetailsLiveSummaryTest.php'
+      - 'tests/Feature/M18GeneralDocumentIssueTest.php'
+      - 'tests/Feature/AdminSidebarNavigationTest.php'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Syntax and admin template compilation
+        run: |
+          php -l app/Services/JobDetailsSnapshot.php
+          php -l app/Services/GeneralDocumentIssueService.php
+          php -l tests/Feature/M5JobDetailsLiveSummaryTest.php
+          php -l tests/Feature/M18GeneralDocumentIssueTest.php
+          php -l tests/Feature/AdminSidebarNavigationTest.php
+          php artisan view:cache
+      - name: Focused job ledger, admin navigation and immutable PDF tests
+        run: php artisan test --filter='(M5JobDetailsLiveSummaryTest|M18GeneralDocumentIssueTest|AdminSidebarNavigationTest)'
