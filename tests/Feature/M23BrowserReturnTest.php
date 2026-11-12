@@ -49,7 +49,7 @@ final class M23BrowserReturnTest extends TestCase
         ]);
         $company->users()->attach($owner->id,['role'=>'owner','status'=>'active']);
         $plan=DB::table('m23_plans')->insertGetId([
-            'code'=>'business','name'=>'Business','period'=>'monthly',
+            'code'=>'browser_return_test','name'=>'Business','period'=>'monthly',
             'currency'=>'CHF','amount_minor'=>2900,'stripe_price_id'=>'price_testqa',
             'features'=>'[]','status'=>'published',
             'created_at'=>now(),'updated_at'=>now(),
