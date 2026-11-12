@@ -6,6 +6,7 @@ on:
       - '.github/workflows/qa-m16-m17-custom-method-quote-pdf.yml'
       - 'app/Services/DepositService.php'
       - 'app/Services/InvoiceDocumentService.php'
+      - 'app/Services/Sign2DigitalInvoicePdfCanvas.php'
       - 'app/Http/Controllers/Admin/DepositController.php'
       - 'resources/views/admin/deposits/index.blade.php'
       - 'resources/views/admin/deposits/form.blade.php'
@@ -32,6 +33,7 @@ jobs:
         run: |
           php -l app/Services/DepositService.php
           php -l app/Services/InvoiceDocumentService.php
+          php -l app/Services/Sign2DigitalInvoicePdfCanvas.php
           php -l app/Http/Controllers/Admin/DepositController.php
           php artisan view:cache
           php -l database/migrations/2026_11_12_010000_add_custom_payment_method_to_job_deposits.php
