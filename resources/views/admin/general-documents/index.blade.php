@@ -26,7 +26,7 @@
 <div class="table-wrap"><table><thead><tr><th>Document</th><th>Company / Job</th><th>Type</th><th>Client</th><th>Revision</th><th>Status</th><th>Action</th></tr></thead><tbody>
 @forelse($result['records'] as $row)
 <tr><td><strong>{{ $row['title'] }}</strong><div class="muted">{{ $row['number'] }}</div></td>
-<td>Company #{{ $row['company_id'] }}<div class="muted">{{ $row['job'] ?: 'Unlinked' }}</div></td>
+<td>{{ \App\Support\AdminCompanyNames::label($row['company_id']) }}<div class="muted">{{ $row['job'] ?: 'Unlinked' }}</div></td>
 <td>{{ ucwords(str_replace('_',' ',$row['type'])) }}</td><td>{{ $row['client_name'] ?: 'Unlinked' }}</td>
 <td>v{{ $row['revision'] }}</td><td><span class="pill">{{ ucfirst($row['status']) }}</span></td>
 <td><a class="btn btn-small btn-outline" href="{{ route('admin.general-documents.edit',$row['id']) }}">Manage</a></td></tr>
