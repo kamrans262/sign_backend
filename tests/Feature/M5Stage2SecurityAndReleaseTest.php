@@ -80,10 +80,12 @@ class M5Stage2SecurityAndReleaseTest extends TestCase
             'reference_number' => 'FORGED',
             'category' => 'archived',
             'stage' => 'completed',
-            'progress_percentage' => 99,
             'completed_at' => '2026-01-01T00:00:00Z',
         ]))->assertCreated();
         $id = (int) $r->json('data.job.id');
+        $this->postJson('/api/v1/jobs', array_merge($this->payload($client), [
+            'progress_percentage' => 99,
+        ]))->assertUnprocessable();
         $r->assertJsonPath('data.job.company_id', $company->id)
           ->assertJsonPath('data.job.category', 'active')
           ->assertJsonPath('data.job.stage', 'planning');
@@ -164,10 +166,10 @@ class M5Stage2SecurityAndReleaseTest extends TestCase
         $this->postJson('/api/v1/jobs/'.$id.'/restore')
             ->assertOk()->assertJsonPath('data.job.category', 'completed');
         $this->patchJson('/api/v1/jobs/'.$id, [
-            'stage' => 'in_progress', 'progress_percentage' => 30,
-        ])->assertOk()->assertJsonPath('data.job.category', 'active');
+            'stage' => 'in_progress', 
+        ])->assertOk()->assertJsonPath('data.job.category', 'active')
+            ->assertJsonPath('data.job.progress_percentage', 0);
         $this->assertNull(ServiceJob::findOrFail($id)->completed_at);
-        $this->assertDatabaseHas('service_jobs', ['id' => $id, 'progress_percentage' => 30]);
         $this->assertSame(1, ServiceJob::whereKey($id)->count());
     }
 
