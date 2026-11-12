@@ -29,11 +29,13 @@ final class JobProgressCalculator
     {
         $scores = [];
         $companies = [];
+        $completedIds = [];
         foreach ($jobs as $job) {
             $id = (int) $job->id;
             $company = (int) $job->company_id;
             if ($job->category === 'completed' || $job->stage === 'completed') {
                 $scores[$id] = 100;
+                $completedIds[$id] = true;
             } else {
                 $scores[$id] = 0;
                 $companies[$company][] = $id;
@@ -106,7 +108,7 @@ final class JobProgressCalculator
 
         // No work records -> 0%; only an explicitly completed job may show 100%.
         foreach ($scores as $id => $percentage) {
-            if ($percentage !== 100) {
+            if (!isset($completedIds[$id])) {
                 $scores[$id] = min(95, max(0, $percentage));
             }
         }
