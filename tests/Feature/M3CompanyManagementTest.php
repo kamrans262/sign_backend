@@ -624,4 +624,89 @@ class M3CompanyManagementTest extends TestCase
             'company_id' => $id, 'user_id' => $owner->id, 'role' => 'owner',
         ]);
     }
+
+    public function test_role_permission_presets_are_saved_on_invitation_and_survive_acceptance(): void
+    {
+        $owner = $this->account('preset-owner@example.test');
+        $member = $this->account('preset-member@example.test');
+        $admin = $this->account('preset-admin@example.test');
+        $id = $this->createCompany($owner, 'Preset Company');
+
+        foreach (['member' => $member, 'admin' => $admin] as $role => $invitee) {
+            $this->postJson('/api/v1/companies/'.$id.'/invitations', [
+                'email' => $invitee->email, 'role' => $role,
+            ])->assertCreated();
+            $row = CompanyInvitation::query()->where('email', $invitee->email)->firstOrFail();
+            $permissions = $row->permissions;
+            $this->assertContains('clients.read', $permissions);
+            $this->assertContains('jobs.write', $permissions);
+            $this->assertCount($role === 'admin' ? 18 : 11, $permissions);
+            if ($role === 'member') {
+                $this->assertNotContains('invoices.write', $permissions);
+                $this->assertContains('invoices.read', $permissions);
+            } else {
+                $this->assertContains('invoices.write', $permissions);
+            }
+            $code = null;
+            Mail::assertSent(CompanyInvitationMail::class,
+                function (CompanyInvitationMail $mail) use ($invitee, &$code): bool {
+                    if ($mail->hasTo($invitee->email)) {
+                        $code = $mail->inviteCode;
+                        return true;
+                    }
+                    return false;
+                });
+            $this->assertNotNull($code);
+            Sanctum::actingAs($invitee);
+            $this->postJson('/api/v1/companies/invitations/accept', ['code' => $code])
+                ->assertOk()->assertJsonPath('data.company.role', $role);
+            $this->assertSame($permissions,
+                json_decode((string) $invitee->companies()->where('companies.id', $id)
+                    ->firstOrFail()->pivot->permissions, true));
+            Sanctum::actingAs($owner);
+        }
+    }
+
+    public function test_member_and_custom_admin_grants_are_enforced_by_module(): void
+    {
+        $owner = $this->account('grant-owner@example.test');
+        $member = $this->account('grant-member@example.test');
+        $admin = $this->account('grant-admin@example.test');
+        $id = $this->createCompany($owner, 'Permission Company');
+        $company = Company::findOrFail($id);
+        $company->users()->attach($member->id, [
+            'role' => 'member', 'status' => 'active',
+            'permissions' => json_encode([
+                'clients.read', 'clients.write', 'jobs.read', 'jobs.write',
+                'invoices.read', 'expenses.read',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        $company->users()->attach($admin->id, [
+            'role' => 'admin', 'status' => 'active',
+            'permissions' => json_encode(['clients.read'], JSON_THROW_ON_ERROR),
+        ]);
+        $this->withHeader('X-Company-Id', (string) $id);
+
+        Sanctum::actingAs($member);
+        $this->getJson('/api/v1/clients')->assertOk();
+        $this->getJson('/api/v1/jobs')->assertOk();
+        $this->getJson('/api/v1/invoices')->assertOk();
+        $this->getJson('/api/v1/expenses')->assertOk();
+        $this->postJson('/api/v1/invoices', [])->assertForbidden();
+        $this->postJson('/api/v1/expenses', [])->assertForbidden();
+        $this->getJson('/api/v1/reports')->assertForbidden();
+        $this->getJson('/api/v1/labour/entries')->assertForbidden();
+        $this->getJson('/api/v1/equipment')->assertForbidden();
+
+        Sanctum::actingAs($admin);
+        $this->getJson('/api/v1/clients')->assertOk();
+        $this->getJson('/api/v1/jobs')->assertForbidden();
+        $this->getJson('/api/v1/invoices')->assertForbidden();
+        $this->getJson('/api/v1/expenses')->assertForbidden();
+        $this->postJson('/api/v1/clients', [])->assertForbidden();
+
+        Sanctum::actingAs($owner);
+        $this->getJson('/api/v1/invoices')->assertOk();
+        $this->getJson('/api/v1/equipment')->assertOk();
+    }
 }
