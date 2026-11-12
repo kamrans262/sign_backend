@@ -54,6 +54,7 @@ final class M23BrowserReturnTest extends TestCase
             'features'=>'[]','status'=>'published',
             'created_at'=>now(),'updated_at'=>now(),
         ]);
+        config()->set('app.url','https://forestgreen-pigeon-673192.hostingersite.com');
         config()->set('m23_billing.enabled',true);
         config()->set('m23_billing.live_mode',false);
         config()->set('m23_billing.secret_key','sk_test_ci_secret');
