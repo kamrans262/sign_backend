@@ -120,66 +120,22 @@ final class AddendumService
         ]);
     }
 
-    private static function text(string $value): string
-    {
-        $converted = iconv('UTF-8','Windows-1252//TRANSLIT//IGNORE',
-            mb_substr(trim($value),0,1000));
-        return preg_replace('/[\x00-\x1F\x7F]/',' ',(string)$converted) ?? '';
-    }
-
     public function createPdf(Addendum $item): string
     {
-        abort_unless(in_array($item->status,['draft','approved'],true),409,
+        abort_unless(in_array($item->status, ['draft', 'approved'], true), 409,
             'Signed and issued addenda cannot be rewritten.');
-        $source = $this->source($item->company_id,$item->source_signed_artifact_id);
-        abort_unless(hash_equals($item->source_pdf_sha256,$source->signed_pdf_sha256)
-            && (int)$item->source_revision === (int)$source->source_revision,409,
+        $source = $this->source($item->company_id, $item->source_signed_artifact_id);
+        abort_unless(hash_equals($item->source_pdf_sha256, $source->signed_pdf_sha256)
+            && (int) $item->source_revision === (int) $source->source_revision, 409,
             'The original signed document has changed.');
-        $quote = $source->request->quote;
-        $pdf = new Fpdi();
-        $pdf->SetAutoPageBreak(true,20);
-        $pdf->AddPage('P','A4');
-        $pdf->SetMargins(20,20,20);
-        $pdf->SetTextColor(18,37,54);
-        $pdf->SetFont('Helvetica','B',19);
-        $pdf->MultiCell(170,11,'Sign2Digital - Addendum '.self::text($item->number));
-        $pdf->SetTextColor(22,98,130);
-        $pdf->SetFont('Helvetica','B',10);
-        $pdf->MultiCell(170,7,'SEPARATE CHANGE DOCUMENT - CUSTOMER SIGNATURE REQUIRED');
-        $pdf->Ln(7);
-        $fields = [
-            'Original signed quote'=> $quote->custom_quote_number ?: $quote->reference_number,
-            'Source signed document'=> 'signed-'.$item->source_signed_artifact_id,
-            'Original signed SHA-256'=> $item->source_pdf_sha256,
-            'Addendum revision'=> (string)$item->revision,
-            'Customer'=> $quote->client_name,
-            'Addendum'=> $item->title,
-            'Effective date'=> $item->effective_date?->format('Y-m-d') ?? '',
-            'Change description'=> $item->change_description,
-            'Additional work'=> $item->additional_work ?? 'No priced additional work',
-            'Quantity'=> $item->quantity === null ? 'Not applicable' : (string)$item->quantity,
-            'Unit price'=> $item->unit_price_minor === null ? 'Not applicable' :
-                $item->currency.' '.number_format($item->unit_price_minor / 100,2,'.',''),
-            'Subtotal'=> $item->currency.' '.number_format($item->subtotal_minor / 100,2,'.',''),
-            'VAT'=> number_format($item->vat_basis_points / 100,2,'.','').'%',
-            'VAT amount'=> $item->currency.' '.number_format($item->vat_minor / 100,2,'.',''),
-            'Total'=> $item->currency.' '.number_format($item->total_minor / 100,2,'.',''),
-        ];
-        foreach ($fields as $label=>$value) {
-            $pdf->SetFont('Helvetica','B',10);
-            $pdf->MultiCell(170,5,self::text($label).':');
-            $pdf->SetFont('Helvetica','',10);
-            $pdf->MultiCell(170,6,self::text((string)$value));
-            $pdf->Ln(3);
-        }
-        $pdf->Ln(6);
-        $pdf->SetFont('Helvetica','',9);
-        $pdf->MultiCell(170,6,'The original signed quote remains unchanged. This separate addendum is not accepted until signed by the customer.');
-        $bytes = $pdf->Output('S');
-        if (!is_string($bytes) || !str_starts_with($bytes,'%PDF-') ||
-            !str_contains(substr($bytes,-4096),'%%EOF') ||
+
+        // Use the approved Quotation PDF presentation for NEW addenda only.
+        // Existing approved/signed addenda remain byte-for-byte immutable.
+        $bytes = (new Sign2DigitalAddendumPdf())->render($item, $source->request->quote);
+        if (!is_string($bytes) || !str_starts_with($bytes, '%PDF-') ||
+            !str_contains(substr($bytes, -4096), '%%EOF') ||
             strlen($bytes) > 5 * 1024 * 1024) {
-            throw new HttpException(503,'Unable to create a valid addendum PDF.');
+            throw new HttpException(503, 'Unable to create a valid addendum PDF.');
         }
         return $bytes;
     }
