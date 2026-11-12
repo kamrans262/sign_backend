@@ -126,7 +126,7 @@ final class M5JobDetailsLiveSummaryTest extends TestCase
             ->assertJsonPath('data.financials_minor.deposits_minor', 35000)
             ->assertJsonPath('data.financials_minor.invoiced_minor', 90000)
             ->assertJsonPath('data.financials_minor.received_minor', 75000)
-            ->assertJsonPath('data.financials_minor.remaining_balance_minor', 15000);
+            ->assertJsonPath('data.financials_minor.remaining_balance_minor', null);
 
         $this->getJson('/api/v1/clients/'.$client->id)->assertOk()
             ->assertJsonPath('data.invoices.0.number', 'INV-JOB-ONE')
@@ -134,6 +134,107 @@ final class M5JobDetailsLiveSummaryTest extends TestCase
             ->assertJsonPath('data.notes_history.0.title', 'Tenant-private job note')
             ->assertJsonPath('data.notes_history.0.description', 'Verified private site observation.')
             ->assertJsonCount(1, 'data.jobs');
+    }
+
+    public function test_remaining_balance_tracks_signed_contract_not_invoices_or_other_quotes(): void
+    {
+        [$owner,$company,$client,$job]=$this->job();
+        $quoteId=DB::table('service_quotes')->insertGetId([
+            'company_id'=>$company->id, 'client_id'=>$client->id,
+            'service_job_id'=>$job, 'reference_number'=>'Q-ACCEPTED',
+            'client_name'=>'Real Client','quote_date'=>'2026-12-01',
+            'currency'=>'CHF','status'=>'sent','revision'=>1,
+            'total_minor'=>120000,'approved_pdf_revision'=>1,
+            'approved_pdf_sha256'=>str_repeat('a',64),
+            'approved_at'=>now()->subDays(2),
+            'created_at'=>now()->subDays(3),'updated_at'=>now()->subDays(2),
+        ]);
+        // A second, unsigned quotation is NOT another agreed contract.
+        DB::table('service_quotes')->insert([
+            'company_id'=>$company->id,'client_id'=>$client->id,
+            'service_job_id'=>$job,'reference_number'=>'Q-UNSIGNED',
+            'client_name'=>'Real Client','quote_date'=>'2026-12-02',
+            'currency'=>'CHF','status'=>'approved','revision'=>1,
+            'total_minor'=>900000,'approved_at'=>now(),
+            'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        DB::table('job_deposits')->insert([
+            'company_id'=>$company->id,'service_job_id'=>$job,
+            'client_name_snapshot'=>'Real Client',
+            'amount_minor'=>20000,'currency'=>'CHF',
+            'deposit_date'=>'2026-12-02','payment_method'=>'cash',
+            'status'=>'received','created_at'=>now(),'updated_at'=>now(),
+        ]);
+
+        // No customer-signed quotation yet: never claim a CHF 8800 debt.
+        $this->getJson('/api/v1/jobs/'.$job)->assertOk()
+            ->assertJsonPath('data.financials_minor.invoiced_minor',0)
+            ->assertJsonPath('data.financials_minor.received_minor',20000)
+            ->assertJsonPath('data.financials_minor.remaining_balance_minor',null);
+
+        $signatureId=DB::table('signature_requests')->insertGetId([
+            'company_id'=>$company->id,'service_quote_id'=>$quoteId,
+            'request_uuid'=>'00000000-0000-4000-8000-000000000001',
+            'document_uuid'=>'00000000-0000-4000-8000-000000000002',
+            'signer_uuid'=>'00000000-0000-4000-8000-000000000003',
+            'token_sha256'=>str_repeat('b',64),'signer_name'=>'Real Client',
+            'signer_email'=>'client@example.test','approved_revision'=>1,
+            'approved_pdf_sha256'=>str_repeat('a',64),
+            'consent_reference'=>str_repeat('c',64),
+            'quote_link_version'=>1,'status'=>'signed',
+            'expires_at'=>now()->addDays(30),'signed_at'=>now(),
+            'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        $artifactId=DB::table('signed_document_artifacts')->insertGetId([
+            'company_id'=>$company->id,'service_quote_id'=>$quoteId,
+            'signature_request_id'=>$signatureId,
+            'source_pdf_sha256'=>str_repeat('a',64),'source_revision'=>1,
+            'signed_pdf_path'=>'qa/signed-job-quote-1.pdf',
+            'signed_pdf_sha256'=>str_repeat('d',64),
+            'evidence'=>json_encode(['consent'=>true],JSON_THROW_ON_ERROR),
+            'created_at'=>now(),
+        ]);
+        // Agreed 1200 - received 200 = 1000, without issuing an invoice.
+        $this->getJson('/api/v1/jobs/'.$job)->assertOk()
+            ->assertJsonPath('data.financials_minor.remaining_balance_minor',100000)
+            ->assertJsonPath('data.financials_minor.quote_amount_minor',1020000)
+            ->assertJsonPath('data.financials_minor.invoiced_minor',0);
+
+        $base=[
+            'company_id'=>$company->id,'source_signed_artifact_id'=>$artifactId,
+            'service_quote_id'=>$quoteId,'service_job_id'=>$job,
+            'client_id'=>$client->id,'title'=>'Additional windows',
+            'change_description'=>'Customer approved extra work.',
+            'effective_date'=>'2026-12-03','currency'=>'CHF',
+            'source_pdf_sha256'=>str_repeat('a',64),'source_revision'=>1,
+            'revision'=>1,'created_at'=>now(),'updated_at'=>now(),
+        ];
+        DB::table('addenda')->insert(array_merge($base,[
+            'number'=>'A-APPROVED','status'=>'approved','total_minor'=>30000,
+            'approved_pdf_sha256'=>str_repeat('e',64),
+            'approved_at'=>now(),
+        ]));
+        DB::table('addenda')->insert(array_merge($base,[
+            'number'=>'A-DRAFT','status'=>'draft','total_minor'=>60000,
+        ]));
+        $this->getJson('/api/v1/jobs/'.$job)->assertOk()
+            ->assertJsonPath('data.financials_minor.remaining_balance_minor',130000)
+            ->assertJsonPath('data.financials_minor.received_minor',20000)
+            ->assertJsonPath('data.financials_minor.invoiced_minor',0);
+
+        // An invoice is a separate ledger entry; it must not replace the
+        // agreed contract value or be counted as a payment.
+        DB::table('service_invoices')->insert([
+            'company_id'=>$company->id,'service_job_id'=>$job,
+            'client_id'=>$client->id,'invoice_number'=>'INV-PARTIAL',
+            'invoice_date'=>'2026-12-04','due_date'=>'2026-12-30',
+            'client_name_snapshot'=>'Real Client','status'=>'sent',
+            'currency'=>'CHF','subtotal_minor'=>40000,'vat_minor'=>0,
+            'total_minor'=>40000,'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        $this->getJson('/api/v1/jobs/'.$job)->assertOk()
+            ->assertJsonPath('data.financials_minor.invoiced_minor',40000)
+            ->assertJsonPath('data.financials_minor.remaining_balance_minor',130000);
     }
 
     public function test_live_job_details_are_tenant_scoped(): void
