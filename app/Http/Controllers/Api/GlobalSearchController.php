@@ -35,7 +35,7 @@ final class GlobalSearchController extends Controller
         $member = $company->users()->where('users.id', $request->user()->id)
             ->wherePivot('status', 'active')->first();
         abort_unless($member, 403);
-        if (in_array($member->pivot->role, ['owner', 'admin'], true)) {
+        if ($member->pivot->role === 'owner') {
             $allowed = GlobalSearchService::types();
         } else {
             $permissions = json_decode((string) $member->pivot->permissions, true);
@@ -45,7 +45,7 @@ final class GlobalSearchController extends Controller
                     if ($type === 'reminders') return true;
                     $needed = GlobalSearchService::permissionFor($type);
                     if ($type === 'invoices' || $type === 'deposits') {
-                        return in_array('documents.read', $permissions, true)
+                        return in_array('invoices.read', $permissions, true)
                             && in_array('jobs.read', $permissions, true);
                     }
                     return $needed !== null && in_array($needed, $permissions, true);
