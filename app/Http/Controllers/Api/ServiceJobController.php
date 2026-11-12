@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Company;
 use App\Services\DocumentCatalogService;
+use App\Services\JobProgressCalculator;
 use App\Models\ServiceJob;
 use App\Support\AuditLogger;
 use Illuminate\Http\JsonResponse;
@@ -54,7 +55,7 @@ class ServiceJobController extends Controller
             ->findOrFail($id);
     }
 
-    private function payload(ServiceJob $job): array
+    private function payload(ServiceJob $job, ?int $calculatedProgress = null): array
     {
         return [
             'id' => $job->id,
@@ -68,7 +69,7 @@ class ServiceJobController extends Controller
             'start_date' => $job->start_date?->format('Y-m-d'),
             'due_date' => $job->due_date?->format('Y-m-d'),
             'budget_chf' => $job->budget_chf,
-            'progress_percentage' => (float) $job->progress_percentage,
+            'progress_percentage' => $calculatedProgress ?? app(JobProgressCalculator::class)->forJobs([$job])[(int) $job->id],
             'stage' => $job->effectiveStage(),
             'category' => $job->category,
             'team_member_ids' => $job->assignees->pluck('id')->values(),
@@ -91,7 +92,7 @@ class ServiceJobController extends Controller
             'start_date' => [$creating ? 'required' : 'sometimes', 'date_format:Y-m-d'],
             'due_date' => [$creating ? 'required' : 'sometimes', 'date_format:Y-m-d'],
             'budget_chf' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999999999.99'],
-            'progress_percentage' => ['sometimes', 'numeric', 'between:0,100'],
+            'progress_percentage' => ['prohibited'], // derived server-side; never an editable field
             'stage' => ['sometimes', Rule::in(['planning', 'in_progress', 'completed'])],
             'team_member_ids' => ['sometimes', 'array', 'max:100'],
             'team_member_ids.*' => ['integer', 'min:1', 'distinct'],
@@ -169,8 +170,9 @@ class ServiceJobController extends Controller
                         ->orWhere('company_name', 'like', '%'.$needle.'%')));
         }
         $page = $query->latest('id')->paginate((int) ($filters['per_page'] ?? 50));
+        $progress = app(JobProgressCalculator::class)->forJobs($page->getCollection());
         return response()->json(['data' => [
-            'jobs' => $page->getCollection()->map(fn ($job) => $this->payload($job))->values(),
+            'jobs' => $page->getCollection()->map(fn ($job) => $this->payload($job, $progress[(int) $job->id]))->values(),
             'pagination' => ['page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()],
         ]]);
     }
@@ -319,7 +321,6 @@ class ServiceJobController extends Controller
                 'reference_number' => $reference,
                 'category' => 'active',
                 'stage' => 'planning',
-                'progress_percentage' => 0,
                 'request_key' => $key,
                 'request_fingerprint' => $key === null ? null : $fingerprint,
             ]));
@@ -348,7 +349,6 @@ class ServiceJobController extends Controller
         DB::transaction(function () use ($request, $target, $data, $team): void {
             if (($data['stage'] ?? null) === 'completed') {
                 $data['category'] = 'completed';
-                $data['progress_percentage'] = 100;
                 $data['completed_at'] = $target->completed_at ?? now();
             } elseif (isset($data['stage']) && $target->category === 'completed') {
                 $data['category'] = 'active';
