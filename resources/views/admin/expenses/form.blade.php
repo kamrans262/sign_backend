@@ -15,7 +15,7 @@
 <label>Company <select class="input" name="company_id" required><option value="">Select Company</option>@foreach($companies as $company)<option value="{{ $company->id }}" @selected(old('company_id')==$company->id)>{{ $company->name }}</option>@endforeach</select></label>
 @endif
 <label>Job <select class="input" name="job_id" required @disabled(!$draft||$editing)><option value="">Select Job</option>
-@foreach($jobs as $job)<option value="{{ $job->id }}" @selected(old('job_id',$record['job_id']??'')==$job->id)>{{ $job->reference_number }} · {{ $job->title }} (Company #{{ $job->company_id }})</option>@endforeach
+@foreach($jobs as $job)<option value="{{ $job->id }}" @selected(old('job_id',$record['job_id']??'')==$job->id)>{{ $job->reference_number }} · {{ $job->title }} ({{ \App\Support\AdminCompanyNames::label($job->company_id) }})</option>@endforeach
 </select>@if($editing)<input type="hidden" name="job_id" value="{{ $record['job_id'] }}">@endif</label>
 <label>Expense Type <select class="input" name="category" required @disabled(!$draft)>
 @foreach(['material'=>'Material','fuel'=>'Fuel','tools'=>'Tools','parking'=>'Parking','meals'=>'Meals','labour'=>'Labour','other'=>'Other'] as $kind=>$label)
