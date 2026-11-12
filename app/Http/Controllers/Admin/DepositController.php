@@ -183,7 +183,9 @@ final class DepositController extends Controller
                     $r['id'],$r['company_id'],$safe($r['job']),$r['quote_id'],
                     $safe($r['client_name']),
                     number_format($r['amount_minor']/100,2,'.',''),
-                    $r['deposit_date'],$safe($r['payment_method']),
+                    $r['deposit_date'],$safe(
+                        $r['payment_method']==='other' && !empty($r['payment_method_custom'])
+                            ? $r['payment_method_custom'] : $r['payment_method']),
                     $safe($r['reference_number']),$r['status'],
                     $r['received_at'],$r['refunded_at'],
                 ]);
