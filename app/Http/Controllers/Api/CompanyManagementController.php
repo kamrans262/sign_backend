@@ -33,6 +33,13 @@ class CompanyManagementController extends Controller
         'equipment.read', 'equipment.write',
     ];
 
+    private static function defaultPermissions(string $role): array
+    {
+        if ($role === 'admin') return self::PERMISSIONS;
+        return array_values(array_filter(self::PERMISSIONS, static fn (string $key): bool =>
+            str_ends_with($key, '.read') || in_array($key, ['clients.write', 'jobs.write'], true)));
+    }
+
     private function company(Request $request, int $id, array $allowedRoles = []): Company
     {
         $user = $request->user();
@@ -233,7 +240,7 @@ class CompanyManagementController extends Controller
 
         $target->users()->updateExistingPivot($user, [
             'role' => $data['role'],
-            'permissions' => json_encode($data['permissions'] ?? [], JSON_THROW_ON_ERROR),
+            'permissions' => json_encode($data['permissions'] ?? self::defaultPermissions($data['role']), JSON_THROW_ON_ERROR),
         ]);
         AuditLogger::record('mobile.company.member_updated', $request->user(), $member, $target,
             metadata: ['member_user_id' => $user, 'role' => $data['role']], request: $request);
@@ -318,7 +325,7 @@ class CompanyManagementController extends Controller
         $invitation->invited_by_user_id = $request->user()->id;
         $invitation->email = $email;
         $invitation->role = $data['role'];
-        $invitation->permissions = $data['permissions'] ?? [];
+        $invitation->permissions = $data['permissions'] ?? self::defaultPermissions($data['role']);
         $invitation->token_hash = hash('sha256', $plain);
         $invitation->expires_at = now()->addDays(7);
         $invitation->save();
