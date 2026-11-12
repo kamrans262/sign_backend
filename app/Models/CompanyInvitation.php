@@ -20,6 +20,11 @@ class CompanyInvitation extends Model
         ];
     }
 
+    public function customRole(): BelongsTo
+    {
+        return $this->belongsTo(CompanyRole::class, 'company_role_id');
+    }
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
