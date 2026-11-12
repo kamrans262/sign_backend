@@ -36,6 +36,11 @@ class Company extends Model
         return $this->hasMany(Client::class);
     }
 
+    public function customRoles(): HasMany
+    {
+        return $this->hasMany(CompanyRole::class);
+    }
+
     public function invitations(): HasMany
     {
         return $this->hasMany(CompanyInvitation::class);
