@@ -190,6 +190,19 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             ->whereNumber('company');
         Route::post('/companies/{company}/switch', [\App\Http\Controllers\Api\CompanyManagementController::class, 'switch'])
             ->whereNumber('company');
+        // Owner-managed, company-isolated custom roles.
+        Route::get('/companies/{company}/roles',
+            [\App\Http\Controllers\Api\CompanyRolesController::class, 'index'])
+            ->whereNumber('company');
+        Route::post('/companies/{company}/roles',
+            [\App\Http\Controllers\Api\CompanyRolesController::class, 'store'])
+            ->whereNumber('company')->middleware('throttle:12,1');
+        Route::put('/companies/{company}/roles/{role}',
+            [\App\Http\Controllers\Api\CompanyRolesController::class, 'update'])
+            ->whereNumber('company')->whereNumber('role');
+        Route::delete('/companies/{company}/roles/{role}',
+            [\App\Http\Controllers\Api\CompanyRolesController::class, 'destroy'])
+            ->whereNumber('company')->whereNumber('role');
         Route::get('/companies/{company}/members', [\App\Http\Controllers\Api\CompanyManagementController::class, 'members'])
             ->whereNumber('company');
         Route::patch('/companies/{company}/members/{user}', [\App\Http\Controllers\Api\CompanyManagementController::class, 'updateMember'])
