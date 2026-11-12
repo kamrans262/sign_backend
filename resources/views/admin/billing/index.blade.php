@@ -86,10 +86,10 @@
   <p>Provider webhook events requiring reconciliation: {{ $failedWebhookCount }}. Pending unexpired Checkouts: {{ $pendingCheckoutCount }}. SaaS subscription invoices below are separate from M17 business invoices.</p>
   <div class="table-wrap"><table><thead><tr><th>Record</th><th>Company</th><th>Status</th><th>Amount / Event</th></tr></thead><tbody>
     @forelse($billingInvoices as $invoice)
-      <tr><td>Subscription invoice #{{ $invoice->id }}</td><td>{{ $invoice->company_id }}</td><td>{{ $invoice->status }}</td><td>{{ $invoice->currency }} {{ number_format($invoice->amount_due_minor/100,2) }}</td></tr>
+      <tr><td>Subscription invoice #{{ $invoice->id }}</td><td>{{ \App\Support\AdminCompanyNames::label($invoice->company_id) }}</td><td>{{ $invoice->status }}</td><td>{{ $invoice->currency }} {{ number_format($invoice->amount_due_minor/100,2) }}</td></tr>
     @empty<tr><td colspan="4">No verified subscription billing invoices.</td></tr>@endforelse
     @foreach($providerEvents as $event)
-      <tr><td>Webhook event #{{ $event->id }}</td><td>{{ $event->company_id??'—' }}</td><td>{{ $event->status }}</td><td>{{ $event->event_type }}</td></tr>
+      <tr><td>Webhook event #{{ $event->id }}</td><td>{{ \App\Support\AdminCompanyNames::label($event->company_id ?? null) }}</td><td>{{ $event->status }}</td><td>{{ $event->event_type }}</td></tr>
     @endforeach
   </tbody></table></div>
 </section>
