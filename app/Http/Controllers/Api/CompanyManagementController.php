@@ -334,9 +334,22 @@ class CompanyManagementController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'role' => ['required', Rule::in($owner ? ['admin', 'member'] : ['member'])],
+            'company_role_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'permissions' => ['sometimes', 'array', 'max:20'],
             'permissions.*' => ['string', 'distinct', Rule::in(self::PERMISSIONS)],
         ]);
+        $roleId = isset($data['company_role_id']) ? (int) $data['company_role_id'] : null;
+        if ($roleId !== null && !$owner) abort(403);
+        if ($roleId !== null && ($data['role'] !== 'member' ||
+            array_key_exists('permissions', $data))) {
+            throw ValidationException::withMessages([
+                'company_role_id' => 'Custom roles define their own permissions.',
+            ]);
+        }
+        $grants = $roleId !== null
+            ? CompanyRolePermissions::findForCompany($target->id, $roleId)->permissions
+            : CompanyRolePermissions::validateGrants(
+                $data['permissions'] ?? self::defaultPermissions($data['role']));
         $email = strtolower(trim($data['email']));
         $existing = $target->users()->where('users.email', $email)->exists();
         if ($existing) {
@@ -359,7 +372,8 @@ class CompanyManagementController extends Controller
         $invitation->invited_by_user_id = $request->user()->id;
         $invitation->email = $email;
         $invitation->role = $data['role'];
-        $invitation->permissions = $data['permissions'] ?? self::defaultPermissions($data['role']);
+        $invitation->company_role_id = $roleId;
+        $invitation->permissions = $grants;
         $invitation->token_hash = hash('sha256', $plain);
         $invitation->expires_at = now()->addDays(7);
         $invitation->save();
@@ -412,6 +426,8 @@ class CompanyManagementController extends Controller
             'id' => $row->id,
             'company_name' => $row->company->name,
             'role' => $row->role,
+            'role_name' => $row->customRole?->name ?? ucfirst($row->role),
+            'company_role_id' => $row->company_role_id,
             'expires_at' => $row->expires_at->toIso8601String(),
             // Never expose token hashes or a usable invitation code.
         ])->values()]]);
@@ -444,10 +460,15 @@ class CompanyManagementController extends Controller
                 throw ValidationException::withMessages(['code' => 'You are already a company member.']);
             }
 
+            $roleId = $row->company_role_id ? (int) $row->company_role_id : null;
+            $grants = $roleId
+                ? CompanyRolePermissions::findForCompany($target->id, $roleId)->permissions
+                : ($row->permissions ?? []);
             $target->users()->attach($user->id, [
                 'role' => $row->role,
+                'company_role_id' => $roleId,
                 'status' => 'active',
-                'permissions' => json_encode($row->permissions ?? [], JSON_THROW_ON_ERROR),
+                'permissions' => json_encode($grants, JSON_THROW_ON_ERROR),
             ]);
             $row->accepted_at = now();
             $row->save();
