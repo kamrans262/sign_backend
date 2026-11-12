@@ -1,0 +1,64 @@
+name: Sign2Digital Google Mobile Authentication QA
+
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/google-mobile-auth-focused.yml'
+      - 'app/Http/Controllers/Api/GoogleMobileAuthController.php'
+      - 'app/Services/GoogleIdTokenVerifier.php'
+      - 'config/services.php'
+      - 'routes/api.php'
+      - 'database/migrations/2026_11_13_030000_add_google_subject_to_users.php'
+      - 'tests/Feature/GoogleMobileAuthTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sign-google-mobile-auth
+  cancel-in-progress: true
+
+jobs:
+  google-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-only
+          MYSQL_DATABASE: sign2digital_ci
+          MYSQL_USER: sign_ci
+          MYSQL_PASSWORD: sign-ci-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s
+          --health-timeout=4s
+          --health-retries=25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, pdo_mysql, mbstring, openssl, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Validate Google auth PHP syntax
+        run: php -l app/Services/GoogleIdTokenVerifier.php && php -l app/Http/Controllers/Api/GoogleMobileAuthController.php && php -l tests/Feature/GoogleMobileAuthTest.php
+      - name: Verify signed Google credentials and 2FA — SQLite
+        run: php artisan test tests/Feature/GoogleMobileAuthTest.php tests/Feature/M2EmailOtpAuthTest.php
+      - name: Verify Google sign-in — MySQL 8
+        env:
+          DB_CONNECTION: mysql
+          DB_URL: ''
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: sign2digital_ci
+          DB_USERNAME: sign_ci
+          DB_PASSWORD: sign-ci-only
+        run: php artisan test tests/Feature/GoogleMobileAuthTest.php
