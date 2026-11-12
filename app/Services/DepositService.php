@@ -82,6 +82,7 @@ final class DepositService
             'client_name'=>$row->client_name_snapshot,
             'amount_minor'=>(int)$row->amount_minor,'currency'=>'CHF',
             'deposit_date'=>$row->deposit_date,'payment_method'=>$row->payment_method,
+            'payment_method_custom'=>$row->payment_method_custom??null,
             'reference_number'=>$row->reference_number??'','notes'=>$row->notes??'',
             'status'=>$row->status,'lock_version'=>(int)$row->lock_version,
             'received_at'=>$row->received_at,'received_by'=>$row->received_by,
@@ -132,14 +133,21 @@ final class DepositService
             'amount'=>['required','string','max:30'],
             'deposit_date'=>['required','date_format:Y-m-d'],
             'payment_method'=>['required',Rule::in(['cash','bank_transfer','other'])],
+            'payment_method_custom'=>['nullable','string','max:120'],
             'reference_number'=>['nullable','string','max:120'],
             'notes'=>['nullable','string','max:12000'],
             'lock_version'=>[$id===null?'nullable':'required','integer','min:1'],
             'request_key'=>['nullable','string','between:8,100','regex:/^[A-Za-z0-9._-]+$/D'],
         ]);
         $minor=self::minor($data['amount']);
+        $custom=trim((string)($data['payment_method_custom']??''));
+        if ($custom!=='' && $data['payment_method']!=='other') {
+            throw ValidationException::withMessages([
+                'payment_method_custom'=>'Custom method requires Other as payment method.',
+            ]);
+        }
         $key=$id===null?($data['request_key']??null):null;
-        $fingerprint=$key===null?null:hash('sha256',json_encode([
+        $fingerprintValues=[
             'job_id'=>(int)$data['job_id'],
             'quote_id'=>isset($data['quote_id'])?(int)$data['quote_id']:null,
             'amount_minor'=>$minor,'deposit_date'=>$data['deposit_date'],
@@ -147,11 +155,15 @@ final class DepositService
             'client_name'=>trim((string)($data['client_name']??'')),
             'reference_number'=>trim((string)($data['reference_number']??'')),
             'notes'=>trim((string)($data['notes']??'')),
-        ],JSON_THROW_ON_ERROR));
+        ];
+        // Preserve existing idempotency hashes for non-custom requests.
+        if ($custom!=='') $fingerprintValues['payment_method_custom']=$custom;
+        $fingerprint=$key===null?null:hash('sha256',
+            json_encode($fingerprintValues,JSON_THROW_ON_ERROR));
         $actor=$request->user()?->id;
         $replayed=false;
         $saved=DB::transaction(function () use ($company,$data,$minor,$actor,$id,
-            $key,$fingerprint,&$replayed): object {
+            $key,$fingerprint,$custom,&$replayed): object {
             // A company row lock serializes concurrent deposit requests.
             DB::table('companies')->where('id',$company->id)->lockForUpdate()->firstOrFail();
             if($id===null && $key!==null) {
@@ -181,6 +193,7 @@ final class DepositService
             $values=[
                 'amount_minor'=>$minor,'deposit_date'=>$data['deposit_date'],
                 'payment_method'=>$data['payment_method'],
+                'payment_method_custom'=>$custom!==''?$custom:null,
                 'reference_number'=>trim((string)($data['reference_number']??''))?:null,
                 'notes'=>trim((string)($data['notes']??''))?:null,
                 'updated_by'=>$actor,'updated_at'=>now(),
