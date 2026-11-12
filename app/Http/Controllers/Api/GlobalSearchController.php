@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Services\GlobalSearchService;
+use App\Support\CompanyRolePermissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -38,8 +39,11 @@ final class GlobalSearchController extends Controller
         if ($member->pivot->role === 'owner') {
             $allowed = GlobalSearchService::types();
         } else {
-            $permissions = json_decode((string) $member->pivot->permissions, true);
-            $permissions = is_array($permissions) ? $permissions : [];
+            $permissions = CompanyRolePermissions::resolve(
+                $member->pivot->company_role_id ? (int) $member->pivot->company_role_id : null,
+                (int) $company->id, (string) $member->pivot->role,
+                $member->pivot->permissions
+            );
             $allowed = array_values(array_filter(GlobalSearchService::types(),
                 static function (string $type) use ($permissions): bool {
                     if ($type === 'reminders') return true;
