@@ -86,10 +86,10 @@
 </select></div>
 <div class="field"><label for="client_id">Saved Client</label><select class="input" id="client_id" name="client_id">
 <option value="">Not linked</option>@foreach($clients as $c)
-<option value="{{ $c->id }}" {{ (string)old('client_id',$editing?$quote->client_id:'')===(string)$c->id?'selected':'' }}>{{ $c->full_name }} — company #{{ $c->company_id }}</option>@endforeach</select></div>
+<option value="{{ $c->id }}" {{ (string)old('client_id',$editing?$quote->client_id:'')===(string)$c->id?'selected':'' }}>{{ $c->full_name }} — {{ \App\Support\AdminCompanyNames::label($c->company_id) }}</option>@endforeach</select></div>
 <div class="field"><label for="service_job_id">Linked Job</label><select class="input" id="service_job_id" name="service_job_id">
 <option value="">No Job</option>@foreach($jobs as $j)
-<option value="{{ $j->id }}" {{ (string)old('service_job_id',$editing?$quote->service_job_id:'')===(string)$j->id?'selected':'' }}>{{ $j->reference_number }} — {{ $j->title }} (company #{{ $j->company_id }})</option>@endforeach</select></div>
+<option value="{{ $j->id }}" {{ (string)old('service_job_id',$editing?$quote->service_job_id:'')===(string)$j->id?'selected':'' }}>{{ $j->reference_number }} — {{ $j->title }} ({{ \App\Support\AdminCompanyNames::label($j->company_id) }})</option>@endforeach</select></div>
 <div class="field"><label for="quote_number">Quote Number</label><input class="input" id="quote_number" name="quote_number" maxlength="40" placeholder="Auto-generated if empty" value="{{ old('quote_number', $editing ? ($quote->custom_quote_number ?: $quote->reference_number) : '') }}"></div>
 <div class="field"><label for="client_name">Customer Name *</label><input class="input" id="client_name" name="client_name" maxlength="255" required value="{{ old('client_name',$editing?$quote->client_name:'') }}"></div>
 <div class="field"><label for="client_email">Customer Email</label><input class="input" id="client_email" name="client_email" type="email" value="{{ old('client_email',$editing?$quote->client_email:'') }}"></div>
