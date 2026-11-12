@@ -66,16 +66,51 @@ final class JobDetailsSnapshot
             : null;
         $receivedMinor = $paymentMinor === null || $depositMinor === null
             ? null : $depositMinor + $paymentMinor;
-        // No issued invoice means no customer receivable has been established.
-        // It is not a zero balance, and the job expense budget is unrelated.
-        $hasReceivable = $canReadDocuments
-            ? $query('service_invoices')
-                ->whereIn('status', ['approved', 'sent', 'issued'])
-                ->where('currency', 'CHF')->exists()
-            : false;
-        $remainingMinor = !$hasReceivable || $invoiceMinor === null ||
-                $receivedMinor === null
-            ? null : max(0, $invoiceMinor - $receivedMinor);
+        // Job Remaining Balance is the unpaid AGREED contract value, not
+        // the outstanding invoice ledger. Require a signed customer quote;
+        // unsigned/archived proposals must not become money owed.
+        // A job may have multiple approved quotations/revisions: take the
+        // latest customer-signed quote, not their sum.
+        $acceptedQuote = $canReadQuotes && $canReadDocuments
+            ? DB::table('service_quotes as quotes')
+                ->join('signed_document_artifacts as signed',
+                    function ($join) use ($company) {
+                        $join->on('signed.service_quote_id', '=', 'quotes.id')
+                            ->where('signed.company_id', '=', $company);
+                    })
+                ->join('signature_requests as requests',
+                    function ($join) use ($company) {
+                        $join->on('requests.id', '=', 'signed.signature_request_id')
+                            ->where('requests.company_id', '=', $company)
+                            ->where('requests.status', '=', 'signed');
+                    })
+                ->where('quotes.company_id', $company)
+                ->where('quotes.service_job_id', $id)
+                ->whereIn('quotes.status', ['approved', 'sent'])
+                ->where('quotes.currency', 'CHF')
+                ->whereNotNull('quotes.total_minor')
+                ->orderByDesc('signed.created_at')
+                ->orderByDesc('signed.id')
+                ->select('quotes.id', 'quotes.total_minor')
+                ->first()
+            : null;
+
+        $agreedMinor = $acceptedQuote === null ? null
+            : (int) $acceptedQuote->total_minor;
+        if ($agreedMinor !== null) {
+            // Only price-changing, approved addenda linked to that signed
+            // quote count. An older quote's addenda and drafts never count.
+            $agreedMinor += (int) $query('addenda')
+                ->where('service_quote_id', $acceptedQuote->id)
+                ->where('currency', 'CHF')
+                ->whereIn('status', ['approved', 'sent', 'signed'])
+                ->whereNotNull('approved_pdf_sha256')
+                ->sum('total_minor');
+        }
+        // Do not change Received, Deposits, Invoiced or invoice payments
+        // used elsewhere. No signed quote => unavailable, not zero.
+        $remainingMinor = $agreedMinor === null || $receivedMinor === null
+            ? null : max(0, $agreedMinor - $receivedMinor);
 
         $minor = [
             'quote_amount_minor' => $quoteMinor,
