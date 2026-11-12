@@ -26,7 +26,7 @@
 <td>{{ $row['job'] }}<div class="muted">{{ $row['job_reference'] }} @if($row['quote_id']) · Quote #{{ $row['quote_id'] }} @endif</div></td>
 <td>{{ $row['client_name'] }}</td><td>{{ $row['deposit_date'] }}</td>
 <td>{{ number_format($row['amount_minor']/100,2) }}</td>
-<td>{{ ucwords(str_replace('_',' ',$row['payment_method'])) }}</td>
+<td>{{ $row['payment_method']==='other' && !empty($row['payment_method_custom']) ? $row['payment_method_custom'] : ucwords(str_replace('_',' ',$row['payment_method'])) }}</td>
 <td><span class="pill">{{ ucfirst($row['status']) }}</span></td>
 <td><a class="btn btn-small btn-outline" href="{{ route('admin.deposits.edit',$row['id']) }}">Manage</a></td>
 </tr>@empty<tr><td colspan="8" class="empty">No deposits found.</td></tr>@endforelse
