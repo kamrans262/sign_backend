@@ -27,7 +27,7 @@
 <select class="input" style="display:block;width:100%" name="owner_user_id" required>
 <option value="">Select User</option>
 @foreach($users as $user)
-<option value="{{ $user->id }}" @selected(old('owner_user_id',$record?->owner_user_id)==$user->id)>{{ $user->name }} — {{ $user->email }} (Company #{{ $user->company_id }})</option>
+<option value="{{ $user->id }}" @selected(old('owner_user_id',$record?->owner_user_id)==$user->id)>{{ $user->name }} — {{ $user->email }} ({{ \App\Support\AdminCompanyNames::label($user->company_id) }})</option>
 @endforeach</select></label>
 <label>Title
 <input class="input" style="display:block;width:100%" name="title" maxlength="160" required value="{{ old('title',$record?->title) }}"></label>
