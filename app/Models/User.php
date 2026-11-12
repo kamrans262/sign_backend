@@ -36,7 +36,7 @@ class User extends Authenticatable
 
     public function companies(): BelongsToMany
     {
-        return $this->belongsToMany(Company::class)->withPivot(['role', 'status', 'permissions'])->withTimestamps();
+        return $this->belongsToMany(Company::class)->withPivot(['role', 'status', 'permissions', 'company_role_id'])->withTimestamps();
     }
 
     public function ownedCompanies(): HasMany
