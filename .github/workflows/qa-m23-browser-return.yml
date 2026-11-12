@@ -1,0 +1,34 @@
+name: Sign2Digital M23 browser return
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-m23-browser-return.yml'
+      - 'routes/web.php'
+      - 'app/Http/Controllers/Api/M23CheckoutBrowserReturnController.php'
+      - 'app/Services/M23StripeBillingService.php'
+      - 'tests/Feature/M23BrowserReturnTest.php'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checkout-return:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, fileinfo, gd
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Syntax and route compilation
+        run: |
+          php -l app/Http/Controllers/Api/M23CheckoutBrowserReturnController.php
+          php -l app/Services/M23StripeBillingService.php
+          php -l tests/Feature/M23BrowserReturnTest.php
+          php artisan route:cache
+      - name: Test public redirect and verified Stripe checkout
+        run: php artisan test --filter='(M23BrowserReturnTest|M23StripeBillingStage2Test)'
