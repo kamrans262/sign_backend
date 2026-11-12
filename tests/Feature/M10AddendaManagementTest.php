@@ -274,7 +274,8 @@ final class M10AddendaManagementTest extends TestCase
         $old=$this->postJson('/api/v1/addenda/'.$id.'/signature-requests',
             $request)->assertCreated()->json('data.secure_link');
         $oldToken=basename(parse_url($old,PHP_URL_PATH));
-        $this->get('/api/public/addenda/'.$oldToken)->assertOk();
+        // Do not open this token: viewing it changes status to viewed and
+        // must prohibit reissue. We test rotation of an untouched ready link.
 
         config(['mail.default'=>'smtp']);
         \Illuminate\Support\Facades\Mail::shouldReceive('raw')->once();
