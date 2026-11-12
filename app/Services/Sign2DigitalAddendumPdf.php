@@ -24,7 +24,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
     private const WIDTH = 183.2;
     private const INNER = 20.5;             // 20 pt inside quotation card
 
-    private static function text(string $value): string
+    private static function pdfText(string $value): string
     {
         return Sign2DigitalDocumentPdf::pdfString($value);
     }
@@ -46,7 +46,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
 
     private function lines(string $value, float $width): array
     {
-        $paragraphs = explode("\n", self::text($value));
+        $paragraphs = explode("\n", self::pdfText($value));
         $lines = [];
         foreach ($paragraphs as $paragraph) {
             $words = preg_split('/\s+/', trim($paragraph), -1, PREG_SPLIT_NO_EMPTY) ?: [];
@@ -121,7 +121,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->grey();
         $this->SetFont('Helvetica', '', 12);
         $this->SetXY(124, 30);
-        $this->Cell(65.5, 6, self::text((string) $item->number), 0, 1, 'R');
+        $this->Cell(65.5, 6, self::pdfText((string) $item->number), 0, 1, 'R');
 
         $this->ink();
         $this->SetFont('Helvetica', 'B', 14);
@@ -148,12 +148,12 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->ink();
         $this->SetFont('Helvetica', 'B', 11);
         $this->SetXY(131, $y);
-        $this->Cell(23, 6, self::text($label), 0, 0, 'R');
+        $this->Cell(23, 6, self::pdfText($label), 0, 0, 'R');
         $this->grey();
         $this->SetFont('Helvetica', '', 11);
         $this->SetXY(157, $y);
         // Keep values against the same right inset as the document number.
-        $this->Cell(32.5, 6, self::text($value), 0, 0, 'R');
+        $this->Cell(32.5, 6, self::pdfText($value), 0, 0, 'R');
     }
 
     private function prose(string $heading, string $text): void
@@ -163,12 +163,12 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->ink();
         $this->SetFont('Helvetica', 'B', 14);
         $this->SetX(self::LEFT);
-        $this->MultiCell(self::WIDTH, 7, self::text($heading));
+        $this->MultiCell(self::WIDTH, 7, self::pdfText($heading));
         $this->Ln(3);
         $this->grey();
         $this->SetFont('Helvetica', '', 11);
         $this->SetX(self::LEFT);
-        $this->MultiCell(self::WIDTH, 5.8, self::text($text));
+        $this->MultiCell(self::WIDTH, 5.8, self::pdfText($text));
         $this->Ln(5);
     }
 
@@ -251,10 +251,10 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         }
         $this->SetFont('Helvetica', $total ? 'B' : '', $total ? 12 : 10);
         $this->SetXY(112, $y + 1);
-        $this->Cell(36, 7, self::text($label), 0, 0, 'R');
+        $this->Cell(36, 7, self::pdfText($label), 0, 0, 'R');
         if (!$total) $this->ink();
         $this->SetXY(151, $y + 1);
-        $this->Cell(38.5, 7, self::text($amount), 0, 0, 'R');
+        $this->Cell(38.5, 7, self::pdfText($amount), 0, 0, 'R');
         $this->SetY($y + 9);
     }
 
@@ -302,7 +302,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
             $this->grey();
             $this->SetFont('Helvetica', '', $label === 'Original SHA-256' ? 8 : 10);
             $this->SetXY(65, $cursor);
-            $this->Cell(122, 6, self::text($value));
+            $this->Cell(122, 6, self::pdfText($value));
             $cursor += 8;
         }
         $this->SetY($y + 52);
@@ -310,7 +310,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
 
     public function render(Addendum $item, ServiceQuote $quote): string
     {
-        $this->SetTitle(self::text('Addendum '.$item->number));
+        $this->SetTitle(self::pdfText('Addendum '.$item->number));
         $this->SetAuthor('Sign2Digital');
         $this->SetMargins(self::LEFT, self::LEFT, self::LEFT);
         $this->SetAutoPageBreak(true, 18);
