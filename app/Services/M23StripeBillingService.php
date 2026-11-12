@@ -63,7 +63,22 @@ final class M23StripeBillingService
                 'portal_return_url'=>'billing.return.portal',
                 default=>abort(500,'Unknown billing return URL.'),
             };
-            $url=route($route);
+            // APP_URL is the same public HTTPS root used by Flutter.
+            // Use it even behind Hostinger's TLS-terminating proxy, where
+            // request()->secure() may otherwise appear false to PHP.
+            $publicRoot=rtrim((string)config('app.url',''),'/');
+            $base=parse_url($publicRoot);
+            if(is_array($base) && ($base['scheme']??'')==='https'
+                && !empty($base['host']) && empty($base['user'])
+                && empty($base['pass']) && empty($base['fragment'])){
+                $url=$publicRoot.'/billing/'.match($route){
+                    'billing.return.success'=>'success',
+                    'billing.return.cancel'=>'cancel',
+                    default=>'return',
+                };
+            }else{
+                $url=route($route);
+            }
         }
         if($intentId!==null){
             $url.=(str_contains($url,'?')?'&':'?')
