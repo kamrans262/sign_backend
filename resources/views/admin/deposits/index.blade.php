@@ -41,7 +41,7 @@
 <div class="panel-header"><div><h2>Create from an Approved Quote</h2><p class="panel-header-hint">Requests only the unrequested quote deposit balance; does not collect money.</p></div></div>
 <div class="table-wrap"><table><thead><tr><th>Quote</th><th>Company / Job</th><th>Approved deposit CHF</th><th>Action</th></tr></thead><tbody>
 @forelse($quotes as $quote)<tr>
-<td>{{ $quote->reference_number }}</td><td>Company #{{ $quote->company_id }} · Job #{{ $quote->service_job_id }}</td>
+<td>{{ $quote->reference_number }}</td><td>{{ \App\Support\AdminCompanyNames::label($quote->company_id) }} · Job #{{ $quote->service_job_id }}</td>
 <td>{{ number_format($quote->deposit_minor/100,2) }}</td>
 <td><form method="post" action="{{ route('admin.deposits.fromQuote',$quote->id) }}" data-confirm="Create a pending deposit from the approved quote?">@csrf
 <input type="hidden" name="request_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}">
