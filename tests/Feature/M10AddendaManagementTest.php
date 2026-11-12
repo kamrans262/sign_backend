@@ -257,7 +257,7 @@ final class M10AddendaManagementTest extends TestCase
 
     public function test_explicit_email_delivery_replaces_only_an_unsent_link_and_returns_no_token(): void
     {
-        $this->withoutMiddleware(\\Illuminate\\Routing\\Middleware\\ThrottleRequests::class);
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Storage::fake('local');
         [$owner,$company,$client]=$this->tenant();
         [$artifact]=$this->signedOriginal($company,$client);
@@ -277,7 +277,7 @@ final class M10AddendaManagementTest extends TestCase
         $this->get('/api/public/addenda/'.$oldToken)->assertOk();
 
         config(['mail.default'=>'smtp']);
-        \\Illuminate\\Support\\Facades\\Mail::shouldReceive('raw')->once();
+        \Illuminate\Support\Facades\Mail::shouldReceive('raw')->once();
         // Changing a link into an email must NEVER silently revoke the old URL.
         $this->postJson('/api/v1/addenda/'.$id.'/signature-requests',[
             ...$request,'delivery'=>'email',
