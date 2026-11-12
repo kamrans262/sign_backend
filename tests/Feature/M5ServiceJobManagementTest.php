@@ -224,7 +224,7 @@ class M5ServiceJobManagementTest extends TestCase
         $this->get('/admin/jobs')->assertOk()->assertSee('Job Management');
         $post = array_merge($this->draft($client), [
             'company_id' => $a->id, 'title' => 'Install windows',
-            'stage' => 'planning', 'progress_percentage' => 0,
+            'stage' => 'planning',
         ]);
         $this->post('/admin/jobs', $post)->assertRedirect();
         $job = ServiceJob::firstOrFail();
