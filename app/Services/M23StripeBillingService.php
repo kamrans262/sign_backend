@@ -50,14 +50,30 @@ final class M23StripeBillingService
             'Stripe Price does not match this Admin-approved plan.');
     }
 
-    private function returnUrl(string $name): string
+    private function returnUrl(string $name,?string $intentId=null): string
     {
         $url=(string)config('m23_billing.'.$name,'');
+        // The Sign2Digital public HTTPS domain already serves Laravel.
+        // No manually created payment-success pages or webhook is necessary.
+        // An explicit .env URL remains supported for future custom domains.
+        if($url===''){
+            $route=match($name){
+                'checkout_success_url'=>'billing.return.success',
+                'checkout_cancel_url'=>'billing.return.cancel',
+                'portal_return_url'=>'billing.return.portal',
+                default=>abort(500,'Unknown billing return URL.'),
+            };
+            $url=route($route);
+        }
+        if($intentId!==null){
+            $url.=(str_contains($url,'?')?'&':'?')
+                .'intent='.rawurlencode($intentId);
+        }
         $p=parse_url($url);
         abort_unless(is_array($p) && ($p['scheme']??'')==='https'
             && !empty($p['host']) && empty($p['user']) && empty($p['pass'])
             && empty($p['fragment']),503,
-            'Secure Stripe return URL has not been configured.');
+            'Secure Stripe return URL must use the Sign2Digital HTTPS domain.');
         return $url;
     }
 
@@ -171,8 +187,8 @@ final class M23StripeBillingService
                 'metadata[company_id]'=>(string)$company->id,
                 'metadata[intent_id]'=>$requestId,
                 'subscription_data[metadata][company_id]'=>(string)$company->id,
-                'success_url'=>$this->returnUrl('checkout_success_url'),
-                'cancel_url'=>$this->returnUrl('checkout_cancel_url'),
+                'success_url'=>$this->returnUrl('checkout_success_url',$requestId),
+                'cancel_url'=>$this->returnUrl('checkout_cancel_url',$requestId),
             ],'m23-checkout-'.$company->id.'-'.$requestId);
             abort_unless(is_string($result['id']??null)
                 && preg_match('/^cs_[A-Za-z0-9_]+$/',$result['id'])
