@@ -28,6 +28,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'google_sign_in' => [
+        // Web OAuth client ID (audience), from the Google/Firebase project.
+        // Never accept a client-supplied audience or a Google access token.
+        'web_client_id' => env('GOOGLE_WEB_CLIENT_ID', ''),
+    ],
+
     'm20_fcm' => [
         // Stage 2 is opt-in and fails closed until a PRIVATE credentials file
         // is configured on the server. Never commit service-account JSON.
