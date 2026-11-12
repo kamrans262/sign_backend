@@ -30,7 +30,7 @@
 <th>Total CHF</th><th>Credited CHF</th><th>Due CHF</th><th>Status</th><th>Action</th></tr></thead><tbody>
 @forelse($result['records'] as $record)
 <tr><td>{{ $record['number'] }}</td>
-<td>{{ $record['job'] }}<div class="muted">#{{ $record['job_id'] }} · Company #{{ $record['company_id'] }}</div></td>
+<td>{{ $record['job'] }}<div class="muted">#{{ $record['job_id'] }} · {{ \App\Support\AdminCompanyNames::label($record['company_id']) }}</div></td>
 <td>{{ $record['client_name'] }}</td><td>{{ ucfirst($record['type']) }}</td>
 <td>{{ $record['invoice_date'] }}<div class="muted">{{ $record['due_date'] }}</div></td>
 <td>{{ number_format($record['total_minor']/100,2) }}</td>
