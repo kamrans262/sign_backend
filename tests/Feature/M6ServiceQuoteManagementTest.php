@@ -208,6 +208,62 @@ class M6ServiceQuoteManagementTest extends TestCase
     }
 
 
+    public function test_short_clear_quote_prompt_is_accepted_without_inventing_missing_values(): void
+    {
+        $owner=$this->owner('short-quote@example.test');
+        $company=$this->company($owner,'Short prompt');
+        $this->asTenant($owner,$company);
+        config(['services.openai.key'=>'test-key']);
+        Http::fake(['https://api.openai.com/v1/chat/completions'=>Http::response([
+            'choices'=>[['message'=>['content'=>json_encode([
+                'items'=>[['title'=>'Paint bedroom','description'=>null,
+                    'quantity'=>null,'dimensions'=>null]],
+                'location'=>null,'notes'=>null,'currency'=>null,
+                'clarification_question'=>null,
+            ])]]],
+        ],200)]);
+        $this->postJson('/api/v1/quotes/prepare/text',['text'=>'Paint bedroom'])
+            ->assertOk()
+            ->assertJsonPath('data.snapshot.stage','completed')
+            ->assertJsonPath('data.snapshot.items.0.title','Paint bedroom')
+            ->assertJsonPath('data.snapshot.items.0.quantity',null)
+            ->assertJsonPath('data.snapshot.items.0.dimensions',null);
+        // One- and two-character inputs are not a validation failure either.
+        $this->postJson('/api/v1/quotes/prepare/text',['text'=>'Hi'])->assertOk();
+    }
+
+    public function test_vague_quote_prompt_returns_clarification_instead_of_422(): void
+    {
+        $owner=$this->owner('unclear-quote@example.test');
+        $company=$this->company($owner,'Clarify quote');
+        $this->asTenant($owner,$company);
+        config(['services.openai.key'=>'test-key']);
+        Http::fake(['https://api.openai.com/v1/chat/completions'=>Http::response([
+            'choices'=>[['message'=>['content'=>json_encode([
+                'items'=>[], 'location'=>null, 'notes'=>null, 'currency'=>null,
+                'clarification_question'=>'What work is needed in the bathroom?',
+            ])]]],
+        ],200)]);
+        $this->postJson('/api/v1/quotes/prepare/text',[
+            'text'=>'Bathroom quote',
+        ])->assertOk()
+            ->assertJsonPath('data.snapshot.stage','needs_clarification')
+            ->assertJsonPath('data.snapshot.items',[])
+            ->assertJsonPath('data.snapshot.clarification_question',
+                'What work is needed in the bathroom?');
+        $this->postJson('/api/v1/quotes/prepare/text',[
+            'text'=>'Bathroom quote',
+            'clarification'=>'Replace the bathroom sink',
+        ])->assertOk()->assertJsonPath('data.snapshot.stage','needs_clarification');
+        Http::assertSent(fn ($request) =>
+            $request->url() === 'https://api.openai.com/v1/chat/completions' &&
+            str_contains($request['messages'][1]['content'][0]['text'],
+                'Replace the bathroom sink'));
+        // No fabricated line is inserted if extraction remains unclear.
+        $this->assertDatabaseCount('service_quotes',0);
+        $this->assertDatabaseCount('service_quote_items',0);
+    }
+
     public function test_quote_voice_accepts_m4a_and_mp4_detected_by_audio_signatures(): void
     {
         $owner = $this->owner('quote-voice@example.test');
