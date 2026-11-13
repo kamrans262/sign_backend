@@ -210,7 +210,7 @@ final class SupportAssistantController extends Controller
                 ->post('https://api.openai.com/v1/audio/transcriptions', [
                     'model' => 'gpt-4o-mini-transcribe',
                 ]);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return response()->json(['message' => 'Voice recognition is temporarily unavailable.'],
                 503, ['Cache-Control' => 'private, no-store']);
         }
