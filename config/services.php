@@ -45,6 +45,7 @@ return [
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
         'quote_model' => env('OPENAI_QUOTE_MODEL', 'gpt-4o-mini'),
+        'support_model' => env('OPENAI_SUPPORT_MODEL', 'gpt-4o-mini'),
     ],
 
     'slack' => [
