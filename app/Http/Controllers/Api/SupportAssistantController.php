@@ -96,6 +96,18 @@ final class SupportAssistantController extends Controller
         ]], 200, ['Cache-Control' => 'private, no-store']);
     }
 
+    /**
+     * Distinguish a quotation created for an existing job from a standalone quote.
+     * This narrow navigation guard keeps the assistant grounded in the real
+     * mobile Job Details flow, even when AI returns generic guidance.
+     */
+    private function asksToCreateJobQuote(string $message): bool
+    {
+        return preg_match('/\\b(?:quotes?|quotations?|qoutes?|estimates?)\\b/iu', $message) === 1
+            && preg_match('/\\b(?:jobs?|projects?)\\b/iu', $message) === 1
+            && preg_match('/\\b(?:creat(?:e|es|ed|ing)|mak(?:e|es|ing)|add|adding|new|draft|prepare|generat(?:e|ing)|start|need)\\b/iu', $message) === 1;
+    }
+
     public function reply(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -124,8 +136,17 @@ Approved workflow information:
 - Companies are created after account registration; company selection controls access.
 - Clients: add a contact in Clients before linking them to jobs or quotes.
 - Jobs: create and manage jobs, associate clients, view job details, photos, notes and progress.
-- Quotes: create a quotation, review all lines and amounts manually, approve/send it;
+- Quotes for an EXISTING JOB (important, verified app path): open the Jobs
+  tab, select the existing job, then tap Quotes on the Job Details screen.
+  When the job has saved quotes, choose Create New Quote; when it has none,
+  tapping Quotes opens Create Quote directly. The job and client are carried
+  into Create Quote. Review the quotation, then approve and send it.
+  For any question like "create a quote against the job I created", recommend
+  the Jobs screen as the navigation destination, NOT generic Quotes/Documents.
+- Standalone quotes: use the normal quote creation and review/send workflow;
   customer signing/approval and document tracking follow the quote workflows.
+- Always give the exact relevant in-app path in short steps and prioritize the
+  context of an existing job over a generic module explanation.
 - Documents: find and view generated, uploaded and signed documents in Documents.
 - Invoices: prepare an invoice from verified details, review then issue/send it.
 - Deposits: record a payment received against a job; a deposit is not an invoice.
@@ -185,6 +206,17 @@ GUIDE;
         }
         $route = $parsed['screen'] ?? null;
         if (!is_string($route) || !in_array($route, $allowed, true)) $route = null;
+
+        // Only override the verified job-linked creation path when the user
+        // actually has access to Jobs. Everything else remains live AI.
+        if ($this->asksToCreateJobQuote($data['message']) &&
+            in_array('jobs', $allowed, true)) {
+            $answer = 'Open Jobs and select the job you already created. '
+                .'On Job Details, tap Quotes. If the job already has quotes, '
+                .'choose Create New Quote; otherwise Create Quote opens directly. '
+                .'Enter the details, review the quote, then approve and send it.';
+            $route = 'jobs';
+        }
         return response()->json(['data' => [
             'answer' => mb_substr(trim($answer), 0, 1600),
             'screen' => $route, 'read_only' => true,
