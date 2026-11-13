@@ -146,6 +146,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
             ->middleware('throttle:30,1');
         Route::post('/support/assistant', [\App\Http\Controllers\Api\SupportAssistantController::class, 'reply'])
             ->middleware('throttle:10,1');
+        Route::post('/support/assistant/transcribe', [\App\Http\Controllers\Api\SupportAssistantController::class, 'transcribe'])
+            ->middleware('throttle:6,1');
         Route::get('/support/faqs', [\App\Http\Controllers\Api\M22SupportController::class,'faqs'])->middleware('throttle:60,1');
         Route::get('/support/tickets', [\App\Http\Controllers\Api\M22SupportController::class,'index']);
         Route::post('/support/tickets', [\App\Http\Controllers\Api\M22SupportController::class,'store'])->middleware('throttle:5,1');
