@@ -141,6 +141,11 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
         Route::post('/me/deactivate', [\App\Http\Controllers\Api\M22AccountController::class,'deactivate'])->middleware('throttle:3,1');
         Route::post('/me/delete', [\App\Http\Controllers\Api\M22AccountController::class,'deleteAccount'])->middleware('throttle:3,1');
 
+        // Read-only AI help and manual Getting Started preview; no autostart.
+        Route::get('/support/getting-started', [\App\Http\Controllers\Api\SupportAssistantController::class, 'progress'])
+            ->middleware('throttle:30,1');
+        Route::post('/support/assistant', [\App\Http\Controllers\Api\SupportAssistantController::class, 'reply'])
+            ->middleware('throttle:10,1');
         Route::get('/support/faqs', [\App\Http\Controllers\Api\M22SupportController::class,'faqs'])->middleware('throttle:60,1');
         Route::get('/support/tickets', [\App\Http\Controllers\Api\M22SupportController::class,'index']);
         Route::post('/support/tickets', [\App\Http\Controllers\Api\M22SupportController::class,'store'])->middleware('throttle:5,1');
