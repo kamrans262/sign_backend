@@ -25,7 +25,7 @@ final class SupportAssistantController extends Controller
         'documents' => 'documents.read',
         'invoices' => 'invoices.read',
         'expenses' => 'expenses.read',
-        'deposits' => 'deposits.read',
+        'deposits' => 'invoices.read',
         'labour' => 'labour.read',
         'team' => 'company.manage',
         'settings' => null,
@@ -62,6 +62,13 @@ final class SupportAssistantController extends Controller
         if ($access['company'] === null) return false;
         if ($access['owner']) return true;
         if ($route === 'team') return false; // owner-managed team invitations only
+        if ($route === 'deposits') {
+            return in_array('invoices.read', $access['permissions'], true) &&
+                in_array('jobs.read', $access['permissions'], true);
+        }
+        if ($route === 'quotes' && !in_array('documents.read', $access['permissions'], true)) {
+            return false; // Quotes are shown through the Documents tab.
+        }
         return in_array(self::DESTINATIONS[$route], $access['permissions'], true);
     }
 
