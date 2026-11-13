@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Http;
@@ -145,7 +146,42 @@ final class SupportAssistantTest extends TestCase
                 'screen' => 'home',
             ])->assertOk()
                 ->assertJsonPath('data.answer', 'Open Documents and create a quote.')
-                ->assertJsonPath('data.screen', 'documents');
+                ->assertJsonPath('data.screen', 'documents')
+                ->assertJsonPath('data.sample_prompt',
+                    'Create a quotation for installing three wooden doors at CHF 450 each. Add CHF 150 transportation, 8.1% VAT and a 30% deposit.');
+    }
+
+    public function test_voice_transcription_requires_real_m4a_and_never_uploads_invalid_bytes(): void
+    {
+        $this->login();
+        config()->set('services.openai.key', 'server-only-test');
+        Http::fake();
+        $this->post('/api/v1/support/assistant/transcribe', [
+            'file' => UploadedFile::fake()->createWithContent(
+                'invalid.m4a', 'not an mp4 audio file'),
+        ], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+        Http::assertNothingSent();
+    }
+
+    public function test_voice_transcription_uses_private_openai_key_and_returns_only_text(): void
+    {
+        $this->login();
+        config()->set('services.openai.key', 'server-only-test');
+        Http::fake(['api.openai.com/*' => Http::response([
+            'text' => 'How do I create a quote for my existing job?',
+        ], 200)]);
+        $audio = pack('N', 20).'ftypM4A '.str_repeat(chr(0), 64);
+        $this->post('/api/v1/support/assistant/transcribe', [
+            'file' => UploadedFile::fake()->createWithContent(
+                'question.m4a', $audio),
+        ], ['Accept' => 'application/json'])->assertOk()
+            ->assertJsonPath('data.text',
+                'How do I create a quote for my existing job?');
+        Http::assertSent(fn ($request) =>
+            $request->url() === 'https://api.openai.com/v1/audio/transcriptions' &&
+            $request->hasHeader('Authorization', 'Bearer server-only-test') &&
+            str_contains($request->body(), 'support-question.m4a'));
     }
 
     public function test_provider_quota_response_is_not_a_fake_answer(): void
