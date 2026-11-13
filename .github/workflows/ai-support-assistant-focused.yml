@@ -1,0 +1,28 @@
+name: Sign2Digital AI Support Assistant QA
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - 'app/Http/Controllers/Api/SupportAssistantController.php'
+      - 'tests/Feature/SupportAssistantTest.php'
+      - 'routes/api.php'
+      - '.github/workflows/ai-support-assistant-focused.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  assistant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, sqlite3
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Verify backend syntax and route
+        run: php -l app/Http/Controllers/Api/SupportAssistantController.php && php artisan route:list --path=api/v1/support
+      - name: Test AI support without live provider or writes
+        run: php artisan test tests/Feature/SupportAssistantTest.php
