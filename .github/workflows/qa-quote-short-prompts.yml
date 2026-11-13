@@ -1,0 +1,31 @@
+name: Quote AI Short Prompt Validation
+on:
+  push:
+    branches:
+      - fix/m20-admin-ui-modal-filters-2026-11-06
+    paths:
+      - '.github/workflows/qa-quote-short-prompts.yml'
+      - 'app/Http/Controllers/Api/QuoteAiController.php'
+      - 'tests/Feature/M6ServiceQuoteManagementTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quote-short-prompts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Validate controller and tests
+        run: php -l app/Http/Controllers/Api/QuoteAiController.php && php -l tests/Feature/M6ServiceQuoteManagementTest.php
+      - name: Verify short prompts and clarification (SQLite)
+        run: php artisan test tests/Feature/M6ServiceQuoteManagementTest.php --filter='test_short_clear_quote_prompt_is_accepted_without_inventing_missing_values|test_vague_quote_prompt_returns_clarification_instead_of_422'
