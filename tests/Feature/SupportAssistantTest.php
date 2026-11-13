@@ -70,7 +70,12 @@ final class SupportAssistantTest extends TestCase
         Http::assertSent(fn ($request) =>
             $request->url() === 'https://api.openai.com/v1/chat/completions' &&
             !str_contains($request->body(), 'test-server-only-key'));
+    }
 
+    public function test_ai_cannot_link_an_unpermitted_company_module(): void
+    {
+        $this->login();
+        config()->set('services.openai.key', 'test-server-only-key');
         Http::fake(['api.openai.com/*' => Http::response([
             'choices' => [['message' => ['content' =>
                 json_encode(['answer' => 'You may create a quote.', 'screen' => 'quotes'])]]],
