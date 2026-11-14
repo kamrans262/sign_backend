@@ -263,6 +263,12 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->ensureSpace(49);
         $this->Ln(23); // Quotation PDF's 65pt signature gap.
         $y = $this->GetY();
+        // Stable placement for the customer's verified ink/date in the
+        // separate signed PDF; the frozen unsigned addendum is unmodified.
+        $this->SetSubject(sprintf(
+            'S2D-SIG-V1:%d:%.2f:%.2f:%.2f:%.2f',
+            $this->PageNo(), self::INNER, $y, 112.0, 60.0
+        ));
         $this->SetDrawColor(...self::GREY);
         $this->SetLineWidth(.5);
         foreach ([self::INNER, 112] as $x) {
