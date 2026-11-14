@@ -47,7 +47,7 @@ final class SignedPdfPlacementTest extends TestCase
         return $pdf->Output('S');
     }
 
-    private function mobileLinkApproved(): string
+    private function mobileLinkApproved(float $markerXmm = 108.0): string
     {
         $pdf = new Fpdi();
         $pdf->SetCompression(false);
@@ -55,9 +55,9 @@ final class SignedPdfPlacementTest extends TestCase
         $pdf->SetFont('Helvetica', '', 12);
         $pdf->Cell(100, 10, 'Page one of the approved quote.');
         $pdf->AddPage('P', 'A4');
-        // The 1mm invisible URL link is how the mobile quote generator
-        // locates signature lines without moving visible text or prices.
-        $pdf->Link(38 * 25.4 / 72, 140, 1, 1,
+        // Regression fixture reproduces the historical centered-marker bug:
+        // the invisible link's X differs from the real signature line X.
+        $pdf->Link($markerXmm, 140, 1, 1,
             'https://sign2digital.invalid/signature-anchor-v1');
         $pdf->Line(38 * 25.4 / 72, 140, 62, 140);
         return $pdf->Output('S');
@@ -117,6 +117,21 @@ final class SignedPdfPlacementTest extends TestCase
         $this->assertSame(3, $reader->setSourceFile(
             \setasign\Fpdi\PdfParser\StreamReader::createByString($signed)
         ));
+    }
+
+    public function test_centered_quote_marker_uses_real_left_signature_line(): void
+    {
+        $approved = $this->mobileLinkApproved(108.0);
+        $anchor = (new \ReflectionMethod(SignedPdfService::class, 'signatureAnchor'))
+            ->invoke(new SignedPdfService(), $approved, 2);
+        $this->assertNotNull($anchor);
+        $this->assertSame(2, $anchor['page']);
+        $this->assertEqualsWithDelta(38 * 25.4 / 72, $anchor['x'], 0.05,
+            'Customer ink must start over the left signature rule, not the centered link.');
+        $this->assertEqualsWithDelta(138 * 25.4 / 72, $anchor['width'], 0.05);
+        $signed = $this->sign($approved);
+        $this->assertStringContainsString('(15/11/2026)',
+            $this->drawingStreams($signed));
     }
 
     public function test_historical_unanchored_pdf_keeps_original_evidence_only(): void
