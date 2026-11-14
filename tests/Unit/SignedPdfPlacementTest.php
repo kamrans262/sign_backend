@@ -47,6 +47,22 @@ final class SignedPdfPlacementTest extends TestCase
         return $pdf->Output('S');
     }
 
+    private function mobileLinkApproved(): string
+    {
+        $pdf = new Fpdi();
+        $pdf->SetCompression(false);
+        $pdf->AddPage('P', 'A4');
+        $pdf->SetFont('Helvetica', '', 12);
+        $pdf->Cell(100, 10, 'Page one of the approved quote.');
+        $pdf->AddPage('P', 'A4');
+        // The 1mm invisible URL link is how the mobile quote generator
+        // locates signature lines without moving visible text or prices.
+        $pdf->Link(38 * 25.4 / 72, 140, 1, 1,
+            'https://sign2digital.invalid/signature-anchor-v1');
+        $pdf->Line(38 * 25.4 / 72, 140, 62, 140);
+        return $pdf->Output('S');
+    }
+
     private function sign(string $source): string
     {
         return (new SignedPdfService())->build(
@@ -88,6 +104,19 @@ final class SignedPdfPlacementTest extends TestCase
             'Approved document', $this->drawingStreams($approved)
         );
         $this->assertNotSame(hash('sha256', $approved), hash('sha256', $signed));
+    }
+
+    public function test_mobile_quote_marker_stamps_the_correct_page(): void
+    {
+        $approved = $this->mobileLinkApproved();
+        $signed = $this->sign($approved);
+        $this->assertStringContainsString(
+            '(15/11/2026)', $this->drawingStreams($signed)
+        );
+        $reader = new Fpdi();
+        $this->assertSame(3, $reader->setSourceFile(
+            \setasign\Fpdi\PdfParser\StreamReader::createByString($signed)
+        ));
     }
 
     public function test_historical_unanchored_pdf_keeps_original_evidence_only(): void
