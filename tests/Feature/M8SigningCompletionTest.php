@@ -180,6 +180,38 @@ class M8SigningCompletionTest extends TestCase
         $this->assertDatabaseCount('signed_document_artifacts',0);
     }
 
+    public function test_business_preview_uses_only_checksum_verified_private_signature(): void
+    {
+        Storage::fake('local');
+        [$owner,$company,$client] = $this->tenant();
+        [$quote,$source] = $this->approvedQuote($client);
+        $context = $this->getJson('/api/v1/quotes/'.$quote->id.'/business-signature-context')
+            ->assertOk()->json('data.context');
+        $this->postJson('/api/v1/quotes/'.$quote->id.'/signature-requests', [
+            'signer_name' => 'Signing Customer',
+            'signer_email' => 'customer@example.test',
+            'delivery' => 'link',
+            'business_authorization' => $context['authorization'],
+            'business_signature_png_base64' => base64_encode($this->signaturePng()),
+            'business_signature_method' => 'draw',
+            'business_consent_accepted' => true,
+        ])->assertCreated();
+        $record = Signing::firstOrFail();
+        $endpoint = '/api/v1/signature-requests/'.$record->id.'/business-signature';
+        $this->getJson('/api/v1/signature-requests/'.$record->id)
+            ->assertOk()
+            ->assertJsonPath('data.request.business_signer_name', 'Business Owner')
+            ->assertJsonPath('data.request.business_signature_sha256',
+                hash('sha256', $this->signaturePng()));
+        $this->get($endpoint)->assertOk()
+            ->assertHeader('Content-Type', 'image/png')
+            ->assertContent($this->signaturePng());
+
+        // Fail closed when private bytes change after the signing event.
+        Storage::disk('local')->put($record->business_signature_path, 'tampered');
+        $this->get($endpoint)->assertStatus(503);
+    }
+
     public function test_optional_business_signature_is_verified_before_remote_customer_signing(): void
     {
         Storage::fake('local');
