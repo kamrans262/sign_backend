@@ -75,6 +75,13 @@ final class WorkAcceptanceCustomerService
         array $photos): string
     {
         $pdf=new WorkAcceptanceResponsePdf();
+        // The response wraps the exact approved PDF before it is signed.
+        // Carry forward its verified signature-line anchor so the common
+        // signed-PDF service can stamp the customer signature on that page.
+        if (preg_match('~/Subject\\s*\\((S2D-SIG-V1:[^)]{1,140})\\)~',
+            $source, $found) === 1) {
+            $pdf->SetSubject($found[1]);
+        }
         $count=$pdf->setSourceFile(StreamReader::createByString($source));
         abort_unless($count>=1&&$count<=50,422,'Unsupported report PDF.');
         $companyName=(string)(DB::table('companies')
