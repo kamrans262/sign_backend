@@ -48,6 +48,8 @@ final class SignatureRequestController extends Controller
             'mode' => $item->mode,
             'business_signer_name' => $item->business_signer_name,
             'business_signed_at' => $item->business_signed_at?->toIso8601String(),
+            'business_signature_sha256' => $item->business_signed_at
+                ? $item->business_signature_sha256 : null,
             'signer_email' => $item->signer_email,
             'status' => $item->expires_at->isPast() && in_array($item->status, ['ready','sent','viewed'], true)
                 ? 'expired' : $item->status,
@@ -82,6 +84,40 @@ final class SignatureRequestController extends Controller
             'request' => $this->result($item),
             'events' => $this->workflow->eventsForMobile($item),
         ]]);
+    }
+
+    /**
+     * The business signing preview reads only persisted, server-verified ink,
+     * never the client capture buffer or a public signing capability.
+     */
+    public function businessSignature(Request $request, int $signature)
+    {
+        $item = $this->scoped($request, $signature);
+        abort_unless(
+            $item->business_user_id !== null && $item->business_signed_at !== null &&
+            is_string($item->business_signature_path) &&
+            is_string($item->business_signature_sha256) &&
+            preg_match('/^[a-f0-9]{64}$/D', $item->business_signature_sha256),
+            404, 'No verified business signature is available.'
+        );
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($item->business_signature_path), 503,
+            'Business signature evidence is unavailable.');
+        $bytes = $disk->get($item->business_signature_path);
+        abort_unless(is_string($bytes) &&
+            hash_equals($item->business_signature_sha256, hash('sha256', $bytes)),
+            503, 'Business signature evidence integrity failed.');
+        try {
+            SignedPdfService::validatePng($bytes);
+        } catch (\\InvalidArgumentException $error) {
+            abort(503, 'Business signature evidence is invalid.');
+        }
+        return response($bytes, 200, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Disposition' => 'inline; filename="Business_Signature.png"',
+        ]);
     }
 
     /** Server-issued, short-lived issuer authorization bound to an immutable approved PDF. */
