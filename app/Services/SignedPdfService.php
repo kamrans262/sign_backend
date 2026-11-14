@@ -45,6 +45,140 @@ final class SignedPdfService
     }
 
     /**
+     * Optional machine-readable position in a frozen PDF. Existing historical
+     * PDFs without an anchor continue to use their original evidence page.
+     * All positions use millimetres measured from the upper left.
+     */
+    private function signatureAnchor(string $source, int $pageCount): ?array
+    {
+        if (preg_match(
+            '~\/Subject\s*\(S2D-SIG-V1:(\d+):([\d.]+):([\d.]+):([\d.]+):([\d.]+)\)~',
+            $source, $found
+        ) === 1) {
+            $anchor = [
+                'page' => (int) $found[1], 'x' => (float) $found[2],
+                'y' => (float) $found[3], 'date_x' => (float) $found[4],
+                'width' => (float) $found[5],
+            ];
+            return $this->validAnchor($anchor, $pageCount) ? $anchor : null;
+        }
+
+        // Mobile quotation PDF v1.4 marks the signature row with a tiny
+        // non-visible link rectangle. Do not infer placement for legacy PDFs.
+        if (!str_contains($source, 'sign2digital.invalid/signature-anchor-v1')) {
+            return null;
+        }
+        preg_match_all('~(\d+)\s+0\s+obj\b(.*?)\bendobj~s', $source, $parts,
+            PREG_SET_ORDER);
+        $objects = [];
+        foreach ($parts as $part) $objects[(int) $part[1]] = $part[2];
+        $marker = null;
+        $rect = null;
+        foreach ($objects as $id => $body) {
+            if (!str_contains($body, 'sign2digital.invalid/signature-anchor-v1')) {
+                continue;
+            }
+            if (preg_match('~\/Rect\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]~',
+                $body, $matches) === 1) {
+                $marker = $id;
+                $rect = array_map('floatval', array_slice($matches, 1));
+                break;
+            }
+        }
+        if ($marker === null || $rect === null) return null;
+
+        $pageIndex = 0;
+        $matchedPage = null;
+        foreach ($objects as $body) {
+            if (!preg_match('~\/Type\s*\/Page\b~', $body)) continue;
+            $pageIndex++;
+            $annots = '';
+            if (preg_match('~\/Annots\s*\[(.*?)\]~s', $body, $refs)) {
+                $annots = $refs[1];
+            } elseif (preg_match('~\/Annots\s+(\d+)\s+0\s+R~', $body, $refs)) {
+                $annots = $objects[(int)$refs[1]] ?? '';
+            }
+            if (preg_match('~\b'.preg_quote((string)$marker, '~').'\s+0\s+R\b~',
+                $annots)) {
+                $matchedPage = $pageIndex;
+                break;
+            }
+        }
+        if ($matchedPage === null && $pageCount === 1) $matchedPage = 1;
+        if ($matchedPage === null) return null;
+        $factor = 25.4 / 72.0;
+        // Quote layout: 38pt A4 margins, two 138pt signature/date columns.
+        $anchor = [
+            'page' => $matchedPage,
+            'x' => $rect[0] * $factor,
+            'y' => (841.89 - $rect[3]) * $factor + 0.35,
+            'date_x' => (595.28 - 38 - 138) * $factor,
+            'width' => 138 * $factor,
+        ];
+        return $this->validAnchor($anchor, $pageCount) ? $anchor : null;
+    }
+
+    private function validAnchor(array $anchor, int $pageCount): bool
+    {
+        return $anchor['page'] >= 1 && $anchor['page'] <= $pageCount
+            && $anchor['x'] >= 10 && $anchor['x'] <= 165
+            && $anchor['y'] >= 28 && $anchor['y'] <= 270
+            && $anchor['date_x'] > $anchor['x'] + 25
+            && $anchor['date_x'] <= 185
+            && $anchor['width'] >= 30 && $anchor['width'] <= 75
+            && $anchor['y'] - 19 >= 10;
+    }
+
+    /**
+     * Place verified customer ink above the existing line without replacing
+     * any frozen source page. The appended evidence record remains intact.
+     */
+    private function stampCustomer(Fpdi $pdf, array $anchor, array $signer,
+        \DateTimeInterface $date): void
+    {
+        $x = $anchor['x'];
+        $top = $anchor['y'] - 18;
+        $width = $anchor['width'];
+        if (isset($signer['png'])) {
+            self::validatePng($signer['png']);
+            $temp = tempnam(sys_get_temp_dir(), 's2d_stamp_');
+            if ($temp === false) throw new \RuntimeException('Signature preview unavailable.');
+            try {
+                if (file_put_contents($temp, $signer['png']) !== strlen($signer['png'])) {
+                    throw new \RuntimeException('Signature preview unavailable.');
+                }
+                @chmod($temp, 0600);
+                $pdf->Image($temp, $x, $top, $width, 16, 'PNG');
+            } finally {
+                @unlink($temp);
+            }
+        } elseif (isset($signer['strokes'])) {
+            $pdf->SetDrawColor(18, 37, 54);
+            $pdf->SetLineWidth(.4);
+            foreach ($signer['strokes'] as $stroke) {
+                $previous = null;
+                foreach ($stroke as $point) {
+                    $current = [
+                        $x + (float)$point['x'] * $width,
+                        $top + (float)$point['y'] * 16,
+                    ];
+                    if ($previous) $pdf->Line(
+                        $previous[0], $previous[1], $current[0], $current[1]
+                    );
+                    $previous = $current;
+                }
+            }
+        } else {
+            throw new \InvalidArgumentException('Customer signature is missing.');
+        }
+
+        $pdf->SetFont('Helvetica', '', 11);
+        $pdf->SetTextColor(18, 37, 54);
+        $pdf->SetXY($anchor['date_x'] + 1, $anchor['y'] - 8);
+        $pdf->Cell(58, 7, $date->format('d/m/Y'));
+    }
+
+    /**
      * @param array<int,array{role:string,name:string,method:string,png?:string,strokes?:array}> $signers
      */
     public function build(string $approvedBytes, string $quoteNumber, string $sourceHash,
@@ -73,11 +207,22 @@ final class SignedPdfService
         if ($count < 1 || $count > 100) {
             throw new \RuntimeException('The approved PDF has an unsupported page count.');
         }
+        $anchor = $this->signatureAnchor($approvedBytes, $count);
+        $customer = null;
+        foreach ($signers as $signer) {
+            if (strcasecmp((string)($signer['role'] ?? ''), 'customer') === 0) {
+                $customer = $signer;
+                break;
+            }
+        }
         for ($i=1;$i<=$count;$i++) {
             $template = $pdf->importPage($i);
             $size = $pdf->getTemplateSize($template);
             $pdf->AddPage($size['orientation'], [$size['width'],$size['height']]);
             $pdf->useTemplate($template,0,0,$size['width'],$size['height'],true);
+            if ($anchor !== null && $customer !== null && $anchor['page'] === $i) {
+                $this->stampCustomer($pdf, $anchor, $customer, $signedAt);
+            }
         }
 
         $pdf->AddPage('P','A4');
