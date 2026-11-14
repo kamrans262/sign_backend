@@ -75,7 +75,7 @@ class M6ServiceQuoteManagementTest extends TestCase
         $id=$created->json('data.quote.id');
         $this->assertDatabaseHas('service_quotes',[
             'id'=>$id,'company_id'=>$company->id,
-            'reference_number'=>sprintf('Q-%d-%06d',now()->year,$id),
+            'reference_number'=>'Q-001',
             'vat_minor'=>3000,
         ]);
         $this->assertDatabaseCount('service_quote_items',1);

@@ -135,21 +135,7 @@ class ServiceQuoteController extends Controller
             'items.*.unresolved_fields.*' => ['string','max:100'],
         ]);
         $companyId = $this->company($request)->id;
-        $customQuoteNumber = trim((string)($data['quote_number'] ?? ''));
-        if ($customQuoteNumber !== '') {
-            $duplicate = ServiceQuote::query()
-                ->where('company_id',$companyId)
-                ->where('custom_quote_number',$customQuoteNumber)
-                ->when($request->route('quote'), fn($query) =>
-                    $query->whereKeyNot((int)$request->route('quote')))
-                ->exists();
-            if ($duplicate) {
-                throw ValidationException::withMessages([
-                    'quote_number'=>'This quote number is already used in your company.',
-                ]);
-            }
-        }
-        $data['custom_quote_number'] = $customQuoteNumber ?: null;
+        // Server assigns all new numbers. Do not modify legacy custom numbers.
         unset($data['quote_number']);
         if (!empty($data['client_id'])) {
             $valid = Client::query()->where('company_id', $companyId)->whereKey($data['client_id'])->first();
@@ -214,15 +200,16 @@ class ServiceQuoteController extends Controller
             (int)$data['vat_basis_points'], (int)$data['deposit_basis_points']));
         return DB::transaction(function () use ($request,$quote,$data,$items,$company,$expectedRevision): ServiceQuote {
             if ($quote === null) {
+                $number = app(\App\Services\CompanyDocumentNumberService::class)
+                    ->next((int)$company->id,'quote');
                 $quote = ServiceQuote::create(array_merge($data, [
                     'company_id'=>$company->id,
                     'created_by'=>$request->user()->id,'updated_by'=>$request->user()->id,
-                    'reference_number'=>'PENDING-'.bin2hex(random_bytes(8)),
+                    'reference_number'=>$number,
                     'status'=>'draft','revision'=>1,
                 ]));
                 app(\App\Services\M23BillingService::class)->recordCreate(
                     (int)$company->id,'quote',(int)$quote->id,$request->user()->id);
-                $quote->update(['reference_number'=>sprintf('Q-%d-%06d', now()->year, $quote->id)]);
             } else {
                 // Lock and compare the latest revision inside this transaction;
                 // two devices must never silently overwrite one another.

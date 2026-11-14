@@ -32,7 +32,7 @@ final class AddendumController extends Controller
     {
         return $request->validate([
             'source_signed_artifact_id'=>$create ? ['required','integer','min:1'] : ['prohibited'],
-            'number'=>['required','string','max:80'],
+            'number'=>['nullable','string','max:80'],
             'title'=>['required','string','max:255'],
             'change_description'=>['required','string','max:10000'],
             'effective_date'=>['required','date_format:Y-m-d'],
@@ -49,7 +49,6 @@ final class AddendumController extends Controller
     {
         $price=AddendumService::amounts($data);
         return array_merge($price,[
-            'number'=>trim($data['number']),
             'title'=>trim($data['title']),
             'change_description'=>trim($data['change_description']),
             'effective_date'=>$data['effective_date'],
@@ -105,14 +104,13 @@ final class AddendumController extends Controller
         $fields=self::inputs($request);
         $values=self::editable($fields);
         $company=$this->company($request);
-        abort_if($values['number']==='' || $values['title']==='' ||
+        abort_if($values['title']==='' ||
             $values['change_description']==='',422,'Complete the addendum fields.');
         $item=DB::transaction(function () use ($company,$fields,$values,$request) {
             $source=$this->service->source($company->id,(int)$fields['source_signed_artifact_id']);
             $quote=$source->request->quote;
-            abort_if(Addendum::query()->where('company_id',$company->id)
-                ->where('number',$values['number'])->exists(),409,
-                'This addendum number is already used within this company.');
+            $values['number']=app(\App\Services\CompanyDocumentNumberService::class)
+                ->next((int)$company->id,'addendum');
             $item=Addendum::create(array_merge($values,[
                 'company_id'=>$company->id,
                 'source_signed_artifact_id'=>$source->id,
@@ -143,7 +141,7 @@ final class AddendumController extends Controller
         $fields=self::inputs($request,false);
         $values=self::editable($fields);
         $company=$this->company($request);
-        abort_if($values['number']==='' || $values['title']==='' ||
+        abort_if($values['title']==='' ||
             $values['change_description']==='',422);
         $item=DB::transaction(function () use ($company,$addendum,$request,$fields,$values) {
             $item=Addendum::query()->where('company_id',$company->id)
@@ -152,9 +150,7 @@ final class AddendumController extends Controller
                 'Only an unsigned draft can be edited.');
             abort_unless((int)$item->revision===(int)$fields['expected_revision'],409,
                 'Addendum changed elsewhere. Reload first.');
-            abort_if(Addendum::query()->where('company_id',$company->id)
-                ->where('number',$values['number'])->where('id','!=',$item->id)->exists(),
-                409,'This addendum number is already used.');
+
             $item->update(array_merge($values,[
                 'revision'=>$item->revision+1,'updated_by'=>$request->user()->id,
             ]));

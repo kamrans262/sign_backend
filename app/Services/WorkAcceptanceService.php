@@ -160,7 +160,9 @@ final class WorkAcceptanceService
                 $id=DB::table('work_acceptances')->insertGetId([
                     'company_id'=>$company->id,'service_job_id'=>$job->id,
                     'client_id'=>$job->client_id,'created_by'=>$actor,
-                    'number'=>'TEMP-'.Str::uuid(),'completed_work'=>trim($data['completed_work']),
+                    'number'=>app(CompanyDocumentNumberService::class)
+                        ->next((int)$company->id,'work_acceptance'),
+                    'completed_work'=>trim($data['completed_work']),
                     'completion_date'=>$data['completion_date'],
                     'cleaning_status'=>$data['cleaning_status'],
                     'outstanding_issues'=>$data['outstanding_issues']??null,
@@ -171,9 +173,6 @@ final class WorkAcceptanceService
                 ]);
                 app(M23BillingService::class)->recordCreate(
                     (int)$company->id,'work_acceptance',$id,$actor);
-                DB::table('work_acceptances')->where('id',$id)->update([
-                    'number'=>'WA-'.str_pad((string)$id,8,'0',STR_PAD_LEFT),
-                ]);
                 $row=$this->find($company->id,$id);
                 $this->snapshot($row,$actor);
                 $this->event($row,'created',$actor);

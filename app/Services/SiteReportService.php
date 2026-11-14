@@ -239,14 +239,15 @@ final class SiteReportService
             if($previous===null) {
                 $newId=DB::table('site_reports')->insertGetId(array_merge($data,[
                     'company_id'=>$company->id,'service_job_id'=>$job->id,'client_id'=>$job->client_id,
-                    'created_by'=>$actor,'number'=>'TEMP-'.Str::uuid(),'kind'=>$data['kind'],
+                    'created_by'=>$actor,'number'=>app(CompanyDocumentNumberService::class)
+                        ->next((int)$company->id,
+                            $data['kind']==='meeting_minutes'
+                                ?'meeting_minutes':'site_report'),
+                    'kind'=>$data['kind'],
                     'revision'=>1,'status'=>'draft','created_at'=>now(),'updated_at'=>now(),
                 ]));
                 app(M23BillingService::class)->recordCreate(
                     (int)$company->id,'report',$newId,$actor);
-                DB::table('site_reports')->where('id',$newId)->update([
-                    'number'=>($data['kind']==='meeting_minutes'?'MM-':'SR-').str_pad((string)$newId,8,'0',STR_PAD_LEFT),
-                ]);
                 $this->snapshot($company->id,$newId,$actor);
                 $this->event($company->id,$newId,$actor,'created');
                 return $this->report($company->id,$newId);

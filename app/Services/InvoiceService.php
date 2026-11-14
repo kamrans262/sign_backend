@@ -388,20 +388,8 @@ final class InvoiceService
                 'updated_at'=>now(),'updated_by'=>$actor,
             ];
             if($id===null){
-                $invoiceNumber=trim((string)($fields['invoice_number']??''));
-                if($invoiceNumber===''){
-                    $year=substr($fields['invoice_date'],0,4);
-                    $next=(int)DB::table('service_invoices')
-                        ->where('company_id',$company->id)->count()+1;
-                    do{
-                        $invoiceNumber='INV-'.$company->id.'-'.$year.'-'.
-                            str_pad((string)$next++,6,'0',STR_PAD_LEFT);
-                    }while(DB::table('service_invoices')->where('company_id',$company->id)
-                        ->where('invoice_number',$invoiceNumber)->exists());
-                }
-                abort_if(DB::table('service_invoices')->where('company_id',$company->id)
-                    ->where('invoice_number',$invoiceNumber)->exists(),409,
-                    'Invoice number already exists in this company.');
+                $invoiceNumber=app(CompanyDocumentNumberService::class)
+                    ->next((int)$company->id,'invoice');
                 $created=DB::table('service_invoices')->insertGetId(array_merge($value,[
                     'company_id'=>$company->id,'service_job_id'=>$job->id,
                     'client_id'=>$client->id,'invoice_number'=>$invoiceNumber,

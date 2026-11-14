@@ -255,7 +255,8 @@ final class GeneralDocumentService
                     'company_id'=>$company->id,'created_by'=>$actor,'updated_by'=>$actor,
                     'document_type'=>$v['type'],'title'=>$v['title'],'locale'=>$v['locale'],
                     'client_id'=>$client,'service_job_id'=>$job,
-                    'number'=>'GD-'.now()->format('Y').'-'.Str::upper(Str::random(10)),
+                    'number'=>app(CompanyDocumentNumberService::class)
+                        ->next((int)$company->id,'general_document'),
                     'status'=>'draft','current_revision'=>1,'lock_version'=>1,
                     'request_key'=>$v['request_key']??null,
                     'request_fingerprint'=>$fingerprint,'created_at'=>$now,'updated_at'=>$now,

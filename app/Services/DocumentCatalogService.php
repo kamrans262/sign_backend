@@ -382,7 +382,8 @@ final class DocumentCatalogService
                         'company_id'=>$companyId,'client_id'=>$data['client_id']??null,
                         'service_job_id'=>$data['job_id']??null,'created_by'=>$request->user()->id,
                         'category'=>$data['category'],'title'=>$data['title'],
-                        'number'=>$data['number']??'DOCUMENT','status'=>'file',
+                        'number'=>app(CompanyDocumentNumberService::class)
+                            ->next($companyId,'upload'),'status'=>'file',
                         'current_version'=>1,'created_at'=>now(),'updated_at'=>now(),
                     ]);
                     app(M23BillingService::class)->recordCreate(
