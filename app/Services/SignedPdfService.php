@@ -121,10 +121,15 @@ final class SignedPdfService
         if ($matchedPage === null && $pageCount === 1) $matchedPage = 1;
         if ($matchedPage === null) return null;
         $factor = 25.4 / 72.0;
-        // Quote layout: 38pt A4 margins, two 138pt signature/date columns.
+        // The URL annotation records only the signature row's vertical
+        // position and page. The Flutter PDF layout centers the tiny link
+        // widget within its column, so its rectangle's X is NOT the left edge
+        // of the Customer Signature line. Always use the actual frozen quote
+        // layout: 38pt A4 margin, 138pt signature line on the left.
+        // This also fixes already approved quotes made with a centered marker.
         $anchor = [
             'page' => $matchedPage,
-            'x' => $rect[0] * $factor,
+            'x' => 38 * $factor,
             'y' => (841.89 - $rect[3]) * $factor + 0.35,
             'date_x' => (595.28 - 38 - 138) * $factor,
             'width' => 138 * $factor,
