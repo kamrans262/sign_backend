@@ -109,7 +109,7 @@ final class SignatureRequestController extends Controller
             503, 'Business signature evidence integrity failed.');
         try {
             SignedPdfService::validatePng($bytes);
-        } catch (\\InvalidArgumentException $error) {
+        } catch (\InvalidArgumentException $error) {
             abort(503, 'Business signature evidence is invalid.');
         }
         return response($bytes, 200, [
