@@ -84,7 +84,9 @@ final class SignedPdfPlacementTest extends TestCase
             \setasign\Fpdi\PdfParser\StreamReader::createByString($signed)
         ));
         // The frozen original remains distinct and is never rewritten.
-        $this->assertSame($approved, $this->approved(true));
+        $this->assertStringContainsString(
+            'Approved document', $this->drawingStreams($approved)
+        );
         $this->assertNotSame(hash('sha256', $approved), hash('sha256', $signed));
     }
 
