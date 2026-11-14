@@ -252,6 +252,28 @@ final class GeneralDocumentIssueService
                 $pdf->Ln(3);
             }
         }
+        // A designated customer-signature location for newly issued general
+        // documents. It remains empty until a separate, verified signed PDF
+        // is generated. Works for letters, statements, powers of attorney,
+        // acceptance and custom documents without changing their body text.
+        if ($pdf->GetY() > 225) $pdf->AddPage();
+        $pdf->Ln(23);
+        $lineY = $pdf->GetY();
+        $pdf->SetSubject(sprintf(
+            'S2D-SIG-V1:%d:%.2f:%.2f:%.2f:%.2f',
+            $pdf->PageNo(), 20.0, $lineY, 112.0, 60.0
+        ));
+        $pdf->SetDrawColor(...$grey);
+        $pdf->SetLineWidth(.5);
+        $pdf->Line(20, $lineY, 80, $lineY);
+        $pdf->Line(112, $lineY, 172, $lineY);
+        $pdf->SetTextColor(...$grey);
+        $pdf->SetFont('Helvetica', '', 10);
+        $pdf->SetXY(20, $lineY + 3);
+        $pdf->Cell(60, 6, 'Customer Signature');
+        $pdf->SetXY(112, $lineY + 3);
+        $pdf->Cell(60, 6, 'Date');
+        $pdf->SetY($lineY + 13);
         $pdf->Ln(8);
         $pdf->SetTextColor(...$grey);
         $pdf->SetFont('Helvetica','I',8);
