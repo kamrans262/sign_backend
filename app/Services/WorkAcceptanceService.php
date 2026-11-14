@@ -260,6 +260,27 @@ final class WorkAcceptanceService
                 $photo->mime_type==='image/png'?'PNG':'JPG');
             $pdf->SetY($y+$h+5);
         }
+        // Leave the signature lines empty in the approved/unsigned PDF.
+        // A separate signed artifact can place verified ink and date precisely
+        // above them, without touching this frozen document.
+        if ($pdf->GetY() > 225) $pdf->AddPage();
+        $pdf->Ln(23);
+        $lineY = $pdf->GetY();
+        $pdf->SetSubject(sprintf(
+            'S2D-SIG-V1:%d:%.2f:%.2f:%.2f:%.2f',
+            $pdf->PageNo(), 20.0, $lineY, 112.0, 60.0
+        ));
+        $pdf->SetDrawColor(138, 154, 168);
+        $pdf->SetLineWidth(.5);
+        $pdf->Line(20, $lineY, 80, $lineY);
+        $pdf->Line(112, $lineY, 172, $lineY);
+        $pdf->SetTextColor(138, 154, 168);
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->SetXY(20, $lineY + 3);
+        $pdf->Cell(60, 6, 'Customer Signature');
+        $pdf->SetXY(112, $lineY + 3);
+        $pdf->Cell(60, 6, 'Date');
+        $pdf->SetY($lineY + 13);
         $pdf->footnote('For customer review. This document is not accepted '
             .'or signed until verified customer confirmation.');
         return $pdf->Output('S');
