@@ -92,6 +92,20 @@ final class SignedPdfService
         foreach ($objects as $body) {
             if (!preg_match('~\/Type\s*\/Page\b~', $body)) continue;
             $pageIndex++;
+            // Some PDF writers put link annotations directly inside the
+            // page object rather than referencing a separate object.
+            if (str_contains($body, 'sign2digital.invalid/signature-anchor-v1')) {
+                $prefix = substr($body, 0,
+                    strpos($body, 'sign2digital.invalid/signature-anchor-v1'));
+                preg_match_all('~\/Rect\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]~',
+                    $prefix, $inline, PREG_SET_ORDER);
+                if ($inline) {
+                    $last = $inline[count($inline) - 1];
+                    $rect = array_map('floatval', array_slice($last, 1));
+                    $matchedPage = $pageIndex;
+                    break;
+                }
+            }
             $annots = '';
             if (preg_match('~\/Annots\s*\[(.*?)\]~s', $body, $refs)) {
                 $annots = $refs[1];
