@@ -1,0 +1,29 @@
+name: Document Numbering Focused QA
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - 'app/Services/CompanyDocumentNumberService.php'
+      - 'database/migrations/2026_11_14_010000_create_company_document_sequences.php'
+      - 'tests/Feature/DocumentNumberingSequenceTest.php'
+      - '.github/workflows/qa-document-numbering.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  numbering:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Syntax validation
+        run: php -l app/Services/CompanyDocumentNumberService.php && php -l database/migrations/2026_11_14_010000_create_company_document_sequences.php
+      - name: Company-scoped, eight-type sequential numbering
+        run: php artisan test tests/Feature/DocumentNumberingSequenceTest.php
