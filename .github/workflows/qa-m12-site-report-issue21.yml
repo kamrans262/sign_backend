@@ -7,6 +7,7 @@ on:
       - '.github/workflows/qa-m12-site-report-issue21.yml'
       - 'tests/Feature/M12ReportsManagementTest.php'
       - 'app/Http/Controllers/Api/SiteReportVoiceController.php'
+      - 'app/Http/Controllers/Api/ExpenseAiController.php'
   workflow_dispatch:
 
 permissions:
