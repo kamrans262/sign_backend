@@ -130,7 +130,7 @@ final class ExpenseAiController extends Controller
                     ['role'=>'system','content'=>'Extract visible purchase receipt fields as JSON '
                         .'using ONLY clearly printed information. Keys: date, amount, supplier, '
                          .'description, expenseType, tags, jobReference. Describe purchased goods '
-                         .'concisely, not the receipt transcription. Unknown is null; 
+                         .'concisely, not the receipt transcription. Unknown is null; '
                         .'never guess; never create a purchase.'],
                     ['role'=>'user','content'=>[
                         ['type'=>'text','text'=>'Read this receipt as a draft suggestion.'],
