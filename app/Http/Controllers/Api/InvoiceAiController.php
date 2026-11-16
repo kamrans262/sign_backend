@@ -61,6 +61,11 @@ Return only a JSON object with nullable keys:
 jobReference, clientName, invoiceNumber, iban, issueDate, dueDate, notes;
 and items: an array of objects with description, quantity, unitPrice.
 Missing fields are null; missing items are [].
+Write each item description as a concise professional service/product label,
+not a copied command (e.g. "Invoice ten hours of plumbing" becomes
+"Plumbing labour"). Summarize notes only when useful non-item context is stated.
+A short informal request can produce a draft suggestion; do not require extra
+financial details just to recognize the work.
 Dates must be real calendar dates in YYYY-MM-DD format, using the supplied
 today only to resolve clearly spoken relative dates.
 Quantity must be a positive integer explicitly stated, otherwise null.
