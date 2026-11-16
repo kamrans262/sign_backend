@@ -110,6 +110,10 @@ Each item has title (string|null), description
 A brief but clear task such as "Paint bedroom", "Fix sink" or "Install door"
 is valid even without dimensions, materials or quantity. Include that task
 with the missing fields as null; do not demand a fully detailed description.
+Give each task a concise professional title and a natural scope description
+based on the actual work, not a verbatim voice command. Short informal
+requests are valid. Do not put instructions such as "create a quote" into work
+item descriptions. Missing attributes should not trigger repeated questions.
 Only include tasks explicitly described by the user. If uncertain, omit an
 item or make the uncertain field null. Quantity is a positive integer only
 when explicitly supported, dimensions only when explicitly described.
