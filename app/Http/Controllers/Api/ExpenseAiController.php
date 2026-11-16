@@ -35,7 +35,10 @@ final class ExpenseAiController extends Controller
             .'supplier, description and tags. Use ONLY details explicitly present in the '
             .'input. Valid categories: Fuel, Tools, Parking, Meals, Other, Material, Labour. '
             .'Date YYYY-MM-DD and amount positive CHF number. Unknown fields null, tags []. '
-            .'No estimate, new purchase, job association, tax, approval or save.';
+            .'A short natural request is enough. Write description as a concise professional '.
+            .'expense purpose (e.g., "Record 250 francs for building materials" becomes '.
+            .'"Building materials purchase"), not the instruction or full transcript. '.
+            .'Do not invent merchants, amounts or other details; no approval or save.';
         $response=Http::withToken($key)->timeout(60)->post(
             'https://api.openai.com/v1/chat/completions',[
                 'model'=>config('services.openai.quote_model','gpt-4o-mini'),
@@ -126,7 +129,8 @@ final class ExpenseAiController extends Controller
                 'messages'=>[
                     ['role'=>'system','content'=>'Extract visible purchase receipt fields as JSON '
                         .'using ONLY clearly printed information. Keys: date, amount, supplier, '
-                        .'description, expenseType, tags, jobReference. Unknown is null; '
+                         .'description, expenseType, tags, jobReference. Describe purchased goods '.
+                         .'concisely, not the receipt transcription. Unknown is null; 
                         .'never guess; never create a purchase.'],
                     ['role'=>'user','content'=>[
                         ['type'=>'text','text'=>'Read this receipt as a draft suggestion.'],
