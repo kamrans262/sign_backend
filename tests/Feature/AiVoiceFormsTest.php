@@ -107,7 +107,7 @@ class AiVoiceFormsTest extends TestCase
             'https://api.openai.com/v1/chat/completions' => function ($request) {
                 $prompt = (string) data_get($request->data(), 'messages.0.content');
                 $this->assertStringContainsString('keys title', $prompt);
-                $this->assertStringContainsString('Short', $prompt);
+                $this->assertStringContainsString('short', $prompt);
                 return Http::response(['choices' => [['message' => [
                     'content' => json_encode([
                         'title' => 'Bathroom Renovation',
