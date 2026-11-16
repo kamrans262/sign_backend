@@ -69,6 +69,7 @@ class AiVoiceFormsTest extends TestCase
                 Http::response(['choices' => [['message' => [
                     'content' => json_encode([
                         'clientName' => null, 'address' => null,
+                        'title' => 'Terrace Construction',
                         'description' => 'Build a terrace',
                         'startDate' => null, 'endDate' => null,
                         'budgetChf' => 5000, 'teamMemberNames' => [],
@@ -84,6 +85,7 @@ class AiVoiceFormsTest extends TestCase
         $this->postJson('/api/v1/ai/jobs/voice', [
             'file' => $this->recording(),
         ])->assertOk()
+            ->assertJsonPath('data.suggestions.title', 'Terrace Construction')
             ->assertJsonPath('data.suggestions.description', 'Build a terrace')
             ->assertJsonPath('data.suggestions.budgetChf', 5000);
         $this->assertDatabaseCount('service_jobs', 0);
@@ -93,6 +95,48 @@ class AiVoiceFormsTest extends TestCase
         $this->postJson('/api/v1/ai/jobs/voice', [
             'file' => $this->recording(),
         ])->assertForbidden();
+        Http::assertSentCount(2);
+    }
+
+    public function test_short_natural_job_prompt_produces_a_title_scope_and_budget_without_mandatory_extras(): void
+    {
+        config(['services.openai.key' => 'test-api-key']);
+        Http::fake([
+            'https://api.openai.com/v1/audio/transcriptions' =>
+                Http::response(['text' => 'Create a bathroom renovation job with plumbing and tiling, budget CHF 5,000.'], 200),
+            'https://api.openai.com/v1/chat/completions' => function ($request) {
+                $prompt = (string) data_get($request->data(), 'messages.0.content');
+                $this->assertStringContainsString('keys title', $prompt);
+                $this->assertStringContainsString('Short', $prompt);
+                return Http::response(['choices' => [['message' => [
+                    'content' => json_encode([
+                        'title' => 'Bathroom Renovation',
+                        'description' => 'Bathroom renovation including plumbing and tiling work.',
+                        'budgetChf' => 5000,
+                        'clientName' => null, 'address' => null,
+                        'startDate' => null, 'endDate' => null,
+                        'teamMemberNames' => [],
+                    ]),
+                ]]]], 200);
+            },
+        ]);
+        $owner = $this->account();
+        $company = Company::create([
+            'owner_user_id' => $owner->id, 'name' => 'Workshop',
+            'country_iso_code' => 'CH', 'status' => 'active',
+        ]);
+        $company->users()->attach($owner->id, ['role' => 'owner', 'status' => 'active']);
+        Sanctum::actingAs($owner);
+        $this->withHeader('X-Company-Id', (string) $company->id);
+        $this->postJson('/api/v1/ai/jobs/voice', [
+            'file' => $this->recording(),
+        ])->assertOk()
+            ->assertJsonPath('data.suggestions.title', 'Bathroom Renovation')
+            ->assertJsonPath('data.suggestions.description',
+                'Bathroom renovation including plumbing and tiling work.')
+            ->assertJsonPath('data.suggestions.budgetChf', 5000)
+            ->assertJsonPath('data.suggestions.clientName', null);
+        $this->assertDatabaseCount('service_jobs', 0);
         Http::assertSentCount(2);
     }
 
