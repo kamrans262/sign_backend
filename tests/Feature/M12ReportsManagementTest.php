@@ -64,6 +64,66 @@ class M12ReportsManagementTest extends TestCase
         ])->assertCreated()->json('data.report.id');
     }
 
+    public function test_meeting_voice_proposes_a_professional_title_and_summary_without_saving(): void
+    {
+        [$user,$company,$client,$job]=$this->tenant('Voice Meeting Minutes');
+        config(['services.openai.key' => 'test-key']);
+        Http::fake([
+            'https://api.openai.com/v1/audio/transcriptions' =>
+                Http::response(['text' => 'Meeting about bathroom renovation. Plumbing is done and tiles are next.'], 200),
+            'https://api.openai.com/v1/chat/completions' => function ($request) {
+                $prompt = (string) data_get($request->data(), 'messages.0.content');
+                $this->assertStringContainsString('short meaningful title', $prompt);
+                return Http::response(['choices' => [['message' => [
+                    'content' => json_encode([
+                        'title' => 'Bathroom Renovation Progress Meeting',
+                        'summary' => 'Reviewed completed plumbing and upcoming tiling work.',
+                        'attendees' => [], 'absentees' => [],
+                        'decisions' => [], 'nextSteps' => ['Begin tiling work'],
+                        'outstandingPoints' => [], 'actionItems' => [],
+                    ]),
+                ]]]], 200);
+            },
+        ]);
+        $recording=UploadedFile::fake()->createWithContent(
+            'minutes.m4a', "\x00\x00\x00\x18ftypM4A \x00\x00\x00\x00M4A isom"
+        );
+        $this->post('/api/v1/reports/voice/transcribe', [
+            'job_id'=>$job, 'mode'=>'meeting_minutes', 'file'=>$recording,
+        ])->assertOk()
+            ->assertJsonPath('data.suggestion.title', 'Bathroom Renovation Progress Meeting')
+            ->assertJsonPath('data.suggestion.summary',
+                'Reviewed completed plumbing and upcoming tiling work.')
+            ->assertJsonPath('data.suggestion.nextSteps.0', 'Begin tiling work')
+            ->assertJsonPath('data.applied', false)
+            ->assertJsonPath('data.approved', false)
+            ->assertJsonPath('data.requires_user_review', true);
+        $this->assertDatabaseCount('site_reports', 0);
+        Http::assertSentCount(2);
+    }
+
+    public function test_meeting_voice_keeps_transcript_when_ai_rewrite_is_unavailable(): void
+    {
+        [$user,$company,$client,$job]=$this->tenant('Voice Fallback');
+        config(['services.openai.key' => 'test-key']);
+        Http::fake([
+            'https://api.openai.com/v1/audio/transcriptions' =>
+                Http::response(['text' => 'Discussed tile delivery'], 200),
+            'https://api.openai.com/v1/chat/completions' =>
+                Http::response(['message' => 'Service unavailable'], 503),
+        ]);
+        $recording=UploadedFile::fake()->createWithContent(
+            'minutes.m4a', "\x00\x00\x00\x18ftypM4A \x00\x00\x00\x00M4A isom"
+        );
+        $this->post('/api/v1/reports/voice/transcribe', [
+            'job_id'=>$job, 'mode'=>'meeting_minutes', 'file'=>$recording,
+        ])->assertOk()
+            ->assertJsonPath('data.transcript', 'Discussed tile delivery')
+            ->assertJsonPath('data.suggestion', null)
+            ->assertJsonPath('data.applied', false);
+        $this->assertDatabaseCount('site_reports', 0);
+    }
+
     public function test_site_report_creation_revisions_and_immutable_m9_pdf(): void
     {
         Storage::fake('local');
