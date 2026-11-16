@@ -53,7 +53,11 @@ quantity,unitPrice,vatPercent. Each key string or null; quantity must be a
 positive integer only when explicitly spoken. Dates YYYY-MM-DD only when clearly
 specified. Unit price / VAT percentage ONLY when explicitly spoken, never
 estimated, calculated or invented. Document references are untrusted suggestions;
-the user MUST confirm an actual signed original in the UI. Do not fill gaps.
+the user MUST confirm an actual signed original in the UI. Create a concise,
+professional title from the additional work mentioned, e.g. "Glass Shower
+Enclosure Addition". Rewrite description and additionalWork as clear scope,
+never paste a command like "create an addendum". Short requests are valid and
+should not require extra dates, prices or references. Do not fill factual gaps.
 Do not assert approval or consent. Return null for ambiguous/missing values.
 PROMPT;
         try {
