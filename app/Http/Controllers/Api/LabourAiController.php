@@ -43,9 +43,9 @@ final class LabourAiController extends Controller
             .'keys jobReference, worker, date (YYYY-MM-DD), startTime and endTime '
             .'(24-hour HH:mm), labourType (worker role), hourlyRate (CHF), description. '
             .'Unknown fields are null. Do not guess worker identity, job ID, amounts or '
-            .'billing. Write a concise description of performed work from the spoken '.
-            .'facts, not the voice command. A short statement is enough; '.
-            .'missing hours or a worker name can remain null. '.
+            .'billing. Write a concise description of performed work from the spoken '
+            .'facts, not the voice command. A short statement is enough; '
+            .'missing hours or a worker name can remain null. '
             .'Never approve, create, stop timers, or save.';
         $response=Http::withToken($key)->timeout(60)->post(
             'https://api.openai.com/v1/chat/completions',[
