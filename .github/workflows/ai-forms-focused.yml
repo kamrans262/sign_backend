@@ -7,6 +7,16 @@ on:
     paths:
       - '.github/workflows/ai-forms-focused.yml'
       - 'app/Http/Controllers/Api/AiFormExtractionController.php'
+      - 'app/Http/Controllers/Api/ExpenseAiController.php'
+      - 'app/Http/Controllers/Api/DepositAiController.php'
+      - 'app/Http/Controllers/Api/LabourAiController.php'
+      - 'app/Http/Controllers/Api/InvoiceAiController.php'
+      - 'app/Http/Controllers/Api/AddendumAiController.php'
+      - 'app/Http/Controllers/Api/M20ReminderAiController.php'
+      - 'app/Http/Controllers/Api/QuoteAiController.php'
+      - 'app/Services/EquipmentLoanVoiceService.php'
+      - 'app/Services/SiteReportService.php'
+      - 'app/Services/GeneralDocumentService.php'
       - 'routes/api.php'
       - 'tests/Feature/AiVoiceFormsTest.php'
   workflow_dispatch:
@@ -32,6 +42,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
       - name: Lint AI controller and routes
-        run: php -l app/Http/Controllers/Api/AiFormExtractionController.php && php -l routes/api.php && php -l tests/Feature/AiVoiceFormsTest.php
+        run: |
+          for file in app/Http/Controllers/Api/{AiFormExtraction,ExpenseAi,DepositAi,LabourAi,InvoiceAi,AddendumAi,M20ReminderAi,QuoteAi,SiteReportVoice}Controller.php app/Services/{EquipmentLoanVoice,SiteReport,GeneralDocument}Service.php tests/Feature/{AiVoiceForms,M12ReportsManagement}Test.php routes/api.php; do php -l "$file" || exit 1; done
       - name: Run AI dictation, company and quote regression tests
         run: php artisan test --filter='AiVoiceFormsTest|M3CompanyManagementTest|M6ServiceQuoteManagementTest|M18GeneralDocumentTest'
