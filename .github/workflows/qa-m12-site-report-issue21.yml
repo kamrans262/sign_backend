@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/qa-m12-site-report-issue21.yml'
       - 'tests/Feature/M12ReportsManagementTest.php'
+      - 'app/Http/Controllers/Api/SiteReportVoiceController.php'
   workflow_dispatch:
 
 permissions:
@@ -28,5 +29,6 @@ jobs:
         run: |
           php -l app/Http/Controllers/Api/SiteReportController.php
           php -l app/Services/SiteReportService.php
+          php -l app/Http/Controllers/Api/SiteReportVoiceController.php
           php artisan route:list --path=api/v1/reports
           php artisan test --filter='M(9DocumentManagement|12ReportsManagement)Test'
