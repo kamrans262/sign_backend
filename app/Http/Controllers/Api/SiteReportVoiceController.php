@@ -20,6 +20,7 @@ final class SiteReportVoiceController extends Controller
         abort_unless($company instanceof Company && $company->status==='active',403);
         $data=$request->validate([
             'job_id'=>['required','integer','min:1'],
+            'mode'=>['sometimes','in:meeting_minutes'],
             'file'=>['required','file','mimes:m4a,mp4,aac,wav','max:25600'],
         ]);
         $job=ServiceJob::query()->where('company_id',$company->id)
@@ -47,11 +48,73 @@ final class SiteReportVoiceController extends Controller
         if($text===''||mb_strlen($text)>20000) {
             throw ValidationException::withMessages(['file'=>'No usable dictated text was recognized.']);
         }
+        // Meeting minutes need interpretation, not verbatim dictation.
+        // Keep the original transcript as a reviewable fallback if AI cannot
+        // rewrite it. Ordinary Site Report dictation keeps its original API.
+        $suggestion = null;
+        if (($data['mode'] ?? '') === 'meeting_minutes') {
+            try {
+                $instructions = <<<'PROMPT'
+Turn the supplied informal meeting dictation into an editable meeting-minutes
+suggestion. A short sentence is enough; never require a full meeting template.
+Return JSON with title and summary as strings or null, and arrays of strings
+for attendees, absentees, decisions, nextSteps, outstandingPoints, actionItems.
+Write a short meaningful title and a polished, concise summary in the speaker's
+language, not a transcript or instructions like "create meeting minutes".
+Move actually mentioned attendees, decisions, tasks and next steps into their
+proper fields. Keep useful context in the summary without repeating lists.
+Do not invent attendees, absentees, agreements, names, action owners, dates,
+completion claims or approvals. Missing arrays must be empty. Suggestions
+must be reviewed by the user and never saved or sent automatically.
+PROMPT;
+                $ai = Http::withToken($key)->timeout(70)
+                    ->post('https://api.openai.com/v1/chat/completions', [
+                        'model' => config('services.openai.quote_model', 'gpt-4o-mini'),
+                        'temperature' => 0,
+                        'response_format' => ['type' => 'json_object'],
+                        'messages' => [
+                            ['role' => 'system', 'content' => $instructions],
+                            ['role' => 'user', 'content' => json_encode(
+                                ['transcript' => $text],
+                                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)],
+                        ],
+                    ]);
+                $parsed = $ai->successful()
+                    ? json_decode((string) $ai->json('choices.0.message.content'), true)
+                    : null;
+                if (is_array($parsed) && !array_is_list($parsed)) {
+                    $clean = static fn (mixed $value, int $limit): ?string =>
+                        is_string($value) && trim($value) !== ''
+                            ? mb_substr(trim($value), 0, $limit) : null;
+                    $list = static function (mixed $values) use ($clean): array {
+                        if (!is_array($values)) return [];
+                        return array_values(array_unique(array_filter(array_map(
+                            fn ($value) => $clean($value, 2500),
+                            array_slice($values, 0, 40)
+                        ))));
+                    };
+                    $suggestion = [
+                        'title' => $clean($parsed['title'] ?? null, 255),
+                        'summary' => $clean($parsed['summary'] ?? null, 5000),
+                        'attendees' => $list($parsed['attendees'] ?? null),
+                        'absentees' => $list($parsed['absentees'] ?? null),
+                        'decisions' => $list($parsed['decisions'] ?? null),
+                        'nextSteps' => $list($parsed['nextSteps'] ?? null),
+                        'outstandingPoints' => $list($parsed['outstandingPoints'] ?? null),
+                        'actionItems' => $list($parsed['actionItems'] ?? null),
+                    ];
+                }
+            } catch (\Throwable $exception) {
+                // Preserve the dictated text for manual review. AI is optional.
+                $suggestion = null;
+            }
+        }
         AuditLogger::record('mobile.report.voice_transcribed',
             $request->user(),null,$company,
             ['job_id'=>$job->id,'byte_size'=>strlen($bytes)],$request);
         return response()->json([
             'data'=>['job_id'=>$job->id,'transcript'=>$text,
+                'suggestion'=>$suggestion,'requires_user_review'=>true,
                 'applied'=>false,'approved'=>false],
         ],200,['Cache-Control'=>'private, no-store']);
     }
