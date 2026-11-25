@@ -26,6 +26,7 @@ final class M16DepositManagementTest extends TestCase
         $client=Client::create(['company_id'=>$company->id,
             'full_name'=>'Jean Dupont','email'=>'m16@example.test','source'=>'manual']);
         Sanctum::actingAs($user);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         $job=(int)$this->postJson('/api/v1/jobs',[
             'client_id'=>$client->id,'description'=>'Deposit site work',
@@ -208,6 +209,7 @@ final class M16DepositManagementTest extends TestCase
         $this->get('/admin/deposits/'.$id.'/edit')->assertOk()
             ->assertSee('Verified Original');
         Sanctum::actingAs($owner);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         $this->postJson('/api/v1/deposits/'.$id.'/receive',['confirm'=>true])
             ->assertOk();
@@ -232,6 +234,7 @@ final class M16DepositManagementTest extends TestCase
             'permissions'=>json_encode(['jobs.read','documents.read','documents.write']),
         ]);
         Sanctum::actingAs($member);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         $this->postJson('/api/v1/deposits/'.$id.'/receive',[
             'confirm'=>true,

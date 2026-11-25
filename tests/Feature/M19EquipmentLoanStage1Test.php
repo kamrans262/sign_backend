@@ -29,6 +29,7 @@ final class M19EquipmentLoanStage1Test extends TestCase
             'email'=>'alice@example.test','source'=>'manual',
         ]);
         Sanctum::actingAs($actor);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         return [$actor,$company,$client];
     }
@@ -259,6 +260,7 @@ final class M19EquipmentLoanStage1Test extends TestCase
             'role'=>'member','permissions'=>['equipment.read'],
         ])->assertOk();
         Sanctum::actingAs($member);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->getJson('/api/v1/equipment')->assertOk()
             ->assertJsonCount(1,'data.records');
         $this->postJson('/api/v1/equipment',[
@@ -268,10 +270,12 @@ final class M19EquipmentLoanStage1Test extends TestCase
         ])->assertForbidden();
         $this->getJson('/api/v1/equipment-loans')->assertOk();
         Sanctum::actingAs($owner);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->patchJson('/api/v1/companies/'.$company->id.'/members/'.$member->id,[
             'role'=>'member','permissions'=>['equipment.read','equipment.write'],
         ])->assertOk();
         Sanctum::actingAs($member);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->postJson('/api/v1/equipment',[
             'code'=>'MEMBER-ALLOWED','name'=>'Drill','category'=>'Tools',
             'brand'=>'Test','model'=>'20V','purchase_date'=>'2026-01-01',

@@ -25,7 +25,8 @@ final class SupportAssistantTest extends TestCase
         Sanctum::actingAs(User::factory()->create([
             'is_active' => true, 'email_verified_at' => now(),
         ]));
-    }
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
+        }
 
     public function test_support_assistant_is_private_and_first_time_guide_is_manual_only(): void
     {
@@ -102,6 +103,7 @@ final class SupportAssistantTest extends TestCase
             'is_active' => true, 'email_verified_at' => now(),
         ]);
         Sanctum::actingAs($owner);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $companyId = $this->postJson('/api/v1/companies', [
             'name' => 'Job Quote Workshop',
             'country_iso_code' => 'CH',

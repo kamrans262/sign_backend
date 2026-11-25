@@ -37,6 +37,7 @@ class M6ServiceQuoteManagementTest extends TestCase
     private function asTenant(User $user,Company $company): void
     {
         Sanctum::actingAs($user);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
     }
     private function draft(?Client $client): array

@@ -33,6 +33,7 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
             'source'=>'manual',
         ]);
         Sanctum::actingAs($user);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         return [$user,$company,$client];
     }
@@ -110,6 +111,7 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $this->get($signed)->assertNotFound();
         // After an archive+restore cycle, a new authorized generation is necessary.
         Sanctum::actingAs($owner);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $new=$this->postJson('/api/v1/quotes/'.$id.'/share',[
             'method'=>'secure_link',
         ])->assertOk()->json('data.secure_link');
@@ -262,6 +264,7 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $otherClient=Client::create(['company_id'=>$otherCompany->id,
             'full_name'=>'New Customer','source'=>'manual']);
         Sanctum::actingAs($another);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$otherCompany->id);
         $second=$this->draft($otherClient);
         $second['quote_number']='R-2026/005';
@@ -439,6 +442,7 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         // A signed customer quote must show the same verified amounts.
         $owner = $company->owner;
         Sanctum::actingAs($owner);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id', (string)$company->id);
         $link = $this->postJson('/api/v1/quotes/'.$quote->id.'/share', [
             'method'=>'secure_link',

@@ -34,6 +34,7 @@ final class M17InvoiceAiVoiceTest extends TestCase
             'role' => 'owner', 'status' => 'active',
         ]);
         Sanctum::actingAs($owner);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id', (string) $company->id);
         return [$owner, $company];
     }
@@ -84,6 +85,7 @@ final class M17InvoiceAiVoiceTest extends TestCase
         $outsider = User::factory()->create(['is_active' => true,
             'email_verified_at' => now()]);
         Sanctum::actingAs($outsider);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->postJson('/api/v1/invoices/ai/voice',
             ['file' => $this->voice()])->assertForbidden();
 
@@ -94,6 +96,7 @@ final class M17InvoiceAiVoiceTest extends TestCase
             'permissions' => json_encode(['documents.read', 'jobs.read']),
         ]);
         Sanctum::actingAs($member);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->postJson('/api/v1/invoices/ai/voice',
             ['file' => $this->voice()])->assertForbidden();
         Http::assertNothingSent();

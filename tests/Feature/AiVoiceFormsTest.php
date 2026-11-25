@@ -49,6 +49,7 @@ class AiVoiceFormsTest extends TestCase
                 ]]]], 200),
         ]);
         Sanctum::actingAs($this->account());
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->postJson('/api/v1/ai/companies/voice', [
             'file' => $this->recording(),
         ])->assertOk()
@@ -81,6 +82,7 @@ class AiVoiceFormsTest extends TestCase
             'name' => 'Workshop', 'country_iso_code' => 'CH', 'status' => 'active']);
         $company->users()->attach($owner->id, ['role' => 'owner', 'status' => 'active']);
         Sanctum::actingAs($owner);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id', (string) $company->id);
         $this->postJson('/api/v1/ai/jobs/voice', [
             'file' => $this->recording(),
@@ -92,6 +94,7 @@ class AiVoiceFormsTest extends TestCase
         Http::assertSentCount(2);
 
         Sanctum::actingAs($this->account());
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->postJson('/api/v1/ai/jobs/voice', [
             'file' => $this->recording(),
         ])->assertForbidden();
@@ -127,6 +130,7 @@ class AiVoiceFormsTest extends TestCase
         ]);
         $company->users()->attach($owner->id, ['role' => 'owner', 'status' => 'active']);
         Sanctum::actingAs($owner);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id', (string) $company->id);
         $this->postJson('/api/v1/ai/jobs/voice', [
             'file' => $this->recording(),
@@ -147,6 +151,7 @@ class AiVoiceFormsTest extends TestCase
         ])->assertUnauthorized();
         config(['services.openai.key' => '']);
         Sanctum::actingAs($this->account());
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->postJson('/api/v1/ai/companies/voice', [
             'file' => $this->recording(),
         ])->assertStatus(503);

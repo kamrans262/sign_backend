@@ -26,6 +26,7 @@ class M14ExpenseTrackingTest extends TestCase
         $client=Client::create(['company_id'=>$company->id,
             'full_name'=>'Expense Customer','email'=>'expenses@example.test','source'=>'manual']);
         Sanctum::actingAs($user);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         $job=(int)$this->postJson('/api/v1/jobs',[
             'client_id'=>$client->id,'description'=>'Kitchen work',
@@ -104,6 +105,7 @@ class M14ExpenseTrackingTest extends TestCase
         $this->post('/admin/expenses/'.$id.'/approve',['confirm'=>'1'])
             ->assertRedirect();
         Sanctum::actingAs($user);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->patchJson('/api/v1/expenses/'.$id,[
             'job_id'=>$job,'category'=>'material','expense_date'=>'2026-11-05',
             'amount'=>'1.00','lock_version'=>1,
@@ -184,6 +186,7 @@ class M14ExpenseTrackingTest extends TestCase
             ->assertNotFound();
 
         Sanctum::actingAs($user);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         $this->deleteJson('/api/v1/expenses/'.$expense.'/receipts/'.$receipt)
             ->assertOk()->assertJsonCount(0,'data.receipts');
@@ -241,6 +244,7 @@ class M14ExpenseTrackingTest extends TestCase
             'permissions'=>json_encode(['expenses.read']),
         ]);
         Sanctum::actingAs($member);
+        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->getJson('/api/v1/expenses/'.$second)->assertOk()
             ->assertJsonPath('data.can_approve', false);
         $this->postJson('/api/v1/expenses/'.$second.'/approve',
