@@ -3,7 +3,7 @@
 @section('content')
 <div class="legal-head"><div class="wrap"><span class="eyebrow">Account &amp; privacy</span><h1>Request account deletion</h1><p>Delete your Sign2Digital personal account and associated eligible personal data.</p></div></div>
 <article class="legal">
-<h2>Before you request deletion</h2><p>Account deletion is permanent. Export your personal data first if you need a copy, and review any active subscriptions. Company owners or platform administrators must arrange ownership or administrator transfer before their account can be erased. Company records are not automatically deleted when a team member leaves.</p>
+<h2>Before you request deletion</h2><p>Account deletion is permanent. Export your personal data first if you need a copy, and review any active subscriptions. Sole company owners can authorize company closure while retaining necessary records. Shared company ownership or platform administration must be transferred before erasure. Stripe subscriptions need to be reviewed separately; deletion does not automatically stop billing. Company records are not automatically deleted when a team member leaves.</p>
 <div class="form-panel">
 @if(session('deletion_reference'))
 <div class="notice success" role="status"><strong>Request received.</strong><br>Reference: {{ session('deletion_reference') }}<br>Your email has been verified. The request is now in our support queue for review. This is not yet confirmation that your account has been deleted.</div>
