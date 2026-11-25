@@ -7,20 +7,23 @@ use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
+use Illuminate\Http\Response;
 
 class AuthController extends Controller
 {
-    public function show(Request $request): View|RedirectResponse
+    public function show(Request $request): Response|RedirectResponse
     {
         if ($request->user()?->is_active && $request->user()?->is_platform_admin) {
             return redirect()->route('admin.dashboard');
         }
-        return view('admin.login');
+        return response()->view('admin.login')->header('Cache-Control', 'private, no-store, max-age=0');
     }
 
     public function login(Request $request): RedirectResponse
     {
+        if ($request->user()?->is_active && $request->user()?->is_platform_admin) {
+            return redirect()->route('admin.dashboard');
+        }
         $data = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
@@ -36,7 +39,7 @@ class AuthController extends Controller
         }
         $request->session()->regenerate();
         AuditLogger::record('platform_admin.login', Auth::user(), request: $request);
-        return redirect()->intended(route('admin.dashboard'));
+        return redirect()->route('admin.dashboard');
     }
 
     public function logout(Request $request): RedirectResponse
@@ -45,6 +48,6 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect()->route('admin.login');
+        return redirect()->route('site.home');
     }
 }

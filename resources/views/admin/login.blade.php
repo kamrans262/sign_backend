@@ -25,7 +25,7 @@
     </div>
   </aside>
   <div class="hope-auth-form"><div class="login-wrap">
-  <a class="login-logo" href="{{ route('admin.login') }}" aria-label="Sign2Digital administrator login">
+  <a class="login-logo" href="{{ route('site.home') }}" aria-label="Sign2Digital home">
     <img src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" alt="Sign2Digital" width="210" height="70">
   </a>
   <section class="login-panel" aria-labelledby="login-heading">
@@ -51,7 +51,9 @@
       <button class="btn btn-primary login-submit" type="submit">Sign in <x-admin.icon name="arrow-right" /></button>
     </form>
   </section>
+  <p class="login-help"><a href="{{ route('site.home') }}">← Back to website</a></p>
   <p class="login-help"><x-admin.icon name="lock" /> Authorized platform administrators only.</p>
 </div></div></main>
+<script>window.addEventListener('pageshow',function(event){if(event.persisted){window.location.reload();}});</script>
 </body>
 </html>

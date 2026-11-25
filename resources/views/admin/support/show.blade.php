@@ -7,6 +7,17 @@
 <a class="btn btn-outline" href="{{ route('admin.support.index') }}">Back to Tickets</a>
 @endsection
 @section('content')
+@if($item->category === 'account_deletion' && $item->deletion_verified_email_hash && in_array($item->status, ['open','in_progress','waiting_for_customer'], true))
+<section class="panel">
+<div class="panel-header"><h2>Verified account deletion request</h2></div>
+<p>The account holder verified their registered email. Review their identity, ownership, legal retention requirements and any Apple authorization revocation before proceeding. This permanently erases the personal account, not retained company documents. Transfer ownership first if required.</p>
+<form method="post" action="{{ route('admin.support.deletion.complete', $item->id) }}">@csrf
+<div class="field"><label><input type="checkbox" name="reviewed" value="1" required> I reviewed this request and confirmed it is authorized to be processed.</label></div>
+<div class="fields"><div class="field"><label for="deletion_password">Your administrator password</label><input class="input" id="deletion_password" type="password" name="password" autocomplete="current-password" required></div>
+<div class="field"><label for="confirmation">Type DELETE to confirm</label><input class="input" id="confirmation" name="confirmation" required autocomplete="off"></div></div>
+<div class="form-actions"><button class="btn btn-primary" type="submit">Process account deletion</button></div>
+</form></section>
+@endif
 <section class="panel">
 <div class="panel-header"><h2>{{ $item->subject }}</h2><span class="pill">{{ ucfirst($item->status) }}</span></div>
 <p>{{ $item->description }}</p><p class="muted">Submitted by {{ $item->owner_name }} · {{ $item->owner_email }} · {{ $item->company_name ?? 'Personal support' }}</p>

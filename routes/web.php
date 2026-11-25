@@ -7,7 +7,13 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('admin.login'));
+Route::get('/', fn () => response()->view('site.home')->header('Cache-Control', 'private, no-store'))->name('site.home');
+Route::get('/terms-and-conditions', fn () => response()->view('site.terms')->header('Cache-Control', 'private, no-store'))->name('site.terms');
+Route::get('/privacy-policy', fn () => response()->view('site.privacy')->header('Cache-Control', 'private, no-store'))->name('site.privacy');
+Route::get('/account-deletion', [\App\Http\Controllers\PublicAccountDeletionController::class, 'show'])->name('site.deletion');
+Route::post('/account-deletion/request', [\App\Http\Controllers\PublicAccountDeletionController::class, 'start'])->middleware('throttle:5,1')->name('site.deletion.start');
+Route::post('/account-deletion/verify', [\App\Http\Controllers\PublicAccountDeletionController::class, 'verify'])->middleware('throttle:10,1')->name('site.deletion.verify');
+Route::post('/account-deletion/restart', [\App\Http\Controllers\PublicAccountDeletionController::class, 'restart'])->middleware('throttle:10,1')->name('site.deletion.restart');
 
 // M23: public, no-login HTTPS pages hand browser Checkout back to the app.
 // These pages NEVER certify payment. The mobile app verifies with Stripe
@@ -133,6 +139,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/support/faqs/{faq}', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'saveFaq'])->whereNumber('faq')->name('support.faq.update');
         Route::post('/support/faqs/{faq}/delete', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'deleteFaq'])->whereNumber('faq')->name('support.faq.delete');
         Route::get('/support/{ticket}', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'show'])->whereNumber('ticket')->name('support.show');
+        Route::post('/support/{ticket}/complete-deletion', [\App\Http\Controllers\Admin\PublicAccountDeletionAdminController::class, 'complete'])->whereNumber('ticket')->middleware('throttle:3,1')->name('support.deletion.complete');
         Route::patch('/support/{ticket}', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'update'])->whereNumber('ticket')->name('support.update');
         Route::post('/support/{ticket}/replies', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'reply'])->whereNumber('ticket')->name('support.reply');
         Route::get('/support/{ticket}/attachments/{attachment}', [\App\Http\Controllers\Admin\M22SupportAdminController::class,'attachment'])

@@ -96,6 +96,7 @@
         <span class="header-location">@if(request()->routeIs('admin.dashboard'))Dashboard @else @yield('breadcrumb', 'Overview') @endif</span>
       </div>
       <div class="header-right">
+        <a class="btn btn-outline" href="{{ route('site.home') }}">Website</a>
         <a class="hope-top-action" href="{{ route('admin.companies.create') }}"><x-admin.icon name="plus" /> Add Company</a><span class="header-admin-label">Administrator</span>
         <span class="header-avatar" title="{{ auth()->user()->name }}" aria-label="Signed in as {{ auth()->user()->name }}">{{ mb_strtoupper(mb_substr(trim(auth()->user()->name), 0, 1)) }}</span>
         <form action="{{ route('admin.logout') }}" method="post" class="header-logout">
@@ -207,5 +208,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 </script>
+<script>window.addEventListener('pageshow',function(event){if(event.persisted){window.location.reload();}});</script>
 </body>
 </html>
