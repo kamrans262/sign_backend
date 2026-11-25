@@ -104,7 +104,7 @@ final class AccountErasureService
                 'country_iso_code' => null, 'dialing_code' => null,
                 'job_title' => null, 'email_verified_at' => null,
                 'profile_photo_path' => null, 'profile_photo_mime' => null,
-                'remember_token' => null, 'is_active' => false,
+                'remember_token' => null, 'active_company_id' => null, 'is_active' => false,
                 'google_subject' => null, 'apple_subject' => null,
             ])->save();
             $locked->tokens()->delete();

@@ -241,7 +241,7 @@ class M14ExpenseTrackingTest extends TestCase
             'email_verified_at'=>now()]);
         $company->users()->attach($member->id, [
             'role'=>'member','status'=>'active',
-            'permissions'=>json_encode(['expenses.read']),
+            'permissions'=>json_encode(['expenses.read','jobs.read']),
         ]);
         Sanctum::actingAs($member);
         \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
@@ -250,7 +250,7 @@ class M14ExpenseTrackingTest extends TestCase
         $this->postJson('/api/v1/expenses/'.$second.'/approve',
             ['confirm'=>true])->assertForbidden();
         $company->users()->updateExistingPivot($member->id, [
-            'permissions'=>json_encode(['expenses.read','expenses.write']),
+            'permissions'=>json_encode(['expenses.read','expenses.write','jobs.read']),
         ]);
         $this->getJson('/api/v1/expenses/'.$second)->assertOk()
             ->assertJsonPath('data.can_approve', true);

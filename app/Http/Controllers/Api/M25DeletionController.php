@@ -59,7 +59,12 @@ final class M25DeletionController extends Controller {
                 throw ValidationException::withMessages(['apple'=>'Apple identity could not be confirmed.']);
             $provider=app(M25AppleIdentity::class);
             if($provider->configured()&&!empty($data['apple_authorization_code'])) {
-                $provider->store($user->id,$provider->exchange($data['apple_authorization_code'],$identity['sub']));
+                try {
+                    $provider->store($user->id,$provider->exchange($data['apple_authorization_code'],$identity['sub']));
+                } catch (ValidationException) {
+                    // Verified identity is sufficient to erase the local account. A failed exchange must not prevent deletion.
+                    // An existing encrypted refresh token can still be revoked; otherwise return manual revocation guidance.
+                }
             }
             $ok=true;
         } else {

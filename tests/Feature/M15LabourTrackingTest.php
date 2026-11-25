@@ -233,7 +233,7 @@ class M15LabourTrackingTest extends TestCase
         $worker=User::factory()->create(['is_active'=>true,'email_verified_at'=>now()]);
         $company->users()->attach($worker->id,[
             'role'=>'member','status'=>'active',
-            'permissions'=>json_encode(['jobs.read','jobs.write']),
+            'permissions'=>json_encode(['jobs.read','jobs.write','labour.read','labour.write']),
         ]);
         DB::table('service_job_user')->insert([
             'service_job_id'=>$job,'user_id'=>$worker->id,
