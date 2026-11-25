@@ -1,0 +1,39 @@
+name: Public Contact Us QA
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - '.github/workflows/qa-public-contact.yml'
+      - 'app/Http/Controllers/PublicContactController.php'
+      - 'app/Http/Controllers/Admin/WebsiteContactAdminController.php'
+      - 'database/migrations/*website_contact_messages.php'
+      - 'routes/web.php'
+      - 'resources/views/site/**'
+      - 'resources/views/admin/support/**'
+      - 'tests/Feature/WebsiteContactTest.php'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      MAIL_MAILER: array
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan test tests/Feature/WebsiteContactTest.php tests/Feature/PublicWebsiteAndDeletionTest.php
+      - run: php artisan view:cache && php artisan route:cache
