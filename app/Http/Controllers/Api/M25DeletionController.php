@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 final class M25DeletionController extends Controller {
-    private function hash(int $id,string $code): string {
-        return hash_hmac('sha256',$id.'|'.$code,(string)config('app.key'));
+    private function hash(int $id,string $email,string $code): string {
+        return hash_hmac('sha256',$id.'|'.strtolower(trim($email)).'|'.$code,(string)config('app.key'));
     }
     public function options(Request $request) {
         $user=$request->user();
@@ -31,7 +31,7 @@ final class M25DeletionController extends Controller {
         if($prior && now()->addMinutes(9)->lessThan($prior->expires_at)) abort(429,'Please wait one minute.');
         $code=(string)random_int(100000,999999);
         DB::table('m25_deletion_challenges')->updateOrInsert(['user_id'=>$user->id],[
-            'proof_hash'=>$this->hash($user->id,$code),'expires_at'=>now()->addMinutes(10),'attempts'=>0,
+            'proof_hash'=>$this->hash($user->id,$user->email,$code),'expires_at'=>now()->addMinutes(10),'attempts'=>0,
         ]);
         try {
             Mail::raw('Your Sign2Digital account deletion verification code is '.$code.'. It expires in 10 minutes.',fn($m)=>$m->to($user->email)->subject('Confirm Sign2Digital account deletion'));
@@ -67,14 +67,15 @@ final class M25DeletionController extends Controller {
             $row=DB::table('m25_deletion_challenges')->where('user_id',$user->id)->lockForUpdate()->first();
             if(!$row||$row->attempts>=5||now()->greaterThanOrEqualTo($row->expires_at))return false;
             DB::table('m25_deletion_challenges')->where('user_id',$user->id)->increment('attempts');
-            if(!hash_equals($row->proof_hash,$this->hash($user->id,$data['code'])))return false;
+            if(!hash_equals($row->proof_hash,$this->hash($user->id,$user->email,$data['code'])))return false;
             DB::table('m25_deletion_challenges')->where('user_id',$user->id)->delete();
             return true;
         },3);
         }
         if(!$ok)throw ValidationException::withMessages(['code'=>'Invalid or expired verification code.']);
         $twoFactor->confirmDestructiveAction($user,$data['two_factor_code']??null);
+        $manualAppleRevocation = !empty($user->apple_subject) && !DB::table('m25_apple_credentials')->where('user_id',$user->id)->exists();
         $eraser->erase($user,$request,closeSoleOwned:(bool)($data['close_sole_owned']??false),transfers:$data['ownership_transfers']??[]);
-        return response()->json(['data'=>['deleted'=>true,'requires_login'=>true,'business_records_retained'=>true]],200,['Cache-Control'=>'private, no-store']);
+        return response()->json(['data'=>['deleted'=>true,'requires_login'=>true,'business_records_retained'=>true,'manual_apple_revocation'=>$manualAppleRevocation]],200,['Cache-Control'=>'private, no-store']);
     }
 }

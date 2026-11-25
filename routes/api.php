@@ -67,6 +67,7 @@ Route::get('/public/work-acceptance/{token}/signed-pdf', [\App\Http\Controllers\
 
 // M23 Stripe events: no session, verified from the raw Stripe-Signature
 // before any tenant lookup or database mutation. Disabled by default.
+Route::post('/v1/auth/apple/events', \App\Http\Controllers\Api\M25AppleIdentityEventController::class)->middleware('throttle:120,1');
 Route::post('/v1/billing/apple/notifications', [\App\Http\Controllers\Api\M25StoreKitController::class,'notify'])->middleware('throttle:120,1');
 Route::post('/v1/billing/webhook', [\App\Http\Controllers\Api\M23StripeBillingController::class,'webhook'])
     ->middleware('throttle:120,1');

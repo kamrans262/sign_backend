@@ -89,6 +89,7 @@ final class AccountErasureService
                 'encrypted_fid' => Crypt::encryptString('revoked'),
                 'updated_at' => now(),
             ]);
+            $manualAppleRevocation = !empty($locked->apple_subject) && !DB::table('m25_apple_credentials')->where('user_id',$locked->id)->exists();
             app(M25AppleIdentity::class)->queueErasure((int)$locked->id);
             DB::table('m25_ai_consents')->where('user_id',$locked->id)->delete();
             DB::table('m25_deletion_challenges')->where('user_id',$locked->id)->delete();
@@ -109,7 +110,7 @@ final class AccountErasureService
             $locked->tokens()->delete();
             AuditLogger::record($administrator ? 'admin.account.deleted' : 'mobile.account.deleted',
                 $administrator ?? $locked, $locked,
-                metadata: ['personal_profile_erased' => true, 'business_records_retained' => true, 'request_reference' => $reference],
+                metadata: ['personal_profile_erased' => true, 'business_records_retained' => true, 'request_reference' => $reference, 'manual_apple_revocation' => $manualAppleRevocation],
                 request: $request);
         });
         foreach (array_unique($privateFiles) as $path) Storage::disk('local')->delete($path);
