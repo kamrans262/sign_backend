@@ -9,6 +9,7 @@ return [
     'store_issuer' => env('M25_STOREKIT_ISSUER_ID',''),
     'store_key_id' => env('M25_STOREKIT_KEY_ID',''),
     'store_key_path' => env('M25_STOREKIT_KEY_PATH',''),
+    'store_root_path' => env('M25_STOREKIT_ROOT_CA_PATH',''),
     'products' => [
         'monthly' => env('M25_STOREKIT_MONTHLY','com.sign2digital.app.business.monthly'),
         'yearly' => env('M25_STOREKIT_YEARLY','com.sign2digital.app.business.yearly'),

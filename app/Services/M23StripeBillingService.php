@@ -127,6 +127,7 @@ final class M23StripeBillingService
         return DB::transaction(function()use($company,$actor,$plan,$requestId):array {
             DB::table('companies')->where('id',$company->id)
                 ->lockForUpdate()->firstOrFail();
+            abort_if(app(M25StoreKit::class)->appleConflict((int)$company->id),409,'An Apple subscription or purchase is pending.');
             $sub=$this->companyRecord($company);
             if($sub && $sub->stripe_subscription_id &&
                 in_array($sub->status,['canceled','incomplete_expired'],true)){

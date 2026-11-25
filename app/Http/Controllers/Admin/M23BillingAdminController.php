@@ -62,6 +62,9 @@ final class M23BillingAdminController extends Controller
             'companies'=>$companies->orderBy('c.name')->paginate(20)->withQueryString(),
             'settings'=>$settings,
             'filters'=>$filters,
+            'appleReady'=>app(\App\Services\M25StoreKit::class)->ready(),
+            'appleSubscriptions'=>DB::table('m25_storekit_subscriptions as a')->join('companies as c','c.id','=','a.company_id')
+                ->select('a.*','c.name as company_name')->orderByDesc('a.provider_synced_at')->limit(100)->get(),
             'stripeReady'=>app(\App\Services\M23StripeGateway::class)->enabled(),
             'stripeMode'=>config('m23_billing.live_mode')?'live':'test',
             'failedWebhookCount'=>DB::table('m23_provider_events')

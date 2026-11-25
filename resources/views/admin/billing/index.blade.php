@@ -7,6 +7,12 @@
 <a class="btn btn-primary" href="{{ route('admin.billing.plans.create') }}">Create Plan</a>
 @endsection
 @section('content')
+<section class="panel"><div class="panel-header"><h2>Apple App Store subscriptions</h2><span class="pill">{{ $appleReady?'READY':'OFF' }}</span></div>
+<p>Environment: {{ config('m25_apple.store_environment') }}. Apple subscriptions are verified independently from Stripe; administrator grants do not simulate purchases.</p>
+<div class="table-wrap"><table><thead><tr><th>Company</th><th>Status</th><th>Environment</th><th>Expires</th><th>Verified</th></tr></thead><tbody>
+@forelse($appleSubscriptions as $item)<tr><td>{{ $item->company_name }}</td><td>{{ $item->status }}</td><td>{{ $item->environment }}</td><td>{{ $item->period_ends_at }}</td><td>{{ $item->provider_synced_at }}</td></tr>
+@empty<tr><td colspan="5">No Apple subscriptions.</td></tr>@endforelse
+</tbody></table></div></section>
 <section class="panel">
   <div class="panel-header"><h2>Billing configuration</h2><span class="pill">Stripe {{ $stripeReady?'READY':'OFF' }} · Quota enforcement {{ $settings->enforcement_enabled?'ON':'OFF' }}</span></div>
   <p>Provider mode: {{ strtoupper($stripeMode) }}. Real payment requests require separately approved private server credentials and the database activation switch. No secrets are displayed here.</p>
