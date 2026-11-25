@@ -79,11 +79,15 @@ final class SignedPdfPlacementTest extends TestCase
 
     private function drawingStreams(string $bytes): string
     {
-        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $bytes, $streams);
+        // Use the PDF parser to resolve Contents and decode only declared
+        // filters. Plain drawing streams must not be passed to zlib.
+        $parser = new \setasign\Fpdi\PdfParser\PdfParser(
+            \setasign\Fpdi\PdfParser\StreamReader::createByString($bytes)
+        );
+        $reader = new \setasign\Fpdi\PdfReader\PdfReader($parser);
         $decoded = '';
-        foreach ($streams[1] as $stream) {
-            $inflated = @gzuncompress($stream);
-            $decoded .= is_string($inflated) ? $inflated : $stream;
+        for ($page = 1; $page <= $reader->getPageCount(); $page++) {
+            $decoded .= $reader->getPage($page)->getContentStream();
         }
         return $decoded;
     }
