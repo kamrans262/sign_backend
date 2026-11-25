@@ -25,7 +25,7 @@ Date: 2026-11-26. Status: partial verification; NOT release sign-off.
 | Admin UI | PASS | https://github.com/kamrans262/sign_backend/actions/runs/45683504962 |
 | Full Flutter analysis | FAIL, detailed log not yet available when checked | https://github.com/kamrans262/sign_app/actions/runs/45683341688 |
 | All Flutter tests, Android debug compile, iOS unsigned release compile | In progress, not verified | https://github.com/kamrans262/sign_app/actions/runs/45683341688 |
-| Full Laravel tests, new token crypto tests, route and view cache | In progress, not verified | https://github.com/kamrans262/sign_backend/actions/runs/45683505170 |
+| Full Laravel first run | 431 passed, 8 failed, 4 warnings, 1 skipped; new token crypto tests passed | https://github.com/kamrans262/sign_backend/actions/runs/45683505170 |
 
 Prior backend security/billing/profile/search workflows at e0568f58 passed. They are not a substitute for the new full suite. iOS CI uses an explicitly fake Firebase plist if the ignored local file is absent; it verifies compile only, never real Firebase, signing or App Store archive. Live website URL checks were inaccessible from the checking tool, not proof of a server outage. Physical device, signed archive, real Apple provider, actual email delivery and Stripe TEST checkout remain unverified.
 
@@ -35,7 +35,7 @@ Prior backend security/billing/profile/search workflows at e0568f58 passed. They
 | M25-01,04,09 | Stripe-only decision implemented; original checkout and server entitlement preserved. Public iOS storefront eligibility remains open. |
 | M25-02,03,05–08 | Native Apple billing deferred by explicit owner direction. |
 | M25-10,11 | Passwordless deletion challenge and existing 2FA code committed; focused tests passed; real Google/Apple/OTP deletion still requires device/mail tests. |
-| M25-12,13 | Apple token exchange, encrypted storage, revoke queue and legacy fallback implemented; new cryptographic/HTTP mock tests in full suite not yet verified; actual Apple key and endpoint verification pending. |
+| M25-12,13 | Apple token exchange, encrypted storage, revoke queue and legacy fallback implemented; new cryptographic/HTTP mock tests passed; actual Apple key and endpoint verification pending. |
 | M25-14 | Signed Apple identity event handling and session invalidation present; real events, email relay changes and device credential-state handling need verification. No claim of complete provider lifecycle. |
 | M25-15,16 | Company transfer/sole-owner closure and erasure logic committed. Focused backend tests passed; full ownership, retention, private file cleanup and real tenant/device cases require verification. |
 | M25-17 | Public deletion OTP/admin processing code and focused tests present; real HTTPS/mail/admin completion still unverified. |
@@ -53,3 +53,6 @@ Prior backend security/billing/profile/search workflows at e0568f58 passed. They
 
 ## Exit criteria
 Do not label Stage 3 complete or submit before full analysis and applicable suites/builds pass, real integrations and supported physical devices are verified, the legal/privacy information is approved, and Stripe-only distribution eligibility is confirmed. No automatic release is configured. See separate external configuration guide.
+
+## Subsequent full Laravel run findings
+The first full run returned 431 passed, 8 failed, 4 warnings, 1 skipped. The two M25AppleRevocationTest cases passed. PHP syntax passed. The eight failures were traced to legacy assertions: manually supplied quote/addendum numbers replaced by server sequences, missing consent in note-document security tests, and outdated dashboard/sidebar/CSS version labels. Commit 9221b88bc6c0a459a5d7fe25b3dc63a692103f38 updates those six test files against existing production behavior, retaining foreign-record denial, immutable signed sources, invalid number rejection and tenant-scoped numbering. No production billing or permission code was changed by that commit. Re-run: https://github.com/kamrans262/sign_backend/actions/runs/45684028803 (started; result not yet established at handoff). Warnings/skipped acceptance tests remain subject to release verification. The full Flutter analysis failure remains open until the complete job log is accessible.
