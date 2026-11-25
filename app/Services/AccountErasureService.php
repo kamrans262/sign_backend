@@ -63,6 +63,9 @@ final class AccountErasureService
                 'encrypted_fid' => Crypt::encryptString('revoked'),
                 'updated_at' => now(),
             ]);
+            app(M25AppleIdentity::class)->queueErasure((int)$locked->id);
+            DB::table('m25_ai_consents')->where('user_id',$locked->id)->delete();
+            DB::table('m25_deletion_challenges')->where('user_id',$locked->id)->delete();
             DB::table('public_deletion_challenges')->where('user_id', $locked->id)->delete();
             if (config('session.driver') === 'database') {
                 DB::connection(config('session.connection'))->table(config('session.table', 'sessions'))
@@ -84,5 +87,6 @@ final class AccountErasureService
                 request: $request);
         });
         foreach (array_unique($privateFiles) as $path) Storage::disk('local')->delete($path);
+        app(M25AppleIdentity::class)->retry();
     }
 }

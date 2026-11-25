@@ -201,6 +201,16 @@ final class M24TwoFactorService
         return true;
     }
 
+    public function confirmDestructiveAction(User $user, ?string $code): void
+    {
+        DB::transaction(function() use($user,$code): void {
+            $row=DB::table('m24_two_factor_credentials')->where('user_id',$user->id)->lockForUpdate()->first();
+            if($row && $row->enabled_at && (!$code || !$this->consumeProof($user,$code,$row))) {
+                throw ValidationException::withMessages(['two_factor_code'=>'Invalid authenticator or recovery code.']);
+            }
+        },3);
+    }
+
     public function disable(User $user, string $password, string $code, Request $request): array
     {
         $this->password($user, $password);
