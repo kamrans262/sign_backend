@@ -70,7 +70,7 @@ Route::get('/public/work-acceptance/{token}/signed-pdf', [\App\Http\Controllers\
 Route::post('/v1/billing/webhook', [\App\Http\Controllers\Api\M23StripeBillingController::class,'webhook'])
     ->middleware('throttle:120,1');
 
-Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
+Route::middleware(['auth:sanctum', 'active.user', \App\Http\Middleware\M25AiConsent::class])->group(function (): void {
     Route::post('/v1/auth/logout', [\App\Http\Controllers\Api\MobileAuthController::class, 'logout']);
     // Existing route retained for older clients.
     Route::get('/user', fn (Request $request) => $request->user());
@@ -122,6 +122,8 @@ Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
 
         // M22: user-owned account settings, security and Help & Support.
         // No company header is trusted for account-wide resources.
+        Route::get('/me/ai-consent', [\App\Http\Controllers\Api\M25PrivacyController::class,'show']);
+        Route::put('/me/ai-consent', [\App\Http\Controllers\Api\M25PrivacyController::class,'update'])->middleware('throttle:15,1');
         Route::get('/me/security', [\App\Http\Controllers\Api\M22AccountController::class,'security']);
     Route::post('/me/2fa/setup', [\App\Http\Controllers\Api\M24TwoFactorController::class,'setup'])->middleware('throttle:3,1');
     Route::post('/me/2fa/confirm', [\App\Http\Controllers\Api\M24TwoFactorController::class,'confirm'])->middleware('throttle:5,1');
