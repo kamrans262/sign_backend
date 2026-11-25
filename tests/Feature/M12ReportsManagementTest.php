@@ -39,7 +39,6 @@ class M12ReportsManagementTest extends TestCase
         $client=Client::create(['company_id'=>$company->id,'full_name'=>'Jean Test',
             'email'=>'jean@example.test','source'=>'manual']);
         Sanctum::actingAs($user);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         $job=$this->postJson('/api/v1/jobs',[
             'client_id'=>$client->id,'description'=>'Window replacement',
@@ -186,7 +185,6 @@ class M12ReportsManagementTest extends TestCase
         ])->assertStatus(409);
         $this->assertDatabaseCount('managed_document_versions',1);
         Sanctum::actingAs($actor);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $version=DB::table('managed_document_versions')->where('managed_document_id',$document)->first();
         Storage::disk('local')->put($version->private_path,'tampered');
         $this->get('/api/v1/reports/'.$id.'/pdf')->assertStatus(409);
@@ -391,7 +389,6 @@ class M12ReportsManagementTest extends TestCase
         ])->assertNotFound();
         $this->getJson('/api/v1/reports')->assertJsonCount(1,'data.reports');
         Sanctum::actingAs($aUser);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$aCompany->id);
         $this->getJson('/api/v1/reports/'.$bReport)->assertNotFound();
         $this->postJson('/api/v1/reports/'.$bReport.'/approve',[

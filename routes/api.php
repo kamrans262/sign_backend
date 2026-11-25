@@ -67,11 +67,10 @@ Route::get('/public/work-acceptance/{token}/signed-pdf', [\App\Http\Controllers\
 
 // M23 Stripe events: no session, verified from the raw Stripe-Signature
 // before any tenant lookup or database mutation. Disabled by default.
-Route::post('/v1/auth/apple/events', \App\Http\Controllers\Api\M25AppleIdentityEventController::class)->middleware('throttle:120,1');
 Route::post('/v1/billing/webhook', [\App\Http\Controllers\Api\M23StripeBillingController::class,'webhook'])
     ->middleware('throttle:120,1');
 
-Route::middleware(['auth:sanctum', 'active.user', \App\Http\Middleware\M25AiConsent::class])->group(function (): void {
+Route::middleware(['auth:sanctum', 'active.user'])->group(function (): void {
     Route::post('/v1/auth/logout', [\App\Http\Controllers\Api\MobileAuthController::class, 'logout']);
     // Existing route retained for older clients.
     Route::get('/user', fn (Request $request) => $request->user());
@@ -123,8 +122,6 @@ Route::middleware(['auth:sanctum', 'active.user', \App\Http\Middleware\M25AiCons
 
         // M22: user-owned account settings, security and Help & Support.
         // No company header is trusted for account-wide resources.
-        Route::get('/me/ai-consent', [\App\Http\Controllers\Api\M25PrivacyController::class,'show']);
-        Route::put('/me/ai-consent', [\App\Http\Controllers\Api\M25PrivacyController::class,'update'])->middleware('throttle:15,1');
         Route::get('/me/security', [\App\Http\Controllers\Api\M22AccountController::class,'security']);
     Route::post('/me/2fa/setup', [\App\Http\Controllers\Api\M24TwoFactorController::class,'setup'])->middleware('throttle:3,1');
     Route::post('/me/2fa/confirm', [\App\Http\Controllers\Api\M24TwoFactorController::class,'confirm'])->middleware('throttle:5,1');
@@ -144,9 +141,6 @@ Route::middleware(['auth:sanctum', 'active.user', \App\Http\Middleware\M25AiCons
         Route::patch('/me/preferences', [\App\Http\Controllers\Api\M22AccountController::class,'savePreferences'])->middleware('throttle:20,1');
         Route::get('/me/export', [\App\Http\Controllers\Api\M22AccountController::class,'export'])->middleware('throttle:5,1');
         Route::post('/me/deactivate', [\App\Http\Controllers\Api\M22AccountController::class,'deactivate'])->middleware('throttle:3,1');
-        Route::get('/me/deletion/options',[\App\Http\Controllers\Api\M25DeletionController::class,'options'])->middleware('throttle:15,1');
-        Route::post('/me/deletion/challenge', [\App\Http\Controllers\Api\M25DeletionController::class,'challenge'])->middleware('throttle:3,1');
-        Route::post('/me/deletion/complete', [\App\Http\Controllers\Api\M25DeletionController::class,'complete'])->middleware('throttle:5,1');
         Route::post('/me/delete', [\App\Http\Controllers\Api\M22AccountController::class,'deleteAccount'])->middleware('throttle:3,1');
 
         // Read-only AI help and manual Getting Started preview; no autostart.

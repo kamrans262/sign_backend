@@ -97,7 +97,7 @@ class M1FoundationTest extends TestCase
         $this->post('/admin/login', [
             'email' => $admin->email, 'password' => 'password123456',
         ])->assertRedirect(route('admin.dashboard'));
-        $this->get('/admin')->assertOk()->assertSee('Dashboard')->assertSee('Total Companies');
+        $this->get('/admin')->assertOk()->assertSee('Platform Overview');
         $this->assertDatabaseHas('audit_logs', ['action' => 'platform_admin.login', 'actor_user_id' => $admin->id]);
     }
 

@@ -36,41 +36,6 @@ class AppleIdTokenVerifier
             $this->invalid();
         }
 
-        $this->signature($kid, $head, $body, $signature);
-
-        // Existing linked users are identified only by Apple's stable subject.
-        // A new account requires a verified email in the signed claims.
-        $email = $claims['email'] ?? null;
-        $email = is_string($email) && strlen($email) <= 255 &&
-            filter_var($email, FILTER_VALIDATE_EMAIL) &&
-            in_array($claims['email_verified'] ?? null, [true, 'true'], true)
-            ? strtolower(trim($email)) : null;
-        return ['sub' => $claims['sub'], 'email' => $email];
-    }
-
-    public function verifyEvent(string $token): array
-    {
-        $parts = explode('.', $token);
-        if (count($parts)!==3 || strlen($token)>16384) $this->invalid();
-        [$head,$body,$sig]=$parts;
-        $header=$this->json($head); $claims=$this->json($body);
-        $kid=$header['kid']??null; $signature=$this->decode($sig);
-        if (($header['alg']??null)!=='RS256' || !is_string($kid) || !preg_match('/^[A-Za-z0-9_-]{1,128}$/D',$kid)
-            || $signature===null || ($claims['iss']??null)!=='https://appleid.apple.com'
-            || ($claims['aud']??null)!==self::AUDIENCE || !is_int($claims['iat']??null)
-            || $claims['iat']>time()+60 || $claims['iat']<time()-86400*7
-            || (isset($claims['exp']) && (!is_int($claims['exp']) || $claims['exp']<time()))
-            || !is_string($claims['jti']??null) || strlen($claims['jti'])>255 || $claims['jti']==='') $this->invalid();
-        $this->signature($kid,$head,$body,$signature);
-        $event=$claims['events']??null;
-        if (is_string($event)) $event=json_decode($event,true,16);
-        if (!is_array($event) || !is_string($event['sub']??null) || strlen($event['sub'])>255
-            || !in_array($event['type']??null,['email-disabled','email-enabled','consent-revoked','account-deleted'],true)) $this->invalid();
-        return ['id'=>hash('sha256',$claims['jti']),'issued_at'=>$claims['iat'],'event'=>$event];
-    }
-
-    private function signature(string $kid,string $head,string $body,string $signature): void
-    {
         $keys = Cache::remember('s2d_apple_public_keys_v1', now()->addMinutes(15),
             static function (): array {
                 try {
@@ -99,6 +64,14 @@ class AppleIdTokenVerifier
             $this->invalid();
         }
 
+        // Existing linked users are identified only by Apple's stable subject.
+        // A new account requires a verified email in the signed claims.
+        $email = $claims['email'] ?? null;
+        $email = is_string($email) && strlen($email) <= 255 &&
+            filter_var($email, FILTER_VALIDATE_EMAIL) &&
+            in_array($claims['email_verified'] ?? null, [true, 'true'], true)
+            ? strtolower(trim($email)) : null;
+        return ['sub' => $claims['sub'], 'email' => $email];
     }
 
     private function decode(string $value): ?string

@@ -27,7 +27,6 @@ class M11JobMediaTest extends TestCase
         $company->users()->attach($user->id,['role'=>'owner','status'=>'active']);
         $client = Client::create(['company_id'=>$company->id,'full_name'=>'Test Customer','source'=>'manual']);
         Sanctum::actingAs($user);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         $response = $this->postJson('/api/v1/jobs',[
             'client_id'=>$client->id,
@@ -118,7 +117,6 @@ class M11JobMediaTest extends TestCase
     private function asTenant(User $user, Company $company): void
     {
         Sanctum::actingAs($user);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
     }
 

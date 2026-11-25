@@ -359,8 +359,6 @@ final class M22AccountController extends Controller
     public function deleteAccount(Request $request): JsonResponse
     {
         $this->password($request);
-        $request->validate(['two_factor_code'=>['nullable','string','max:32']]);
-        app(\App\Services\M24TwoFactorService::class)->confirmDestructiveAction($this->actor($request), $request->input('two_factor_code'));
         app(\App\Services\AccountErasureService::class)->erase($this->actor($request), $request);
         return response()->json(['data' => [
             'deleted' => true, 'requires_login' => true,

@@ -31,7 +31,6 @@ final class AppleMobileAuthController extends Controller
         $data = $request->validate([
             'id_token' => ['required', 'string', 'max:8192'],
             'nonce' => ['required', 'string', 'regex:/^[a-f0-9]{64}$/D'],
-            'authorization_code' => ['nullable', 'string', 'max:4096'],
             'name' => ['nullable', 'string', 'max:255'],
             'device_name' => ['sometimes', 'string', 'max:100'],
         ]);
@@ -42,15 +41,8 @@ final class AppleMobileAuthController extends Controller
             ->where('expires_at', '>', now())->delete() !== 1) {
             throw ValidationException::withMessages(['apple' => 'Apple sign-in expired. Please try again.']);
         }
-        $provider=app(\App\Services\M25AppleIdentity::class);
-        $refresh=null;
-        abort_if(config('m25_apple.signin_require_exchange') && !$provider->configured(),503,'Apple sign-in is temporarily unavailable.');
-        if($provider->configured()) {
-            if(empty($data['authorization_code'])) throw ValidationException::withMessages(['apple'=>'Update the app and authorize Apple again.']);
-            $refresh=$provider->exchange($data['authorization_code'],$identity['sub']);
-        }
         $device = trim($data['device_name'] ?? 'Sign2Digital Apple Mobile');
-        return DB::transaction(function () use ($request, $twoFactor, $identity, $data, $device, $provider, $refresh): JsonResponse {
+        return DB::transaction(function () use ($request, $twoFactor, $identity, $data, $device): JsonResponse {
             $user = User::query()->where('apple_subject', $identity['sub'])->lockForUpdate()->first();
             if (!$user) {
                 $email = $identity['email'];
@@ -77,7 +69,6 @@ final class AppleMobileAuthController extends Controller
                 !hash_equals((string) $user->apple_subject, $identity['sub'])) {
                 throw ValidationException::withMessages(['apple' => 'This account cannot sign in with Apple.']);
             }
-            if($refresh!==null) $provider->store((int)$user->id,$refresh);
             if ($twoFactor->enabled((int) $user->id)) {
                 $ticket = $twoFactor->createLoginTicket($user, $device);
                 AuditLogger::record('mobile.auth.apple_2fa_required', $user, $user, request: $request);

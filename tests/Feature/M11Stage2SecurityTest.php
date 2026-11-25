@@ -100,7 +100,6 @@ final class M11Stage2SecurityTest extends TestCase
         [$ownerB, $b, $jobB] = $this->fixture('B');
         $noteB = $this->createNote($jobB);
         $this->actingCompany($ownerA, $a);
-        $this->putJson('/api/v1/me/ai-consent', ['user_id'=>$ownerA->id,'version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true])->assertOk();
         $this->getJson('/api/v1/jobs/'.$jobA.'/notes/'.$noteB)->assertNotFound();
         $this->postJson('/api/v1/jobs/'.$jobA.'/notes/'.$noteB.'/transcribe')
             ->assertNotFound();
@@ -136,7 +135,6 @@ final class M11Stage2SecurityTest extends TestCase
         Storage::fake('local');
         [$owner, $company, $job] = $this->fixture('Immutable');
         $note = $this->createNote($job);
-        $this->putJson('/api/v1/me/ai-consent', ['user_id'=>$owner->id,'version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true])->assertOk();
         config()->set('services.openai.key', 'm11-stage2-test-only');
         Http::fake(['*api.openai.com/*' => Http::response([
             'choices' => [['message' => ['content' => json_encode([

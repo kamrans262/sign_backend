@@ -26,7 +26,6 @@ final class M18GeneralDocumentTest extends TestCase
         $client=Client::create(['company_id'=>$company->id,
             'full_name'=>'Document Customer','email'=>'doc@example.test','source'=>'manual']);
         Sanctum::actingAs($owner);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$company->id);
         $job=(int)$this->postJson('/api/v1/jobs',[
             'client_id'=>$client->id,'description'=>'Document Job',
@@ -100,7 +99,6 @@ final class M18GeneralDocumentTest extends TestCase
             'country_iso_code'=>'CH','status'=>'active']);
         $other->users()->attach($otherOwner->id,['role'=>'owner','status'=>'active']);
         Sanctum::actingAs($otherOwner);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$other->id);
         $this->getJson('/api/v1/general-documents/'.$id)->assertNotFound();
         $this->getJson('/api/v1/documents/general-'.$id)->assertNotFound();

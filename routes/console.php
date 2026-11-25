@@ -194,9 +194,3 @@ Artisan::command('sign:m20-sync {--max=80}', function (
 
 \Illuminate\Support\Facades\Schedule::command('sign:m20-sync --max=80')
     ->everyMinute()->withoutOverlapping();
-
-Artisan::command('sign:m25-apple-revoke', function (): int {
-    $this->info('Revoked: '.app(\App\Services\M25AppleIdentity::class)->retry());
-    return 0;
-});
-\Illuminate\Support\Facades\Schedule::command('sign:m25-apple-revoke')->everyTenMinutes()->withoutOverlapping();

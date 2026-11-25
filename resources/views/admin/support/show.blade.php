@@ -13,7 +13,6 @@
 <p>The account holder verified their registered email. Review their identity, ownership, legal retention requirements and any Apple authorization revocation before proceeding. This permanently erases the personal account, not retained company documents. Transfer ownership first if required.</p>
 <form method="post" action="{{ route('admin.support.deletion.complete', $item->id) }}">@csrf
 <div class="field"><label><input type="checkbox" name="reviewed" value="1" required> I reviewed this request and confirmed it is authorized to be processed.</label></div>
-<div class="field"><label><input type="checkbox" name="close_sole_owned" value="1"> The verified account holder explicitly authorized closing any sole-owner companies. Shared companies still require ownership transfer.</label></div>
 <div class="fields"><div class="field"><label for="deletion_password">Your administrator password</label><input class="input" id="deletion_password" type="password" name="password" autocomplete="current-password" required></div>
 <div class="field"><label for="confirmation">Type DELETE to confirm</label><input class="input" id="confirmation" name="confirmation" required autocomplete="off"></div></div>
 <div class="form-actions"><button class="btn btn-primary" type="submit">Process account deletion</button></div>

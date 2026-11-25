@@ -31,7 +31,6 @@ final class M20ReminderAiVoiceTest extends TestCase
         ]);
         $company->users()->attach($user->id, ['role' => 'owner', 'status' => 'active']);
         Sanctum::actingAs($user);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id', (string) $company->id);
         return $company;
     }
@@ -46,7 +45,6 @@ final class M20ReminderAiVoiceTest extends TestCase
         Http::fake();
         $foreign = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
         Sanctum::actingAs($foreign);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->postJson('/api/v1/reminders/ai/voice', [
             'file' => $this->recording(),
         ])->assertForbidden();

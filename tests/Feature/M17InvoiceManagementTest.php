@@ -127,7 +127,6 @@ final class M17InvoiceManagementTest extends TestCase
         $this->postJson('/api/v1/invoices',$this->fields($job,$key))
             ->assertCreated()->assertJsonPath('data.invoice.id',$id);
         $change=$this->fields($job,$key);
-        $change['invoice_number']=DB::table('service_invoices')->where('id',$id)->value('invoice_number');
         $change['items'][0]['unit_price_minor']=11000;
         $this->postJson('/api/v1/invoices',$change)->assertStatus(409);
         $this->patchJson('/api/v1/invoices/'.$id,array_merge($change,[
@@ -166,7 +165,6 @@ final class M17InvoiceManagementTest extends TestCase
             'confirm'=>true,'lock_version'=>1,
             'reason'=>'Invoice was created against the wrong work phase.',
         ])->assertOk()->assertJsonPath('data.invoice.status','void');
-        $other['invoice_number']=DB::table('service_invoices')->where('id',$new)->value('invoice_number');
         $this->patchJson('/api/v1/invoices/'.$new,
             array_merge($other,['lock_version'=>1]))
             ->assertOk()->assertJsonPath('data.invoice.deposit_paid_minor',10000);

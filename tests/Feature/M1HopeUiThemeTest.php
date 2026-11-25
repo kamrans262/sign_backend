@@ -36,7 +36,7 @@ class M1HopeUiThemeTest extends TestCase
             ->assertSee('Welcome Back')
             ->assertSee('class="hope-auth-shell"', false)
             ->assertSee('class="hope-auth-hero"', false)
-            ->assertSee('/admin/assets/admin.css?v=6', false)
+            ->assertSee('/admin/assets/admin.css?v=4', false)
             ->assertSee('name="email"', false)
             ->assertSee('name="password"', false)
             ->assertSee('name="_token"', false);

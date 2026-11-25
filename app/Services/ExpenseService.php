@@ -30,12 +30,9 @@ final class ExpenseService
         $member = $company->users()->where('users.id', $actor->id)
             ->wherePivot('status', 'active')->first();
         if (!$member) return false;
-        if ($member->pivot->role === 'owner') return true;
-        $permissions = \App\Support\CompanyRolePermissions::resolve(
-            $member->pivot->company_role_id ? (int)$member->pivot->company_role_id : null,
-            (int)$company->id, (string)$member->pivot->role, $member->pivot->permissions
-        );
-        return in_array('expenses.write', $permissions, true);
+        if (in_array($member->pivot->role, ['owner', 'admin'], true)) return true;
+        $permissions = json_decode((string) $member->pivot->permissions, true);
+        return is_array($permissions) && in_array('expenses.write', $permissions, true);
     }
 
     public function find(int $companyId,int $id): object

@@ -139,11 +139,8 @@ final class M10AddendaManagementTest extends TestCase
             ->assertJsonPath('data.addenda.0.id',$id);
         $this->getJson('/api/v1/addenda/'.$id.'/history')->assertOk()
             ->assertJsonPath('data.events.0.type','created');
-        $second=$this->postJson('/api/v1/addenda',$this->body($artifact->id))
-            ->assertCreated()->assertJsonPath('data.addendum.number','ADD-002');
-        $this->assertNotSame($id,$second->json('data.addendum.id'));
-        $this->assertDatabaseCount('addenda',2);
-        $this->assertSame('ADD-001',Addendum::findOrFail($id)->number);
+        $this->postJson('/api/v1/addenda',$this->body($artifact->id))
+            ->assertStatus(409);
         $this->assertSame($signed,Storage::disk('local')->get($artifact->signed_pdf_path));
     }
 
@@ -397,7 +394,7 @@ final class M10AddendaManagementTest extends TestCase
         ]);
         $this->actingAs($admin);
         $this->get('/admin/addenda')->assertOk()
-            ->assertSee('Addenda Management')->assertSee(Addendum::findOrFail($id)->number);
+            ->assertSee('Addenda Management')->assertSee('A-2026-0005');
         $this->get('/admin/addenda/'.$id)->assertOk()
             ->assertSee('Original signed source');
         $this->get('/admin/addenda/'.$id.'/edit')->assertOk()
