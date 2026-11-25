@@ -1,0 +1,47 @@
+name: M25 Stage 3 full Laravel and Admin regression
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - 'app/**'
+      - 'routes/**'
+      - 'config/**'
+      - 'database/**'
+      - 'resources/views/**'
+      - 'tests/**'
+      - 'composer.*'
+      - '.github/workflows/m25-stage3-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: m25-stage3-backend
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, openssl, fileinfo, gd, intl
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: PHP syntax
+        run: find app config routes database/migrations tests -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: All Laravel feature and unit tests
+        run: php artisan test
+      - name: Verify route and Blade compilation
+        if: ${{ !cancelled() }}
+        run: php artisan route:cache && php artisan view:cache && php artisan optimize:clear

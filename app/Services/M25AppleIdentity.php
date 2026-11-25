@@ -43,7 +43,9 @@ final class M25AppleIdentity {
     public function retry(int $max=20): int {
         if(!$this->configured()) return 0;
         $done=0;
-        foreach(DB::table('m25_apple_revocations')->orderBy('id')->limit($max)->get() as $row) {
+        foreach(DB::table('m25_apple_revocations')->orderBy('updated_at')->orderBy('id')->limit($max)->get() as $row) {
+            // Rotate failed records to the back; an unavailable token must not starve later requests.
+            DB::table('m25_apple_revocations')->where('id',$row->id)->update(['updated_at'=>now()]);
             try {
                 $response=Http::asForm()->timeout(10)->withOptions(['allow_redirects'=>false])->post('https://appleid.apple.com/auth/revoke',[
                     'client_id'=>config('m25_apple.bundle'),'client_secret'=>$this->secret(),'token'=>Crypt::decryptString($row->refresh_token),'token_type_hint'=>'refresh_token',
