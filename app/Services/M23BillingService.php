@@ -34,12 +34,8 @@ final class M23BillingService
 
     public function subscription(int $companyId): ?object
     {
-        $stripe=DB::table('m23_company_subscriptions')->where('company_id',$companyId)->first();
-        $apple=DB::table('m25_storekit_subscriptions')->where('company_id',$companyId)
-            ->where('environment',config('m25_apple.store_environment'))->first();
-        if($apple && $this->hasVerifiedPlan($apple) && !$this->hasVerifiedPlan($stripe))return $apple;
-        if($apple && (!$stripe || empty($stripe->stripe_subscription_id) || in_array($stripe->status,['canceled','incomplete_expired'],true)))return $apple;
-        return $stripe??$apple;
+        return DB::table('m23_company_subscriptions')
+            ->where('company_id',$companyId)->first();
     }
 
     public function grant(int $companyId): ?object
@@ -56,11 +52,6 @@ final class M23BillingService
         // A locally-entered provider ID or an obsolete period is not a
         // verified subscription. Stage 2 will populate these fields only
         // after signed provider events and authoritative reconciliation.
-        if($subscription && isset($subscription->original_transaction_id)){
-            return $subscription->environment===config('m25_apple.store_environment')
-                && $subscription->status==='active' && $subscription->provider_synced_at!==null
-                && now()->greaterThanOrEqualTo($subscription->period_starts_at) && now()->lessThan($subscription->period_ends_at);
-        }
         return $subscription !== null
             && in_array($subscription->status,['active','trialing'],true)
             && !empty($subscription->stripe_subscription_id)
@@ -248,9 +239,9 @@ final class M23BillingService
         $policy=$this->allowance($companyId,$actorId);
         $subscription=$this->subscription($companyId);
         $verified=$this->hasVerifiedPlan($subscription);
-        $isApple=$subscription && isset($subscription->original_transaction_id);
         $providerState=$subscription !== null
-            && ($isApple || (!empty($subscription->stripe_customer_id) && !empty($subscription->stripe_subscription_id)))
+            && !empty($subscription->stripe_customer_id)
+            && !empty($subscription->stripe_subscription_id)
             && $subscription->provider_synced_at !== null;
         $row=$providerState && $subscription->plan_id
             ? DB::table('m23_plans')->where('id',$subscription->plan_id)->first()
@@ -266,8 +257,7 @@ final class M23BillingService
             'company_id'=>$companyId,
             'plan_name'=>$plan['name']??($granted?'Administrative access grant':'Free allowance'),
             'status'=>$providerState?(string)$subscription->status:($granted?'granted':'free'),
-            'price_label'=>$isApple?null:($plan['price_label']??null),
-            'provider'=>$isApple?'apple':($providerState?'stripe':null),
+            'price_label'=>$plan['price_label']??null,
             'billing_description'=>$plan && $subscription?(
                 'Current period ends '.($subscription->period_ends_at??'not provided')
             ):'No paid subscription is connected.',
@@ -279,9 +269,9 @@ final class M23BillingService
             ],
             'allowance'=>$policy,
             'current_plan'=>$plan,
-            'trial_ends_at'=>$subscription->trial_ends_at??null,
+            'trial_ends_at'=>$subscription?->trial_ends_at,
             'period_ends_at'=>$subscription?->period_ends_at,
-            'can_manage_billing'=>!$isApple && $providerState && app(M23StripeGateway::class)->enabled(),
+            'can_manage_billing'=>$providerState && app(M23StripeGateway::class)->enabled(),
             'cancel_at_period_end'=>(bool)($subscription?->cancel_at_period_end??false),
             'can_checkout'=>!$providerState && app(M23StripeGateway::class)->enabled(),
             'demo_only'=>false,

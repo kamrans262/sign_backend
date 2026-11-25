@@ -2,7 +2,6 @@
 namespace Tests\Feature;
 use App\Models\User;
 use App\Http\Middleware\M25AiConsent;
-use App\Services\M25StoreKit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
@@ -29,9 +28,7 @@ final class M25PrivacyComplianceTest extends TestCase {
   $this->postJson('/api/v1/me/deletion/complete',['confirmation'=>'DELETE','code'=>'123456'])->assertUnprocessable();
   $this->assertTrue((bool)$u->fresh()->is_active);
  }
- public function test_storekit_starts_disabled_and_unsigned_event_is_rejected():void {
-  config(['m25_apple.store_enabled'=>false]);
-  $this->assertFalse(app(M25StoreKit::class)->ready());
+ public function test_unsigned_apple_identity_event_is_rejected():void {
   $this->postJson('/api/v1/auth/apple/events',['payload'=>'invalid'])->assertUnprocessable();
   $this->assertSame(0,DB::table('m25_apple_identity_events')->count());
  }

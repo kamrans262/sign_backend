@@ -68,7 +68,6 @@ Route::get('/public/work-acceptance/{token}/signed-pdf', [\App\Http\Controllers\
 // M23 Stripe events: no session, verified from the raw Stripe-Signature
 // before any tenant lookup or database mutation. Disabled by default.
 Route::post('/v1/auth/apple/events', \App\Http\Controllers\Api\M25AppleIdentityEventController::class)->middleware('throttle:120,1');
-Route::post('/v1/billing/apple/notifications', [\App\Http\Controllers\Api\M25StoreKitController::class,'notify'])->middleware('throttle:120,1');
 Route::post('/v1/billing/webhook', [\App\Http\Controllers\Api\M23StripeBillingController::class,'webhook'])
     ->middleware('throttle:120,1');
 
@@ -174,10 +173,6 @@ Route::middleware(['auth:sanctum', 'active.user', \App\Http\Middleware\M25AiCons
                 Route::get('/plans', [\App\Http\Controllers\Api\M23BillingController::class,'plans']);
                 Route::get('/usage', [\App\Http\Controllers\Api\M23BillingController::class,'usage']);
                 Route::get('/eligibility', [\App\Http\Controllers\Api\M23BillingController::class,'eligibility']);
-                Route::get('/apple/catalog',[\App\Http\Controllers\Api\M25StoreKitController::class,'catalog']);
-                Route::post('/apple/begin',[\App\Http\Controllers\Api\M25StoreKitController::class,'begin'])->middleware('throttle:5,1');
-                Route::post('/apple/cancel-pending',[\App\Http\Controllers\Api\M25StoreKitController::class,'cancelPending'])->middleware('throttle:5,1');
-                Route::post('/apple/verify',[\App\Http\Controllers\Api\M25StoreKitController::class,'verify'])->middleware('throttle:15,1');
                 Route::get('/history', [\App\Http\Controllers\Api\M23BillingController::class,'history']);
                 Route::post('/checkout', [\App\Http\Controllers\Api\M23StripeBillingController::class,'checkout'])
                     ->middleware('throttle:5,1');

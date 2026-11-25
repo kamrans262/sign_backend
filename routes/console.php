@@ -200,8 +200,3 @@ Artisan::command('sign:m25-apple-revoke', function (): int {
     return 0;
 });
 \Illuminate\Support\Facades\Schedule::command('sign:m25-apple-revoke')->everyTenMinutes()->withoutOverlapping();
-
-Artisan::command('sign:m25-storekit-reconcile',function():int{
-    $this->info('Reconciled: '.app(\App\Services\M25StoreKit::class)->reconcile());return 0;
-});
-\Illuminate\Support\Facades\Schedule::command('sign:m25-storekit-reconcile')->everyFifteenMinutes()->withoutOverlapping();

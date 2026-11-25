@@ -62,9 +62,6 @@ final class M23BillingAdminController extends Controller
             'companies'=>$companies->orderBy('c.name')->paginate(20)->withQueryString(),
             'settings'=>$settings,
             'filters'=>$filters,
-            'appleReady'=>app(\App\Services\M25StoreKit::class)->ready(),
-            'appleSubscriptions'=>DB::table('m25_storekit_subscriptions as a')->join('companies as c','c.id','=','a.company_id')
-                ->select('a.*','c.name as company_name')->orderByDesc('a.provider_synced_at')->limit(100)->get(),
             'stripeReady'=>app(\App\Services\M23StripeGateway::class)->enabled(),
             'stripeMode'=>config('m23_billing.live_mode')?'live':'test',
             'failedWebhookCount'=>DB::table('m23_provider_events')
@@ -94,7 +91,8 @@ final class M23BillingAdminController extends Controller
             'revisions'=>$row ? DB::table('m23_plan_revisions')
                 ->where('plan_id',$row->id)
                 ->orderByDesc('revision')->limit(50)->get() : collect(),
-            'inUse'=>$row ? (DB::table('m23_company_subscriptions')->where('plan_id',$row->id)->exists() || DB::table('m25_storekit_subscriptions')->where('plan_id',$row->id)->exists()):false,
+            'inUse'=>$row ? DB::table('m23_company_subscriptions')
+                ->where('plan_id',$row->id)->exists():false,
         ]);
     }
 
@@ -145,7 +143,8 @@ final class M23BillingAdminController extends Controller
             if($duplicate)throw ValidationException::withMessages([
                 'code'=>'This plan code and period already exist.',
             ]);
-            if($row && (DB::table('m23_company_subscriptions')->where('plan_id',$plan)->exists() || DB::table('m25_storekit_subscriptions')->where('plan_id',$plan)->exists())){
+            if($row && DB::table('m23_company_subscriptions')
+                ->where('plan_id',$plan)->exists()){
                 throw ValidationException::withMessages([
                     'plan'=>'A subscribed plan is immutable; create a new plan revision.',
                 ]);
