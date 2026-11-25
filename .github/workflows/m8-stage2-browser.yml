@@ -2,7 +2,7 @@ name: M8 Stage 2 customer browser signing acceptance
 
 on:
   push:
-    branches: [feature/m8-digital-signatures-2026-11-04]
+    branches: [feature/m8-digital-signatures-2026-11-04, fix/m20-admin-ui-modal-filters-2026-11-06]
     paths:
       - '.github/workflows/m8-stage2-browser.yml'
       - 'tests/Feature/M8BrowserAcceptanceTest.php'
