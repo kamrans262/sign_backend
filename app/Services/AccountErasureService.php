@@ -14,16 +14,16 @@ use Illuminate\Validation\ValidationException;
 
 final class AccountErasureService
 {
-    public function erase(User $user, Request $request, ?User $administrator = null, ?int $ticketId = null): void
+    public function erase(User $user, Request $request, ?User $administrator = null, ?int $ticketId = null, bool $closeSoleOwned = false, array $transfers = []): void
     {
-        if ($user->is_platform_admin || $user->ownedCompanies()->exists()) {
+        if ($user->is_platform_admin || (!$closeSoleOwned && !$transfers && $user->ownedCompanies()->exists())) {
             throw ValidationException::withMessages(['account' =>
                 'Transfer company ownership and platform administration first.']);
         }
         $privateFiles = [];
-        DB::transaction(function () use ($user, $request, $administrator, $ticketId, &$privateFiles): void {
+        DB::transaction(function () use ($user, $request, $administrator, $ticketId, $closeSoleOwned, $transfers, &$privateFiles): void {
             $locked = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
-            if ($locked->is_platform_admin || $locked->ownedCompanies()->exists()) {
+            if ($locked->is_platform_admin || (!$closeSoleOwned && !$transfers && $locked->ownedCompanies()->exists())) {
                 throw ValidationException::withMessages(['account' => 'Account ownership must be transferred.']);
             }
             $reference = null;
@@ -38,6 +38,32 @@ final class AccountErasureService
                     throw ValidationException::withMessages(['account' => 'A current verified deletion request is required.']);
                 }
                 $reference = $ticket->reference;
+            }
+            foreach ($locked->ownedCompanies()->orderBy('id')->lockForUpdate()->get() as $company) {
+                $successor = $transfers[(string)$company->id] ?? null;
+                $members = DB::table('company_user')->where('company_id',$company->id)
+                    ->where('user_id','!=',$locked->id)->where('status','active')->lockForUpdate()->get();
+                if ($successor !== null) {
+                    $membership = $members->firstWhere('user_id',(int)$successor);
+                    $next = User::whereKey($successor)->where('is_active',true)->whereNotNull('email_verified_at')->lockForUpdate()->first();
+                    if (!$membership || $membership->role !== 'admin' || !$next) {
+                        throw ValidationException::withMessages(['account'=>'Choose a verified active company administrator as successor.']);
+                    }
+                    $company->owner_user_id = $next->id;
+                    $company->save();
+                    DB::table('company_user')->where('company_id',$company->id)->where('user_id',$next->id)
+                        ->update(['role'=>'owner','permissions'=>null,'company_role_id'=>null,'updated_at'=>now()]);
+                    AuditLogger::record('account.deletion.ownership_transferred',$administrator??$locked,$next,$company,request:$request);
+                } elseif ($closeSoleOwned && $members->isEmpty()) {
+                    // Preserve the owner tombstone and all business evidence, suspend access.
+                    $company->status='suspended';
+                    $company->save();
+                    DB::table('company_invitations')->where('company_id',$company->id)->whereNull('accepted_at')->whereNull('revoked_at')
+                        ->update(['revoked_at'=>now(),'updated_at'=>now()]);
+                    AuditLogger::record('account.deletion.sole_company_suspended',$administrator??$locked,$company,$company,request:$request);
+                } else {
+                    throw ValidationException::withMessages(['account'=>'Transfer ownership of shared companies or explicitly close your sole-owner companies.']);
+                }
             }
             $privateFiles = array_merge(
                 $locked->profile_photo_path ? [$locked->profile_photo_path] : [],
@@ -87,6 +113,7 @@ final class AccountErasureService
                 request: $request);
         });
         foreach (array_unique($privateFiles) as $path) Storage::disk('local')->delete($path);
-        app(M25AppleIdentity::class)->retry();
+        // Revocation is durably queued; cron handles retries without delaying account erasure.
+        app(M25AppleIdentity::class)->retry(1);
     }
 }

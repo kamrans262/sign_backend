@@ -144,6 +144,7 @@ Route::middleware(['auth:sanctum', 'active.user', \App\Http\Middleware\M25AiCons
         Route::patch('/me/preferences', [\App\Http\Controllers\Api\M22AccountController::class,'savePreferences'])->middleware('throttle:20,1');
         Route::get('/me/export', [\App\Http\Controllers\Api\M22AccountController::class,'export'])->middleware('throttle:5,1');
         Route::post('/me/deactivate', [\App\Http\Controllers\Api\M22AccountController::class,'deactivate'])->middleware('throttle:3,1');
+        Route::get('/me/deletion/options',[\App\Http\Controllers\Api\M25DeletionController::class,'options'])->middleware('throttle:15,1');
         Route::post('/me/deletion/challenge', [\App\Http\Controllers\Api\M25DeletionController::class,'challenge'])->middleware('throttle:3,1');
         Route::post('/me/deletion/complete', [\App\Http\Controllers\Api\M25DeletionController::class,'complete'])->middleware('throttle:5,1');
         Route::post('/me/delete', [\App\Http\Controllers\Api\M22AccountController::class,'deleteAccount'])->middleware('throttle:3,1');

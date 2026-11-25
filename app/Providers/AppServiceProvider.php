@@ -22,6 +22,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Second boundary: all Laravel HTTP client requests to OpenAI require a
+        // current user-specific consent, including future routes and admin AI actions.
+        \Illuminate\Support\Facades\Http::globalRequestMiddleware(
+            function (\Psr\Http\Message\RequestInterface $outbound) {
+                if (strtolower($outbound->getUri()->getHost()) === 'api.openai.com'
+                    && !\App\Http\Middleware\M25AiConsent::allowed(request()->user()?->id)) {
+                    throw new \RuntimeException('AI consent is required before provider processing.');
+                }
+                return $outbound;
+            }
+        );
         // Email and challenge scoped limits remain effective across IP changes.
         // Opaque hashed identifiers prevent addresses from appearing in cache keys.
         // M19 reminder quota is independent from equipment and loan creation.
