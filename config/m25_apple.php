@@ -4,6 +4,8 @@ return [
     'team' => env('M25_APPLE_TEAM_ID','GQAS52N9NZ'),
     'signin_key_id' => env('M25_APPLE_SIGNIN_KEY_ID',''),
     'signin_key_path' => env('M25_APPLE_SIGNIN_KEY_PATH',''),
+    'signin_require_exchange' => (bool) env('M25_APPLE_SIGNIN_REQUIRE_EXCHANGE',false),
+    'store_app_id' => env('M25_STOREKIT_APP_ID',''),
     'store_enabled' => (bool) env('M25_STOREKIT_ENABLED',false),
     'store_environment' => env('M25_STOREKIT_ENVIRONMENT','Sandbox'),
     'store_issuer' => env('M25_STOREKIT_ISSUER_ID',''),

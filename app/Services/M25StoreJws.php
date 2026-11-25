@@ -27,6 +27,8 @@ final class M25StoreJws {
             $lp['issuer']!==$ip['subject']||$ip['issuer']!==$rp['subject']||
             openssl_x509_verify($leaf,openssl_pkey_get_public($intermediate))!==1||
             openssl_x509_verify($intermediate,openssl_pkey_get_public($root))!==1)throw new \RuntimeException('Invalid Apple certificate chain.');
+        $key=openssl_pkey_get_details(openssl_pkey_get_public($leaf));
+        if(($key['type']??null)!==OPENSSL_KEYTYPE_EC||($key['bits']??null)!==256)throw new \RuntimeException('Invalid Apple signing key.');
         $claims=M25AppleJwt::claims($jws);
         $date=$claims['signedDate']??null;
         if(!is_int($date)||$date/1000>time()+60)throw new \RuntimeException('Invalid signing time.');

@@ -94,8 +94,7 @@ final class M23BillingAdminController extends Controller
             'revisions'=>$row ? DB::table('m23_plan_revisions')
                 ->where('plan_id',$row->id)
                 ->orderByDesc('revision')->limit(50)->get() : collect(),
-            'inUse'=>$row ? DB::table('m23_company_subscriptions')
-                ->where('plan_id',$row->id)->exists():false,
+            'inUse'=>$row ? (DB::table('m23_company_subscriptions')->where('plan_id',$row->id)->exists() || DB::table('m25_storekit_subscriptions')->where('plan_id',$row->id)->exists()):false,
         ]);
     }
 
@@ -146,8 +145,7 @@ final class M23BillingAdminController extends Controller
             if($duplicate)throw ValidationException::withMessages([
                 'code'=>'This plan code and period already exist.',
             ]);
-            if($row && DB::table('m23_company_subscriptions')
-                ->where('plan_id',$plan)->exists()){
+            if($row && (DB::table('m23_company_subscriptions')->where('plan_id',$plan)->exists() || DB::table('m25_storekit_subscriptions')->where('plan_id',$plan)->exists())){
                 throw ValidationException::withMessages([
                     'plan'=>'A subscribed plan is immutable; create a new plan revision.',
                 ]);

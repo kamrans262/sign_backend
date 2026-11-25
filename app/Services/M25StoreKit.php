@@ -10,6 +10,7 @@ final class M25StoreKit {
     public function ready():bool{
         return config('m25_apple.store_enabled')===true&&in_array(config('m25_apple.store_environment'),['Sandbox','Production'],true)
             &&config('m25_apple.store_issuer')!==''&&config('m25_apple.store_key_id')!==''
+            && (config('m25_apple.store_environment')!=='Production'||preg_match('/^[0-9]+$/D',(string)config('m25_apple.store_app_id')))
             &&is_readable((string)config('m25_apple.store_key_path'))&&is_readable((string)config('m25_apple.store_root_path'));
     }
     private function owner(Company $company,int $actor):void{
@@ -35,15 +36,21 @@ final class M25StoreKit {
     }
     public function begin(Company $company,int $actor):array{
         $this->owner($company,$actor);abort_unless($this->ready(),503,'Apple billing is not configured.');
-        return DB::transaction(function()use($company):array{
+        return DB::transaction(function()use($company,$actor):array{
             $locked=Company::whereKey($company->id)->lockForUpdate()->firstOrFail();
-            $this->owner($locked,(int)$company->owner_user_id);
+            $this->owner($locked,$actor);
             abort_if($this->stripeConflict($company->id),409,'An existing Stripe subscription or checkout must end before purchasing.');
             $row=DB::table('m25_storekit_accounts')->where('company_id',$company->id)->first();
             $token=$row?->account_token??(string)Str::uuid();
             DB::table('m25_storekit_accounts')->updateOrInsert(['company_id'=>$company->id],['account_token'=>$token,'pending_until'=>now()->addHours(24),'created_at'=>now(),'updated_at'=>now()]);
             return ['account_token'=>$token];
         },3);
+    }
+    public function cancelPending(Company $company,int $actor):array{
+        $this->owner($company,$actor);
+        // Only releases a local reservation after explicit cancellation; never cancels a provider purchase.
+        DB::table('m25_storekit_accounts')->where('company_id',$company->id)->update(['pending_until'=>null,'updated_at'=>now()]);
+        return ['released'=>true];
     }
     private function api(string $id):array{
         abort_unless($this->ready(),503,'Apple billing is not configured.');
@@ -70,10 +77,10 @@ final class M25StoreKit {
                 strcasecmp((string)($t['appAccountToken']??''),$account->account_token)!==0||
                 ($t['inAppOwnershipType']??null)!=='PURCHASED')continue;
             $original=(string)($t['originalTransactionId']??'');
-            if(!preg_match('/^[0-9]{1,64}$/D',$original)||($existing&&$existing->original_transaction_id!==$original))continue;
+            if(!preg_match('/^[0-9]{1,64}$/D',$original))continue;
             $period=array_search($t['productId']??null,config('m25_apple.products'),true);
             if($period===false)continue;
-            $plan=DB::table('m23_plans')->where('code','business')->where('period',$period)->where('status','published')->first();
+            $plan=DB::table('m23_plans')->where('code','business')->where('period',$period)->first();
             if(!$plan)continue;
             $renewal=$this->jws->verify($last['signedRenewalInfo']??'');
             if((string)($renewal['originalTransactionId']??'')!==$original)continue;
@@ -93,7 +100,14 @@ final class M25StoreKit {
             $locked=Company::whereKey($company->id)->lockForUpdate()->firstOrFail();
             if($actor!==null)$this->owner($locked,$actor);
             $prior=DB::table('m25_storekit_subscriptions')->where('company_id',$company->id)->lockForUpdate()->first();
-            abort_if($prior&&($prior->original_transaction_id!==$chosen['original_transaction_id']||$prior->environment!==$chosen['environment']),409,'Purchase identity conflict.');
+            abort_if($prior&&$prior->environment!==$chosen['environment'],409,'Purchase environment conflict.');
+            if($prior&&$prior->original_transaction_id!==$chosen['original_transaction_id']){
+                abort_if(in_array($prior->status,['active','past_due'],true)&&now()->lessThan($prior->period_ends_at),409,'Existing Apple purchase must end first.');
+                abort_if(!Carbon::parse($prior->period_ends_at)->lessThanOrEqualTo($chosen['period_starts_at']),409,'Older purchase cannot replace a newer subscription.');
+            }
+            $binding=DB::table('m25_storekit_transaction_bindings')->where('original_transaction_id',$chosen['original_transaction_id'])->lockForUpdate()->first();
+            abort_if($binding&&(int)$binding->company_id!==(int)$company->id,409,'Purchase belongs to another company.');
+            DB::table('m25_storekit_transaction_bindings')->insertOrIgnore(['original_transaction_id'=>$chosen['original_transaction_id'],'company_id'=>$company->id,'created_at'=>now()]);
             abort_if(DB::table('m25_storekit_subscriptions')->where('original_transaction_id',$chosen['original_transaction_id'])->where('company_id','!=',$company->id)->exists(),409,'Purchase belongs to another company.');
             if($prior && Carbon::parse($prior->period_starts_at)->greaterThan($chosen['period_starts_at']))return ['verified'=>true,'status'=>$prior->status];
             DB::table('m25_storekit_subscriptions')->updateOrInsert(['company_id'=>$company->id],$chosen+['created_at'=>$prior?->created_at??now()]);
@@ -105,6 +119,7 @@ final class M25StoreKit {
         $n=$this->jws->verify($signed);
         $d=$n['data']??[];
         if(($d['bundleId']??null)!==config('m25_apple.bundle')||($d['environment']??null)!==config('m25_apple.store_environment'))return;
+        if(config('m25_apple.store_environment')==='Production'&&(string)($d['appAppleId']??'')!==(string)config('m25_apple.store_app_id'))throw new \RuntimeException('App identity mismatch.');
         if(empty($d['signedTransactionInfo']))return;
         $t=$this->jws->verify($d['signedTransactionInfo']);
         $account=DB::table('m25_storekit_accounts')->where('account_token',strtolower((string)($t['appAccountToken']??'')))->first();

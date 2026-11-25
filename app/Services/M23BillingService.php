@@ -38,6 +38,7 @@ final class M23BillingService
         $apple=DB::table('m25_storekit_subscriptions')->where('company_id',$companyId)
             ->where('environment',config('m25_apple.store_environment'))->first();
         if($apple && $this->hasVerifiedPlan($apple) && !$this->hasVerifiedPlan($stripe))return $apple;
+        if($apple && (!$stripe || empty($stripe->stripe_subscription_id) || in_array($stripe->status,['canceled','incomplete_expired'],true)))return $apple;
         return $stripe??$apple;
     }
 
@@ -278,7 +279,7 @@ final class M23BillingService
             ],
             'allowance'=>$policy,
             'current_plan'=>$plan,
-            'trial_ends_at'=>$subscription?->trial_ends_at,
+            'trial_ends_at'=>$subscription->trial_ends_at??null,
             'period_ends_at'=>$subscription?->period_ends_at,
             'can_manage_billing'=>!$isApple && $providerState && app(M23StripeGateway::class)->enabled(),
             'cancel_at_period_end'=>(bool)($subscription?->cancel_at_period_end??false),

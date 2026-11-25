@@ -12,6 +12,7 @@ final class M25StoreKitController extends Controller{
     private function response(array $data){return response()->json(['data'=>$data],200,['Cache-Control'=>'private, no-store']);}
     public function catalog(Request $r){return $this->response($this->store->catalog($this->company($r),$r->user()->id));}
     public function begin(Request $r){return $this->response($this->store->begin($this->company($r),$r->user()->id));}
+    public function cancelPending(Request $r){return $this->response($this->store->cancelPending($this->company($r),$r->user()->id));}
     public function verify(Request $r){
         $d=$r->validate(['transaction_id'=>['required','string','regex:/^[0-9]{1,64}$/D']]);
         return $this->response($this->store->sync($this->company($r),$d['transaction_id'],$r->user()->id));

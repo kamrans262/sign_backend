@@ -174,6 +174,7 @@ Route::middleware(['auth:sanctum', 'active.user', \App\Http\Middleware\M25AiCons
                 Route::get('/eligibility', [\App\Http\Controllers\Api\M23BillingController::class,'eligibility']);
                 Route::get('/apple/catalog',[\App\Http\Controllers\Api\M25StoreKitController::class,'catalog']);
                 Route::post('/apple/begin',[\App\Http\Controllers\Api\M25StoreKitController::class,'begin'])->middleware('throttle:5,1');
+                Route::post('/apple/cancel-pending',[\App\Http\Controllers\Api\M25StoreKitController::class,'cancelPending'])->middleware('throttle:5,1');
                 Route::post('/apple/verify',[\App\Http\Controllers\Api\M25StoreKitController::class,'verify'])->middleware('throttle:15,1');
                 Route::get('/history', [\App\Http\Controllers\Api\M23BillingController::class,'history']);
                 Route::post('/checkout', [\App\Http\Controllers\Api\M23StripeBillingController::class,'checkout'])

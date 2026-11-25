@@ -44,6 +44,7 @@ final class AppleMobileAuthController extends Controller
         }
         $provider=app(\App\Services\M25AppleIdentity::class);
         $refresh=null;
+        abort_if(config('m25_apple.signin_require_exchange') && !$provider->configured(),503,'Apple sign-in is temporarily unavailable.');
         if($provider->configured()) {
             if(empty($data['authorization_code'])) throw ValidationException::withMessages(['apple'=>'Update the app and authorize Apple again.']);
             $refresh=$provider->exchange($data['authorization_code'],$identity['sub']);
