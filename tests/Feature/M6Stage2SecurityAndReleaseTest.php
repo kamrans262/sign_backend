@@ -221,42 +221,34 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
     }
 
 
-    public function test_manual_quote_numbers_are_company_unique_without_altering_audit_reference(): void
+    public function test_server_quote_numbers_are_company_unique_without_altering_audit_reference(): void
     {
         [$owner,$company,$client]=$this->tenant();
         $payload=$this->draft($client);
         $payload['quote_number']='R-2026/004';
         $first=$this->postJson('/api/v1/quotes',$payload)
-            ->assertCreated()->assertJsonPath('data.quote.quote_number','R-2026/004');
+            ->assertCreated()->assertJsonPath('data.quote.quote_number','Q-001');
         $firstId=$first->json('data.quote.id');
-        $immutableRef=sprintf('Q-%d-%06d',now()->year,$firstId);
         $this->assertDatabaseHas('service_quotes',[
-            'id'=>$firstId,
-            'reference_number'=>$immutableRef,
-            'custom_quote_number'=>'R-2026/004',
+            'id'=>$firstId,'reference_number'=>'Q-001','custom_quote_number'=>null,
         ]);
-
         $this->postJson('/api/v1/quotes',$payload)
-            ->assertUnprocessable()->assertJsonValidationErrors('quote_number');
+            ->assertCreated()->assertJsonPath('data.quote.quote_number','Q-002');
         $payload['quote_number']='R-2026/005';
         $this->patchJson('/api/v1/quotes/'.$firstId,$payload)
-            ->assertOk()->assertJsonPath('data.quote.quote_number','R-2026/005');
+            ->assertOk()->assertJsonPath('data.quote.quote_number','Q-001');
         $this->assertDatabaseHas('service_quotes',[
-            'id'=>$firstId,'reference_number'=>$immutableRef,
-            'custom_quote_number'=>'R-2026/005',
+            'id'=>$firstId,'reference_number'=>'Q-001','custom_quote_number'=>null,
         ]);
-        $this->postJson('/api/v1/quotes',$payload)->assertUnprocessable();
         $this->postJson('/api/v1/quotes',array_merge($payload,[
             'quote_number'=>'<script>alert(1)</script>',
         ]))->assertUnprocessable();
-
         $this->postJson('/api/v1/quotes/'.$firstId.'/approve',
             ['confirmed'=>true])->assertOk();
         $signed=$this->postJson('/api/v1/quotes/'.$firstId.'/share',[
             'method'=>'secure_link',
         ])->assertOk()->json('data.secure_link');
-        $this->get($signed)->assertOk()->assertSee('R-2026/005');
-
+        $this->get($signed)->assertOk()->assertSee('Q-001');
         $another=User::factory()->create(['is_active'=>true]);
         $otherCompany=Company::create(['owner_user_id'=>$another->id,
             'name'=>'Another Company','country_iso_code'=>'CH','status'=>'active']);
@@ -264,15 +256,13 @@ class M6Stage2SecurityAndReleaseTest extends TestCase
         $otherClient=Client::create(['company_id'=>$otherCompany->id,
             'full_name'=>'New Customer','source'=>'manual']);
         Sanctum::actingAs($another);
-        \Illuminate\Support\Facades\DB::table('m25_ai_consents')->updateOrInsert(['user_id'=>auth()->id()], ['version'=>\App\Http\Middleware\M25AiConsent::VERSION,'allowed'=>true,'created_at'=>now(),'updated_at'=>now()]);
         $this->withHeader('X-Company-Id',(string)$otherCompany->id);
         $second=$this->draft($otherClient);
         $second['quote_number']='R-2026/005';
         $this->postJson('/api/v1/quotes',$second)->assertCreated()
-            ->assertJsonPath('data.quote.quote_number','R-2026/005');
+            ->assertJsonPath('data.quote.quote_number','Q-001');
         $this->getJson('/api/v1/quotes/'.$firstId)->assertNotFound();
     }
-
 
     public function test_pdf_attachment_email_requires_real_pdf_and_does_not_claim_fake_delivery(): void
     {

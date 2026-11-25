@@ -204,7 +204,7 @@ class M4ClientManagementTest extends TestCase
         $this->actingAs($admin);
         $this->get('/admin/clients')->assertOk()
             ->assertSee('Client Management')
-            ->assertSee('Company Management')
+            ->assertSee('Companies')
             ->assertSee('Users');
         $this->post('/admin/clients', array_merge($this->draft('Admin Created'), [
             'company_id' => $company->id,
