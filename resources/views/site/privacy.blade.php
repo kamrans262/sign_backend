@@ -1,0 +1,22 @@
+@extends('site.layout')
+@section('title','Privacy Policy')
+@section('content')
+<div class="legal-head"><div class="wrap"><span class="eyebrow">Your information</span><h1>Privacy Policy</h1><p>Effective 25 November 2026 · Sign2Digital</p></div></div>
+<article class="legal">
+<h2>1. Who we are</h2><p>{{ config('site.operator') }} operates Sign2Digital. We process account and service information to operate the platform. For business records, the company using Sign2Digital may determine the purposes of processing and act as the responsible organization; contact that company for requests about its records.</p>
+<h2>2. Information we process</h2><ul>
+<li>Account details: name, email, optional phone number, profile photograph, company membership, preferences and authentication information.</li>
+<li>Business information: client and job records, quotes, contracts or documents, signatures, photos, notes, reports, invoices, deposits, expenses and time or equipment entries.</li>
+<li>Device and security information: device registration identifiers, session information, IP address and security/audit activity.</li>
+<li>Information provided using optional device permissions, including selected contacts, photos, camera or microphone recordings when you use those features.</li>
+<li>Support messages, attachments, subscription records and payment status information.</li></ul>
+<h2>3. Why information is used</h2><p>We use information to authenticate users, operate features, provide support, deliver requested notifications, maintain security, administer subscriptions and meet applicable legal duties. Depending on the circumstances, processing may be needed to provide the service, meet a legal obligation, pursue legitimate operational interests or rely on consent for optional features.</p>
+<h2>4. Service providers and sharing</h2><p>Authorized company members can access company information according to their roles. Customer-facing documents may be shared through links or email when initiated by an authorized user. Service providers may include hosting and email delivery services, Google Firebase for push notifications, Google and Apple for optional sign-in, Stripe for configured subscription payments, and OpenAI for enabled AI features. Information entered into AI features may be sent to the AI provider to produce a response. Avoid entering unnecessary confidential or sensitive information.</p><p>Information may also be disclosed when required by law or necessary to address a security incident. Payment card information entered on a payment provider's hosted checkout is handled by that provider; we use relevant subscription and payment references.</p>
+<h2>5. Device permissions and website storage</h2><p>Device permissions are requested for relevant features and can be changed in system settings. Notifications are optional. The website uses session and security cookies to support authentication, request verification and protection against misuse.</p>
+<h2>6. Security and retention</h2><p>We use access controls, authenticated sessions and protected storage for private documents. No method of storage or transmission is entirely risk-free. We retain information according to operational needs, company recordkeeping, security and applicable legal obligations. Personal account erasure removes or anonymizes profile and private support data and revokes access; signed business documents, issued invoices and necessary audit evidence may need to remain with the responsible company. Backup copies may remain until their scheduled rotation, subject to applicable obligations.</p>
+<h2>7. International processing</h2><p>Hosting or service providers may process information outside your country. Applicable transfer requirements and safeguards must be observed where required.</p>
+<h2>8. Your choices and rights</h2><p>Depending on applicable law, you may have rights to access, correct, export or erase information, object to or restrict processing, withdraw consent and contact a competent data protection authority. Manage your personal information and preferences in Profile &amp; Settings, or contact Help &amp; Support. To request erasure without the app, use our <a href="{{ route('site.deletion') }}">account deletion page</a>.</p>
+<h2>9. Changes and contact</h2><p>We may update this notice when the service or applicable requirements change. Use Help &amp; Support in the app for privacy questions or data requests.</p>
+@include('site.contact')
+</article>
+@endsection
