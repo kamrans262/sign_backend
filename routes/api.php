@@ -11,6 +11,8 @@ Route::prefix('v1/auth')->middleware('throttle:mobile-auth')->group(function ():
     Route::post('/login', [\App\Http\Controllers\Api\MobileAuthController::class, 'login']);
     Route::post('/google', \App\Http\Controllers\Api\GoogleMobileAuthController::class)
         ->middleware('throttle:8,1');
+    Route::post('/apple/challenge', [\App\Http\Controllers\Api\AppleMobileAuthController::class, 'challenge'])->middleware('throttle:8,1');
+    Route::post('/apple', \App\Http\Controllers\Api\AppleMobileAuthController::class)->middleware('throttle:8,1');
     Route::post('/password/forgot', [\App\Http\Controllers\Api\MobileAuthController::class, 'forgotPassword']);
     Route::post('/otp/resend', [\App\Http\Controllers\Api\MobileAuthController::class, 'resend']);
     Route::post('/otp/verify', [\App\Http\Controllers\Api\MobileAuthController::class, 'verify']);
