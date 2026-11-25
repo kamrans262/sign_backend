@@ -4,6 +4,7 @@
 @section('heading','Help & Support')
 @section('description','Manage customer requests, assignment, status and published FAQs.')
 @section('header_actions')
+<a class="btn btn-outline" href="{{ route('admin.support.contacts.index') }}">Website Contact Messages</a>
 <a class="btn btn-outline" href="{{ route('admin.support.faqs') }}">Manage FAQs</a>
 @endsection
 @section('content')
