@@ -254,7 +254,7 @@ final class WorkAcceptanceService
             if($pdf->GetY()+$h+15>264)$pdf->AddPage();
             $pdf->SetFont('Arial','B',9);
             $pdf->SetTextColor(22,98,130);
-            $pdf->MultiCell(0,6,'Work Acceptance Photo #'.$photoId);
+            $pdf->MultiCell(0,6,\App\Support\AppLocale::text('Work Acceptance Photo').' #'.$photoId);
             $y=$pdf->GetY();
             $pdf->Image($disk->path($photo->private_path),19,$y,$w,$h,
                 $photo->mime_type==='image/png'?'PNG':'JPG');

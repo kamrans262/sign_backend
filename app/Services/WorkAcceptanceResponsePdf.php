@@ -13,12 +13,14 @@ final class WorkAcceptanceResponsePdf extends Fpdi
     private int $originalPages = 0;
     private string $reference = '';
     private string $company = '';
+    private string $language = 'en';
 
-    public function customerSection(int $originalPages,string $reference,string $company): void
+    public function customerSection(int $originalPages,string $reference,string $company,string $language='en'): void
     {
         $this->originalPages = $originalPages;
         $this->reference = $reference;
         $this->company = $company;
+        $this->language = \App\Support\AppLocale::normalize($language);
         $this->SetMargins(20, 58, 20);
         $this->SetAutoPageBreak(true, 20);
         $this->AliasNbPages();
@@ -28,13 +30,13 @@ final class WorkAcceptanceResponsePdf extends Fpdi
     {
         if ($this->PageNo() <= $this->originalPages) return;
         Sign2DigitalDocumentPdf::drawHeader(
-            $this,'Customer Response',$this->reference,$this->company
+            $this,'Customer Response',$this->reference,$this->company,$this->language
         );
     }
 
     public function Footer(): void
     {
         if ($this->PageNo() <= $this->originalPages) return;
-        Sign2DigitalDocumentPdf::drawFooter($this);
+        Sign2DigitalDocumentPdf::drawFooter($this,$this->language);
     }
 }

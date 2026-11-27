@@ -86,7 +86,8 @@ final class WorkAcceptanceCustomerService
         abort_unless($count>=1&&$count<=50,422,'Unsupported report PDF.');
         $companyName=(string)(DB::table('companies')
             ->where('id',$report->company_id)->value('name')??'');
-        $pdf->customerSection($count,(string)$report->number,$companyName);
+        $lang=\App\Support\AppLocale::current();
+        $pdf->customerSection($count,(string)$report->number,$companyName,$lang);
         foreach(range(1,$count) as $i) {
             $template=$pdf->importPage($i);
             $size=$pdf->getTemplateSize($template);
@@ -96,29 +97,31 @@ final class WorkAcceptanceCustomerService
         $pdf->AddPage('P','A4');
         $pdf->SetTextColor(18,37,54);
         $pdf->SetFont('Arial','B',15);
-        $pdf->MultiCell(0,9,'Customer Work Acceptance Response');
+        $pdf->MultiCell(0,9,self::label(\App\Support\AppLocale::text('Customer Work Acceptance Response',$lang)));
+
         $pdf->SetFont('Arial','',10);
         $rows=[
             'Work acceptance'=>$report->number,
             'Decision'=>$data['decision']==='accepted_with_reservations'
-                ? 'Accepted with reservations' : 'Accepted',
+                ? \App\Support\AppLocale::text('Accepted with reservations',$lang) : \App\Support\AppLocale::text('Accepted',$lang),
             'Customer'=>$data['customer_name'],
             'Signed decision date (UTC)'=>now()->utc()->format('Y-m-d H:i:s').' UTC',
-            'Reservations'=>$data['reservation']??'None',
-            'Outstanding issues'=>$data['outstanding_issues']??'None',
-            'Additional comments'=>$data['comment']??'None',
-            'Optional rating'=>isset($data['rating'])?(string)$data['rating'].' / 5':'Not provided',
+            'Reservations'=>$data['reservation']??\App\Support\AppLocale::text('None',$lang),
+            'Outstanding issues'=>$data['outstanding_issues']??\App\Support\AppLocale::text('None',$lang),
+            'Additional comments'=>$data['comment']??\App\Support\AppLocale::text('None',$lang),
+            'Optional rating'=>isset($data['rating'])?(string)$data['rating'].' / 5':\App\Support\AppLocale::text('Not provided',$lang),
         ];
         foreach($rows as $label=>$value) {
             $pdf->SetFont('Arial','B',10);
-            $pdf->MultiCell(0,7,self::label($label));
+            $pdf->MultiCell(0,7,self::label(\App\Support\AppLocale::text($label,$lang)));
+
             $pdf->SetFont('Arial','',10);
             $pdf->MultiCell(0,6,self::label($value));
             $pdf->Ln(2);
         }
         foreach($photos as $index=>$photo) {
             $pdf->SetFont('Arial','B',10);
-            $pdf->MultiCell(0,7,'Customer Evidence Photo #'.($index+1));
+            $pdf->MultiCell(0,7,self::label(\App\Support\AppLocale::text('Customer Evidence Photo',$lang)).' #'.($index+1));
             $pdf->SetFont('Arial','',8);
             $pdf->MultiCell(0,5,'SHA-256: '.$photo['sha']);
             $ratio=$photo['width']/max(1,$photo['height']);
