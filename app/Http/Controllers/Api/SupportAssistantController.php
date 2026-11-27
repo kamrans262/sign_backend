@@ -355,7 +355,7 @@ GUIDE;
                     'response_format' => ['type' => 'json_object'],
                     'messages' => array_merge([['role' => 'system', 'content' =>
                         $guide."\nAllowed screen links for this authenticated user: ".
-                        implode(', ', $allowed)]], $history),
+                        implode(', ', $allowed).\App\Support\AppLocale::aiInstruction()]], $history),
                 ],
             );
         } catch (\Throwable) {

@@ -57,7 +57,7 @@ final class DepositAiController extends Controller
                 'model'=>config('services.openai.quote_model','gpt-4o-mini'),
                 'temperature'=>0,'response_format'=>['type'=>'json_object'],
                 'messages'=>[
-                    ['role'=>'system','content'=>$instruction],
+                    ['role'=>'system','content'=>$instruction.\App\Support\AppLocale::aiInstruction()],
                     ['role'=>'user','content'=>$text],
                 ],
             ]);

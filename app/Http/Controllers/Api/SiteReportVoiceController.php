@@ -73,7 +73,7 @@ PROMPT;
                         'temperature' => 0,
                         'response_format' => ['type' => 'json_object'],
                         'messages' => [
-                            ['role' => 'system', 'content' => $instructions],
+                            ['role' => 'system', 'content' => $instructions.\App\Support\AppLocale::aiInstruction()],
                             ['role' => 'user', 'content' => json_encode(
                                 ['transcript' => $text],
                                 JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)],

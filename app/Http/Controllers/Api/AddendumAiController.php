@@ -66,7 +66,7 @@ PROMPT;
                     'model'=>config('services.openai.quote_model','gpt-4o-mini'),
                     'temperature'=>0,'response_format'=>['type'=>'json_object'],
                     'messages'=>[
-                        ['role'=>'system','content'=>$system],
+                        ['role'=>'system','content'=>$system.\App\Support\AppLocale::aiInstruction()],
                         ['role'=>'user','content'=>json_encode(['transcript'=>mb_substr($text,0,12000)])],
                     ],
                 ]);

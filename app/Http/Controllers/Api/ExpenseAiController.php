@@ -44,7 +44,7 @@ final class ExpenseAiController extends Controller
                 'model'=>config('services.openai.quote_model','gpt-4o-mini'),
                 'temperature'=>0,'response_format'=>['type'=>'json_object'],
                 'messages'=>[
-                    ['role'=>'system','content'=>$prompt],
+                    ['role'=>'system','content'=>$prompt.\App\Support\AppLocale::aiInstruction()],
                     ['role'=>'user','content'=>mb_substr($text,0,14000)],
                 ],
             ]);
@@ -131,7 +131,7 @@ final class ExpenseAiController extends Controller
                         .'using ONLY clearly printed information. Keys: date, amount, supplier, '
                          .'description, expenseType, tags, jobReference. Describe purchased goods '
                          .'concisely, not the receipt transcription. Unknown is null; '
-                        .'never guess; never create a purchase.'],
+                        .'never guess; never create a purchase.'.\App\Support\AppLocale::aiInstruction()],
                     ['role'=>'user','content'=>[
                         ['type'=>'text','text'=>'Read this receipt as a draft suggestion.'],
                         ['type'=>'image_url','image_url'=>[

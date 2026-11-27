@@ -108,7 +108,7 @@ PROMPT;
                     'temperature' => 0,
                     'response_format' => ['type' => 'json_object'],
                     'messages' => [
-                        ['role' => 'system', 'content' => $kind === 'job' ? $job : $company],
+                        ['role' => 'system', 'content' => ($kind === 'job' ? $job : $company).\App\Support\AppLocale::aiInstruction()],
                         ['role' => 'user', 'content' => json_encode([
                             'today' => now()->toDateString(),
                             'transcript' => $transcript,

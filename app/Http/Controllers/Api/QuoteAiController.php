@@ -128,7 +128,7 @@ clarification_question to null. Do not fabricate a work item just to avoid
 a question. Never ask for prices, VAT, deposits or sensitive details.
 INSTRUCTIONS;
         $messages = [
-            ['role'=>'system','content'=>$system],
+            ['role'=>'system','content'=>$system.\App\Support\AppLocale::aiInstruction()],
             ['role'=>'user','content'=>array_values(array_filter([
                 ['type'=>'text','text'=>$content],$image,
             ]))],

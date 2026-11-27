@@ -52,7 +52,7 @@ final class LabourAiController extends Controller
                 'model'=>config('services.openai.quote_model','gpt-4o-mini'),
                 'temperature'=>0,'response_format'=>['type'=>'json_object'],
                 'messages'=>[
-                    ['role'=>'system','content'=>$prompt],
+                    ['role'=>'system','content'=>$prompt.\App\Support\AppLocale::aiInstruction()],
                     ['role'=>'user','content'=>$text],
                 ],
             ]);
