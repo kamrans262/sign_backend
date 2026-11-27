@@ -102,6 +102,8 @@ final class GeneralDocumentIssueService
         // but retain every block, attachment and its immutable issue snapshot.
         // No existing issued or signed PDF is rendered again.
         abort_unless(class_exists(\FPDF::class),503,'PDF renderer unavailable.');
+        $lang=\App\Support\AppLocale::normalize($snapshot['locale']??'en');
+        $t=static fn(string $source):string => self::label(\App\Support\AppLocale::text($source,$lang));
         $pdf=new Sign2DigitalInvoicePdfCanvas('P','mm','A4');
         $pdf->SetTitle(self::label('Sign2Digital '.$snapshot['title'],200));
         $pdf->SetAuthor('Sign2Digital');
@@ -138,7 +140,7 @@ final class GeneralDocumentIssueService
         $pdf->SetTextColor(...$ink);
         $pdf->SetFont('Helvetica','B',18);
         $pdf->SetXY(124,20.5);
-        $pdf->Cell($right-124,8,'Document',0,1,'R');
+        $pdf->Cell($right-124,8,$t('Document'),0,1,'R');
         $pdf->SetTextColor(...$grey);
         $pdf->SetFont('Helvetica','',12);
         $pdf->SetXY(124,30);
@@ -156,14 +158,14 @@ final class GeneralDocumentIssueService
         }
         if($snapshot['company_vat']){
             $pdf->SetX($inner);
-            $pdf->MultiCell(94,5,'VAT: '.self::label($snapshot['company_vat'],110));
+            $pdf->MultiCell(94,5,$t('VAT').': '.self::label($snapshot['company_vat'],110));
         }
         $y=max(59,$pdf->GetY()+4);
         if($snapshot['client_name']){
             $pdf->SetXY($inner,$y);
             $pdf->SetTextColor(...$ink);
             $pdf->SetFont('Helvetica','B',12);
-            $pdf->Cell(94,7,'To:',0,1);
+            $pdf->Cell(94,7,$t('To:'),0,1);
             $pdf->SetFont('Helvetica','',11);
             $pdf->SetTextColor(...$grey);
             $pdf->SetX($inner);
@@ -173,7 +175,7 @@ final class GeneralDocumentIssueService
             $pdf->SetTextColor(...$ink);
             $pdf->SetFont('Helvetica','B',10);
             $pdf->SetX($inner);
-            $pdf->MultiCell(94,6,'Project: '.self::label($snapshot['job_title'],200));
+            $pdf->MultiCell(94,6,$t('Project:').' '.self::label($snapshot['job_title'],200));
         }
         $leftBottom=$pdf->GetY();
 
@@ -182,8 +184,8 @@ final class GeneralDocumentIssueService
         if($date!=='')$date=substr($date,0,10);
         $metaY=$y;
         foreach([
-            ['Date:', $date],
-            ['Type:',str_replace('_',' ',ucwords($snapshot['type'],'_'))],
+            [$t('Date:'), $date],
+            [$t('Type:'),str_replace('_',' ',ucwords($snapshot['type'],'_'))],
         ] as [$label,$value]){
             if(trim($value)==='')continue;
             $pdf->SetXY(131,$metaY);
@@ -238,7 +240,7 @@ final class GeneralDocumentIssueService
             $pdf->SetTextColor(255,255,255);
             $pdf->SetFont('Helvetica','B',11);
             $pdf->SetX($left);
-            $pdf->Cell($width,9,'  Related attachments (stored separately)',0,1,'L',true);
+            $pdf->Cell($width,9,'  '.$t('Related attachments (stored separately)'),0,1,'L',true);
             $pdf->Ln(5);
             foreach($snapshot['attachments'] as $file){
                 $pdf->SetTextColor(...$ink);
@@ -270,9 +272,9 @@ final class GeneralDocumentIssueService
         $pdf->SetTextColor(...$grey);
         $pdf->SetFont('Helvetica', '', 10);
         $pdf->SetXY(20, $lineY + 3);
-        $pdf->Cell(60, 6, 'Customer Signature');
+        $pdf->Cell(60, 6, $t('Customer Signature'));
         $pdf->SetXY(112, $lineY + 3);
-        $pdf->Cell(60, 6, 'Date');
+        $pdf->Cell(60, 6, $t('Date'));
         $pdf->SetY($lineY + 13);
         $pdf->Ln(8);
         $pdf->SetTextColor(...$grey);

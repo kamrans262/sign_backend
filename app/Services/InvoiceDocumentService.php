@@ -71,6 +71,7 @@ final class InvoiceDocumentService
         return [
             'version'=>1,'company_id'=>(int)$company->id,
             'company_name'=>$company->name,'company_address'=>$company->address??'',
+            'locale'=>\App\Support\AppLocale::current(),
             'company_vat'=>$company->vat_number??'',
             'invoice_id'=>(int)$invoice->id,'revision'=>(int)$invoice->revision,
             'number'=>$record['number'],'type'=>$record['type'],
@@ -99,6 +100,8 @@ final class InvoiceDocumentService
         // Match the approved quotation PDF visual family. Only the layout is
         // revised; every value comes from the same verified immutable snapshot.
         abort_unless(class_exists(\FPDF::class),503,'PDF rendering library unavailable.');
+        $lang=\App\Support\AppLocale::normalize($s['locale']??'en');
+        $t=static fn(string $source):string => self::label(\App\Support\AppLocale::text($source,$lang));
         $pdf=new Sign2DigitalInvoicePdfCanvas('P','mm','A4');
         $pdf->SetTitle(self::label('Sign2Digital Invoice '.$s['number']));
         $pdf->SetAuthor('Sign2Digital');
@@ -131,7 +134,7 @@ final class InvoiceDocumentService
             $pdf->Cell(62,12,'Sign2Digital',0,0,'L');
         }
         $pdf->SetXY(129,$cardInset);
-        $pdf->Cell($innerRight-129,8,'Invoice',0,1,'R');
+        $pdf->Cell($innerRight-129,8,$t('Invoice'),0,1,'R');
         $pdf->SetTextColor(...$grey);
         $pdf->SetFont('Arial','',12);
         $pdf->SetXY(125,$cardInset+11);
@@ -156,7 +159,7 @@ final class InvoiceDocumentService
         $pdf->SetXY($cardInset,$billY);
         $pdf->SetTextColor(...$ink);
         $pdf->SetFont('Arial','B',12);
-        $pdf->Cell(85,7,'Bill To:',0,1);
+        $pdf->Cell(85,7,$t('Bill To:'),0,1);
         $pdf->SetTextColor(...$grey);
         $pdf->SetFont('Arial','',10);
         $pdf->SetX($cardInset);
@@ -172,9 +175,9 @@ final class InvoiceDocumentService
         $metaY=$billY;
         $dateGroupLeft=$innerRight-55.0333;
         foreach([
-            ['Date:',(string)$s['invoice_date']],
-            ['Due Date:',(string)$s['due_date']],
-            ['Project:',self::label((string)$s['job'],90)],
+            [$t('Date:'),(string)$s['invoice_date']],
+            [$t('Due Date:'),(string)$s['due_date']],
+            [$t('Project:'),self::label((string)$s['job'],90)],
         ] as [$label,$value]) {
             $pdf->SetXY($dateGroupLeft,$metaY);
             $pdf->SetFont('Arial','B',10);
@@ -195,15 +198,15 @@ final class InvoiceDocumentService
 
         // Quotation 4:1:2.2:2.2 table proportions across 38pt margins.
         $tableWidths=[77.95,19.49,42.87,42.8788];
-        $tableHeader=function()use($pdf,$blue,$pageInset,$tableWidths):void {
+        $tableHeader=function()use($pdf,$blue,$pageInset,$tableWidths,$t):void {
             $pdf->SetX($pageInset);
             $pdf->SetFillColor(...$blue);
             $pdf->SetTextColor(255,255,255);
             $pdf->SetFont('Arial','B',11);
-            $pdf->Cell($tableWidths[0],10,'Description',0,0,'L',true);
-            $pdf->Cell($tableWidths[1],10,'Qty',0,0,'R',true);
-            $pdf->Cell($tableWidths[2],10,'Unit Price',0,0,'R',true);
-            $pdf->Cell($tableWidths[3],10,'Total',0,1,'R',true);
+            $pdf->Cell($tableWidths[0],10,$t('Description'),0,0,'L',true);
+            $pdf->Cell($tableWidths[1],10,$t('Qty'),0,0,'R',true);
+            $pdf->Cell($tableWidths[2],10,$t('Unit Price'),0,0,'R',true);
+            $pdf->Cell($tableWidths[3],10,$t('Total'),0,1,'R',true);
         };
         $tableHeader();
         $pdf->SetTextColor(...$ink);
@@ -276,7 +279,8 @@ final class InvoiceDocumentService
             $pdf->SetTextColor(...($isTotal?[255,255,255]:$grey));
             $fontSize=$pdf->GetStringWidth($name)>43 ? 8 : 10;
             $pdf->SetFont('Arial',$isTotal?'B':'',$isTotal?11:$fontSize);
-            $pdf->Cell(43,9,$name,0,0,'R');
+            $displayName=str_starts_with($name,'VAT (') ? $t('VAT').substr($name,3) : $t($name);
+            $pdf->Cell(43,9,$displayName,0,0,'R');
             $pdf->SetTextColor(...($isTotal?[255,255,255]:$ink));
             $pdf->SetFont('Arial',$isTotal?'B':'',$isTotal?11:10);
             $pdf->Cell(31.0833,9,$value,0,1,'R');
@@ -288,17 +292,17 @@ final class InvoiceDocumentService
         $pdf->SetFont('Arial','B',14);
         $pdf->SetTextColor(...$ink);
         $pdf->SetX($cardInset);
-        $pdf->Cell($cardWidth-14.1111,8,'Payment Details',0,1);
+        $pdf->Cell($cardWidth-14.1111,8,$t('Payment Details'),0,1);
         $pdf->SetFont('Arial','',12);
         $pdf->SetX($cardInset);
-        $pdf->Cell($cardWidth-14.1111,6,'Payment QR unavailable',0,1);
+        $pdf->Cell($cardWidth-14.1111,6,$t('Payment QR unavailable'),0,1);
         $pdf->SetTextColor(...$grey);
         $pdf->SetFont('Arial','',10);
         $pdf->Ln(4);
         $pdf->SetX($cardInset);
         $pdf->MultiCell($cardWidth-14.1111,5,'IBAN: '.self::label((string)$s['iban']));
         $pdf->SetX($cardInset);
-        $pdf->MultiCell($cardWidth-14.1111,5,'Reference: '.self::label($s['number']));
+        $pdf->MultiCell($cardWidth-14.1111,5,$t('Reference: ').self::label($s['number']));
         $payBottom=$pdf->GetY()+5.29;
         $pdf->SetDrawColor(228,234,240);
         $pdf->quotationCard($pageInset,$startY-5.29,$cardWidth,
@@ -310,7 +314,7 @@ final class InvoiceDocumentService
         if($s['notes']) {
             $pdf->SetTextColor(...$ink);
             $pdf->SetFont('Arial','B',11);
-            $pdf->Cell(172,8,'Notes',0,1);
+            $pdf->Cell(172,8,$t('Notes'),0,1);
             $pdf->SetTextColor(...$grey);
             $pdf->SetFont('Arial','',10);
             $pdf->MultiCell(172,6,self::label($s['notes'],650));
@@ -319,7 +323,7 @@ final class InvoiceDocumentService
         if($s['terms']) {
             $pdf->SetTextColor(...$ink);
             $pdf->SetFont('Arial','B',13);
-            $pdf->Cell($cardWidth,8,'General Terms & Conditions',0,1);
+            $pdf->Cell($cardWidth,8,$t('General Terms & Conditions'),0,1);
             $pdf->SetTextColor(...$grey);
             $pdf->SetFont('Arial','',10);
             $pdf->MultiCell($cardWidth,6,self::label($s['terms'],650));

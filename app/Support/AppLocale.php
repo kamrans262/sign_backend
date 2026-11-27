@@ -127,6 +127,11 @@ final class AppLocale
         'For customer review. This document is not accepted or signed until verified customer confirmation.' => ['fr'=>"Pour examen par le client. Ce document n’est accepté et signé qu’après confirmation vérifiée.",'de'=>'Zur Prüfung durch den Kunden. Die Annahme und Unterzeichnung erfolgen erst nach bestätigter Kundenzustimmung.','it'=>'Per la revisione del cliente. Il documento non è accettato o firmato fino alla conferma verificata.'],
         'The original signed quote remains unchanged. This separate addendum is not accepted until signed by the customer.' => ['fr'=>"Le devis original signé reste inchangé. Cet avenant distinct n’est accepté qu’après signature du client.",'de'=>'Das ursprünglich unterzeichnete Angebot bleibt unverändert. Dieser Nachtrag gilt erst nach Unterschrift des Kunden als angenommen.','it'=>'Il preventivo originale firmato rimane invariato. Questo addendum separato è accettato solo dopo la firma del cliente.'],
         'Page' => ['fr'=>'Page','de'=>'Seite','it'=>'Pagina'],
+        'Payment Details' => ['fr'=>'Détails de paiement','de'=>'Zahlungsdetails','it'=>'Dettagli di pagamento'],
+        'Payment QR unavailable' => ['fr'=>'QR de paiement indisponible','de'=>'Zahlungs-QR nicht verfügbar','it'=>'QR pagamento non disponibile'],
+        'Received deposits' => ['fr'=>'Acomptes reçus','de'=>'Erhaltene Anzahlungen','it'=>'Acconti ricevuti'],
+        'Other payments at issue' => ['fr'=>'Autres paiements à l’émission','de'=>'Weitere Zahlungen bei Ausstellung','it'=>'Altri pagamenti all’emissione'],
+        'Outstanding at issue' => ['fr'=>'Restant dû à l’émission','de'=>'Bei Ausstellung offen','it'=>'Importo dovuto all’emissione'],
         'Invoice email delivery is not configured.' => ['fr'=>"L’envoi de factures par e-mail n’est pas configuré.",'de'=>'Der Rechnungsversand per E-Mail ist nicht eingerichtet.','it'=>'L’invio delle fatture via e-mail non è configurato.'],
     ];
 }
