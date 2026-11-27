@@ -19,7 +19,7 @@ final class EquipmentLoanReminderMail extends Mailable
 
     public function build(): static
     {
-        return $this->subject('Equipment return reminder — '.$this->companyName)
+        return $this->subject(\App\Support\MailText::tr('Equipment return reminder — ').$this->companyName)
             ->view('mail.equipment-loan-reminder')
             ->with([
                 'companyName'=>$this->companyName,

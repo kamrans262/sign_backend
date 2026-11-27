@@ -18,7 +18,7 @@ class CompanyInvitationMail extends Mailable
 
     public function build(): static
     {
-        return $this->subject('Sign2Digital — Company invitation')
+        return $this->subject(\App\Support\MailText::tr('Sign2Digital — Company invitation'))
             ->view('mail.company-invitation')
             ->with([
                 'companyName' => $this->companyName,

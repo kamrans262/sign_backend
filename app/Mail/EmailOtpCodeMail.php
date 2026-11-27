@@ -23,6 +23,7 @@ class EmailOtpCodeMail extends Mailable
             'reset' => 'Reset your password',
             default => 'Your verification code',
         };
+        $label=\App\Support\MailText::tr($label);
         return $this->subject('Sign2Digital — '.$label)
             ->view('mail.email-otp')
             ->with(['otpPurposeLabel' => $label, 'otpCode' => $this->code]);

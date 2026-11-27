@@ -8,7 +8,7 @@ class M22EmailChangeCodeMail extends Mailable
     public function __construct(public readonly string $code) {}
     public function build(): static
     {
-        return $this->subject('Sign2Digital — verify your new email')
+        return $this->subject(\App\Support\MailText::tr('Sign2Digital — verify your new email'))
             ->text('mail.m22-email-change', ['code' => $this->code]);
     }
 }
