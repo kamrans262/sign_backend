@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Sign2Digital | Work Acceptance</title>
+<title>{{ \App\Support\PublicPageText::tr('Sign2Digital | Work Acceptance') }}</title>
 <style>
 :root{font-family:Inter,system-ui,-apple-system,sans-serif;color:#122536;background:#f5f8fa}
 *{box-sizing:border-box}body{margin:0;padding:20px}.sheet{max-width:760px;margin:10px auto;background:#fff;border:1px solid #d9e2ea;border-radius:10px;padding:24px}
@@ -21,16 +21,16 @@ button,.btn{display:inline-block;background:#166282;border:0;border-radius:10px;
 </head>
 <body>
 <main class="sheet">
-<h1>Work Acceptance</h1>
+<h1>{{ \App\Support\PublicPageText::tr('Work Acceptance') }}</h1>
 <p class="sub">Sign2Digital · {{ $item->number }} · Customer review</p>
-<p class="sub">Review the exact approved work report before accepting or signing. You can add reservations or outstanding issues.</p>
-<div class="row"><strong>Work completed</strong><div class="box">{{ $item->completed_work }}</div></div>
-<div class="row"><strong>Completion date</strong>{{ $item->completion_date }}</div>
-<div class="row"><strong>Cleaning / restoration status</strong>{{ ucfirst(str_replace('_',' ',$item->cleaning_status)) }}</div>
-@if($item->outstanding_issues)<div class="row"><strong>Reported outstanding issues</strong><div class="box">{{ $item->outstanding_issues }}</div></div>@endif
-@if($item->remedial_work)<div class="row"><strong>Remedial work</strong><div class="box">{{ $item->remedial_work }}</div></div>@endif
-<a class="btn secondary" href="{{ route('acceptance.public.approvedPdf',['token'=>$token]) }}" target="_blank" rel="noopener noreferrer">View Approved PDF</a>
-<h2>Your acceptance decision</h2>
+<p class="sub">{{ \App\Support\PublicPageText::tr('Review the exact approved work report before accepting or signing. You can add reservations or outstanding issues.') }}</p>
+<div class="row"><strong>{{ \App\Support\PublicPageText::tr('Work completed') }}</strong><div class="box">{{ $item->completed_work }}</div></div>
+<div class="row"><strong>{{ \App\Support\PublicPageText::tr('Completion date') }}</strong>{{ $item->completion_date }}</div>
+<div class="row"><strong>{{ \App\Support\PublicPageText::tr('Cleaning / restoration status') }}</strong>{{ ucfirst(str_replace('_',' ',$item->cleaning_status)) }}</div>
+@if($item->outstanding_issues)<div class="row"><strong>{{ \App\Support\PublicPageText::tr('Reported outstanding issues') }}</strong><div class="box">{{ $item->outstanding_issues }}</div></div>@endif
+@if($item->remedial_work)<div class="row"><strong>{{ \App\Support\PublicPageText::tr('Remedial work') }}</strong><div class="box">{{ $item->remedial_work }}</div></div>@endif
+<a class="btn secondary" href="{{ route('acceptance.public.approvedPdf',['token'=>$token]) }}" target="_blank" rel="noopener noreferrer">{{ \App\Support\PublicPageText::tr('View Approved PDF') }}</a>
+<h2>{{ \App\Support\PublicPageText::tr('Your acceptance decision') }}</h2>
 <form id="accept" method="post" enctype="multipart/form-data" action="{{ route('acceptance.public.submit',['token'=>$token]) }}">
 @csrf
 <input type="hidden" name="request_uuid" value="{{ $signing->request_uuid }}">
@@ -38,29 +38,29 @@ button,.btn{display:inline-block;background:#166282;border:0;border-radius:10px;
 <input type="hidden" name="consent_reference" value="{{ $signing->consent_reference }}">
 <input type="hidden" name="revision" value="{{ $signing->approved_revision }}">
 <div class="choices">
-<label class="choice"><input type="radio" name="decision" value="accepted" required> I accept the completed work</label>
-<label class="choice"><input type="radio" name="decision" value="accepted_with_reservations" required> I accept the completed work with reservations</label>
+<label class="choice"><input type="radio" name="decision" value="accepted" required> {{ \App\Support\PublicPageText::tr('I accept the completed work') }}</label>
+<label class="choice"><input type="radio" name="decision" value="accepted_with_reservations" required> {{ \App\Support\PublicPageText::tr('I accept the completed work with reservations') }}</label>
 </div>
-<label for="name">Customer name</label>
+<label for="name">{{ \App\Support\PublicPageText::tr('Customer name') }}</label>
 <input id="name" type="text" name="customer_name" maxlength="255" required readonly value="{{ $signing->signer_name }}">
-<label for="reservation">Reservations (when applicable)</label>
+<label for="reservation">{{ \App\Support\PublicPageText::tr('Reservations (when applicable)') }}</label>
 <textarea id="reservation" name="reservation" maxlength="12000" placeholder="Describe anything you accept with reservations"></textarea>
-<label for="issues">Additional outstanding issues</label>
+<label for="issues">{{ \App\Support\PublicPageText::tr('Additional outstanding issues') }}</label>
 <textarea id="issues" name="outstanding_issues" maxlength="12000" placeholder="Describe any remaining work or issues"></textarea>
-<label for="photos">Attach customer evidence photos (up to four, JPG/PNG, 3 MB each)</label>
+<label for="photos">{{ \App\Support\PublicPageText::tr('Attach customer evidence photos (up to four, JPG/PNG, 3 MB each)') }}</label>
 <input id="photos" type="file" name="photos[]" accept="image/jpeg,image/png" multiple>
-<label for="rating">Optional rating</label>
-<select id="rating" name="rating"><option value="">Not rated</option>@for($n=1;$n<=5;$n++)<option value="{{ $n }}">{{ $n }} / 5</option>@endfor</select>
-<label for="comment">Optional comment</label>
+<label for="rating">{{ \App\Support\PublicPageText::tr('Optional rating') }}</label>
+<select id="rating" name="rating"><option value="">{{ \App\Support\PublicPageText::tr('Not rated') }}</option>@for($n=1;$n<=5;$n++)<option value="{{ $n }}">{{ $n }} / 5</option>@endfor</select>
+<label for="comment">{{ \App\Support\PublicPageText::tr('Optional comment') }}</label>
 <textarea id="comment" name="comment" maxlength="5000"></textarea>
-<h2>Customer signature</h2>
-<p class="sub">Draw your signature below. Your decision and any reservations will be included in the signed PDF.</p>
+<h2>{{ \App\Support\PublicPageText::tr('Customer signature') }}</h2>
+<p class="sub">{{ \App\Support\PublicPageText::tr('Draw your signature below. Your decision and any reservations will be included in the signed PDF.') }}</p>
 <canvas id="sign" width="720" height="240" aria-label="Draw signature here"></canvas>
-<button id="clear" type="button" class="secondary">Clear Signature</button>
+<button id="clear" type="button" class="secondary">{{ \App\Support\PublicPageText::tr('Clear Signature') }}</button>
 <input id="signature" type="hidden" name="signature_png" required>
 <label class="consent"><input id="consent" type="checkbox" name="consent" value="1" required>
 <span>I have reviewed this work report, confirm my selected acceptance decision and agree to sign electronically. I understand that the submitted signature and my reservations will be recorded in the signed document.</span></label>
-<div class="row"><button type="submit" id="submit">Sign and Submit</button></div>
+<div class="row"><button type="submit" id="submit">{{ \App\Support\PublicPageText::tr('Sign and Submit') }}</button></div>
 <p class="sub">This private signing link expires on {{ \Illuminate\Support\Carbon::parse($signing->expires_at)->format('Y-m-d H:i') }} UTC.</p>
 </form>
 </main>

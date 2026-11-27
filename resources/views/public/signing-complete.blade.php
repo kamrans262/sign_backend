@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <meta name="referrer" content="no-referrer">
-  <title>Document Signed | Sign2Digital</title>
+  <title>{{ \App\Support\PublicPageText::tr('Document Signed | Sign2Digital') }}</title>
   <style>
     *{box-sizing:border-box}
     body{margin:0;background:#fff;color:#122536;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:14px;font-weight:500}
@@ -24,15 +24,15 @@
 <body>
   <main>
     <div class="success" aria-hidden="true">✓</div>
-    <h1>Document Signed!</h1>
+    <h1>{{ \App\Support\PublicPageText::tr('Document Signed!') }}</h1>
     <p>Thank you. Your signature has been added to the approved quote, and the completed signed PDF is available below.</p>
     <div class="details" aria-label="Signature receipt">
-      <div class="row"><span class="label">Quote:</span><span>{{ $receipt['quoteNumber'] }}</span></div>
-      <div class="row"><span class="label">Signed By:</span><span>{{ $receipt['signerName'] }}</span></div>
-      <div class="row"><span class="label">Date and Time:</span><span>{{ \Illuminate\Support\Carbon::parse($receipt['signedAt'])->utc()->format('j F Y, H:i') }} UTC</span></div>
-      <div class="row"><span class="label">IP address:</span><span>{{ $receipt['ipAddress'] ?? 'Not available' }}</span></div>
+      <div class="row"><span class="label">{{ \App\Support\PublicPageText::tr('Quote:') }}</span><span>{{ $receipt['quoteNumber'] }}</span></div>
+      <div class="row"><span class="label">{{ \App\Support\PublicPageText::tr('Signed By:') }}</span><span>{{ $receipt['signerName'] }}</span></div>
+      <div class="row"><span class="label">{{ \App\Support\PublicPageText::tr('Date and Time:') }}</span><span>{{ \Illuminate\Support\Carbon::parse($receipt['signedAt'])->utc()->format('j F Y, H:i') }} UTC</span></div>
+      <div class="row"><span class="label">{{ \App\Support\PublicPageText::tr('IP address:') }}</span><span>{{ $receipt['ipAddress'] ?? 'Not available' }}</span></div>
     </div>
-    <a class="button" href="{{ route('signing.public.signedPdf.browser',['token'=>$token]) }}">Download Signed Document</a>
+    <a class="button" href="{{ route('signing.public.signedPdf.browser',['token'=>$token]) }}">{{ \App\Support\PublicPageText::tr('Download Signed Document') }}</a>
   </main>
 </body>
 </html>

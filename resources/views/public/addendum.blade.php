@@ -136,7 +136,7 @@
   </style>
 </head>
 <body>
-  <header class="screen-header"><h1>Addendum Preview</h1></header>
+  <header class="screen-header"><h1>{{ \App\Support\PublicPageText::tr('Addendum Preview') }}</h1></header>
   <main>
     <section class="document-card" aria-label="Approved addendum">
       <div class="document-top">
@@ -146,35 +146,35 @@
       </div>
       <div class="billing-section">
         <div class="bill-to">
-          <strong>Bill To:</strong>
+          <strong>{{ \App\Support\PublicPageText::tr('Bill To:') }}</strong>
           <span>{{ $addendum->quote->client_name }}</span>
           <span>{{ $addendum->quote->billing_address }}</span>
           <span>{{ $addendum->quote->client_email }}</span>
         </div>
-        <div class="dates"><div class="date-line"><strong>Date:</strong><span>{{ $addendum->effective_date?->format('j F Y') }}</span></div>
-          <div class="date-line"><strong>Original:</strong><span>{{ $addendum->quote->custom_quote_number ?: $addendum->quote->reference_number }}</span></div></div>
+        <div class="dates"><div class="date-line"><strong>{{ \App\Support\PublicPageText::tr('Date:') }}</strong><span>{{ $addendum->effective_date?->format('j F Y') }}</span></div>
+          <div class="date-line"><strong>{{ \App\Support\PublicPageText::tr('Original:') }}</strong><span>{{ $addendum->quote->custom_quote_number ?: $addendum->quote->reference_number }}</span></div></div>
       </div>
       <div style="padding:0 20px 20px">
         <h2 class="section-title" style="font-size:17px">{{ $addendum->title }}</h2>
         <p style="color:var(--placeholder);white-space:pre-wrap;line-height:1.55">{{ $addendum->change_description }}</p>
-        <p class="payment-hint">This is a separate change document. The original signed quote remains unchanged.</p>
+        <p class="payment-hint">{{ \App\Support\PublicPageText::tr('This is a separate change document. The original signed quote remains unchanged.') }}</p>
       </div>
       <table class="item-table" aria-label="Addendum cost">
         <colgroup><col><col><col><col></colgroup>
-        <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+        <thead><tr><th>{{ \App\Support\PublicPageText::tr('Description') }}</th><th>{{ \App\Support\PublicPageText::tr('Qty') }}</th><th>{{ \App\Support\PublicPageText::tr('Unit Price') }}</th><th>{{ \App\Support\PublicPageText::tr('Total') }}</th></tr></thead>
         <tbody><tr><td>{{ $addendum->additional_work ?: 'Changes without additional priced work' }}</td>
           <td>{{ $addendum->quantity ?? '—' }}</td>
           <td>{{ $addendum->unit_price_minor === null ? '—' : $addendum->currency.' '.number_format($addendum->unit_price_minor / 100,2) }}</td>
           <td>{{ $addendum->currency }} {{ number_format($addendum->subtotal_minor / 100,2) }}</td></tr></tbody>
       </table>
       <div class="summary">
-        <div class="summary-row"><span class="summary-label">Subtotal</span><span class="summary-amount">{{ $addendum->currency }} {{ number_format($addendum->subtotal_minor / 100,2) }}</span></div>
+        <div class="summary-row"><span class="summary-label">{{ \App\Support\PublicPageText::tr('Subtotal') }}</span><span class="summary-amount">{{ $addendum->currency }} {{ number_format($addendum->subtotal_minor / 100,2) }}</span></div>
         <div class="summary-row"><span class="summary-label">VAT ({{ number_format($addendum->vat_basis_points / 100,2) }}%)</span><span class="summary-amount">{{ $addendum->currency }} {{ number_format($addendum->vat_minor / 100,2) }}</span></div>
-        <div class="summary-row grand-total"><span class="summary-label">Total</span><span class="summary-amount">{{ $addendum->currency }} {{ number_format($addendum->total_minor / 100,2) }}</span></div>
+        <div class="summary-row grand-total"><span class="summary-label">{{ \App\Support\PublicPageText::tr('Total') }}</span><span class="summary-amount">{{ $addendum->currency }} {{ number_format($addendum->total_minor / 100,2) }}</span></div>
       </div>
       <div style="padding:20px">
-        <a href="{{ route('addenda.public.pdf',['token'=>$signingToken]) }}" style="font-size:13px;color:var(--primary);text-decoration:underline">View exact approved addendum PDF</a>
-        <p class="payment-hint" style="margin-top:10px">Review the document carefully before signing. Your signature applies only to this separate addendum.</p>
+        <a href="{{ route('addenda.public.pdf',['token'=>$signingToken]) }}" style="font-size:13px;color:var(--primary);text-decoration:underline">{{ \App\Support\PublicPageText::tr('View exact approved addendum PDF') }}</a>
+        <p class="payment-hint" style="margin-top:10px">{{ \App\Support\PublicPageText::tr('Review the document carefully before signing. Your signature applies only to this separate addendum.') }}</p>
       </div>
     </section>
     @include('public.signing-form')

@@ -1,5 +1,5 @@
 <section class="payment-card" aria-label="Customer Signature" style="margin-top:20px;padding:20px">
-  <h2 class="section-title" style="font-size:18px">Customer Signature</h2>
+  <h2 class="section-title" style="font-size:18px">{{ \App\Support\PublicPageText::tr('Customer Signature') }}</h2>
   <p class="payment-hint" style="margin-top:10px">Review the approved {{ isset($addendum) ? 'addendum' : 'quote' }} and its terms above. Sign as {{ $signing->signer_name }} using the same signature options as Sign2Digital.</p>
 
   <form id="sign2digital-signing" method="post" action="{{ isset($addendum) ? route('addenda.public.submit',['token'=>$signingToken]) : route('signing.public.submit.browser', ['token'=>$signingToken]) }}" autocomplete="off">
@@ -19,21 +19,21 @@
     <input type="hidden" name="capturedAt" id="s2d-captured-at" value="">
 
     <div class="s2d-tabs" aria-label="Signature method">
-      <button type="button" data-sign-method="draw" class="s2d-tab is-active" aria-pressed="true">Draw</button>
-      <button type="button" data-sign-method="type" class="s2d-tab" aria-pressed="false">Type</button>
-      <button type="button" data-sign-method="upload" class="s2d-tab" aria-pressed="false">Upload</button>
+      <button type="button" data-sign-method="draw" class="s2d-tab is-active" aria-pressed="true">{{ \App\Support\PublicPageText::tr('Draw') }}</button>
+      <button type="button" data-sign-method="type" class="s2d-tab" aria-pressed="false">{{ \App\Support\PublicPageText::tr('Type') }}</button>
+      <button type="button" data-sign-method="upload" class="s2d-tab" aria-pressed="false">{{ \App\Support\PublicPageText::tr('Upload') }}</button>
     </div>
     <div id="s2d-typed" hidden>
-      <label for="s2d-name" class="s2d-label">Type your full name</label>
+      <label for="s2d-name" class="s2d-label">{{ \App\Support\PublicPageText::tr('Type your full name') }}</label>
       <input type="text" id="s2d-name" name="typedName" class="s2d-input" maxlength="255" placeholder="Full name">
     </div>
     <div id="s2d-upload" hidden>
-      <label for="s2d-upload-file" class="s2d-label">Upload your signature (PNG)</label>
+      <label for="s2d-upload-file" class="s2d-label">{{ \App\Support\PublicPageText::tr('Upload your signature (PNG)') }}</label>
       <input type="file" id="s2d-upload-file" class="s2d-input" accept="image/png">
     </div>
     <div class="s2d-canvas-container">
-      <canvas id="s2d-pad" width="900" height="250" aria-label="Draw or preview your signature">Signature canvas is not available.</canvas>
-      <button type="button" id="s2d-clear" class="s2d-clear">Clear Signature</button>
+      <canvas id="s2d-pad" width="900" height="250" aria-label="Draw or preview your signature">{{ \App\Support\PublicPageText::tr('Signature canvas is not available.') }}</canvas>
+      <button type="button" id="s2d-clear" class="s2d-clear">{{ \App\Support\PublicPageText::tr('Clear Signature') }}</button>
     </div>
 
     <label class="s2d-consent">
@@ -41,7 +41,7 @@
       <span>I have reviewed this exact approved {{ isset($addendum) ? 'addendum' : 'quote' }} and its terms and agree to sign electronically.</span>
     </label>
     <p id="s2d-warning" role="alert" class="s2d-warning" hidden></p>
-    <button type="submit" id="s2d-submit" class="s2d-submit">Confirm Signature</button>
+    <button type="submit" id="s2d-submit" class="s2d-submit">{{ \App\Support\PublicPageText::tr('Confirm Signature') }}</button>
   </form>
 </section>
 <style>

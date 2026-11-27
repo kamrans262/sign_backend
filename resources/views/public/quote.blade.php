@@ -136,32 +136,32 @@
   </style>
 </head>
 <body>
-  <header class="screen-header"><h1>Quote Preview</h1></header>
+  <header class="screen-header"><h1>{{ \App\Support\PublicPageText::tr('Quote Preview') }}</h1></header>
   <main>
     <section class="document-card" aria-label="Quote">
       <div class="document-top">
         <img class="document-logo" src="{{ route('admin.asset', ['file' => 'logo.png'], false) }}" width="132" height="43" alt="{{ $quote->company?->name ?: 'Sign2Digital' }}">
         <div class="document-id">
-          <div class="document-type">Quote</div>
+          <div class="document-type">{{ \App\Support\PublicPageText::tr('Quote') }}</div>
           <div class="document-number">{{ $quote->custom_quote_number ?: $quote->reference_number }}</div>
         </div>
       </div>
       <div class="billing-section">
         <div class="bill-to">
-          <strong>Bill To:</strong>
+          <strong>{{ \App\Support\PublicPageText::tr('Bill To:') }}</strong>
           <span>{{ $quote->client_name }}</span>
           @if(trim((string) $quote->billing_address) !== '')<span>{{ $quote->billing_address }}</span>@endif
           @if($quote->client_email)<span>{{ $quote->client_email }}</span>@endif
           @if($quote->client_phone)<span>{{ $quote->client_phone }}</span>@endif
         </div>
         <div class="dates">
-          <div class="date-line"><strong>Date:</strong><span>{{ $quote->quote_date?->format('j F Y') ?? 'Not specified' }}</span></div>
-          <div class="date-line"><strong>Valid Until:</strong><span>{{ $quote->valid_until?->format('j F Y') ?? 'Not specified' }}</span></div>
+          <div class="date-line"><strong>{{ \App\Support\PublicPageText::tr('Date:') }}</strong><span>{{ $quote->quote_date?->format('j F Y') ?? 'Not specified' }}</span></div>
+          <div class="date-line"><strong>{{ \App\Support\PublicPageText::tr('Valid Until:') }}</strong><span>{{ $quote->valid_until?->format('j F Y') ?? 'Not specified' }}</span></div>
         </div>
       </div>
       <table class="item-table" aria-label="Work items">
         <colgroup><col><col><col><col></colgroup>
-        <thead><tr><th scope="col">Description</th><th scope="col">Qty</th><th scope="col">Unit Price</th><th scope="col">Total</th></tr></thead>
+        <thead><tr><th scope="col">{{ \App\Support\PublicPageText::tr('Description') }}</th><th scope="col">{{ \App\Support\PublicPageText::tr('Qty') }}</th><th scope="col">{{ \App\Support\PublicPageText::tr('Unit Price') }}</th><th scope="col">{{ \App\Support\PublicPageText::tr('Total') }}</th></tr></thead>
         <tbody>
           @foreach($quote->items as $item)
           <tr>
@@ -174,33 +174,33 @@
         </tbody>
       </table>
       <div class="summary">
-        <div class="summary-row"><span class="summary-label">Subtotal</span><span class="summary-amount">{{ $quote->currency }} {{ number_format($quote->subtotal_minor/100,2) }}</span></div>
+        <div class="summary-row"><span class="summary-label">{{ \App\Support\PublicPageText::tr('Subtotal') }}</span><span class="summary-amount">{{ $quote->currency }} {{ number_format($quote->subtotal_minor/100,2) }}</span></div>
         <div class="summary-row"><span class="summary-label">Tax ({{ rtrim(rtrim(number_format($quote->vat_basis_points/100,2,'.',''),'0'),'.') }}%)</span><span class="summary-amount">{{ $quote->currency }} {{ number_format($quote->vat_minor/100,2) }}</span></div>
-        <div class="summary-row grand-total"><span class="summary-label">Total</span><span class="summary-amount">{{ $quote->currency }} {{ number_format($quote->total_minor/100,2) }}</span></div>
+        <div class="summary-row grand-total"><span class="summary-label">{{ \App\Support\PublicPageText::tr('Total') }}</span><span class="summary-amount">{{ $quote->currency }} {{ number_format($quote->total_minor/100,2) }}</span></div>
         @if($quote->deposit_basis_points > 0)
         <div class="summary-row"><span class="summary-label">Deposit due ({{ rtrim(rtrim(number_format($quote->deposit_basis_points/100,2,'.',''),'0'),'.') }}%)</span><span class="summary-amount">{{ $quote->currency }} {{ number_format($quote->deposit_minor/100,2) }}</span></div>
-        <div class="summary-row"><span class="summary-label">Remaining after deposit</span><span class="summary-amount">{{ $quote->currency }} {{ number_format(($quote->total_minor-$quote->deposit_minor)/100,2) }}</span></div>
+        <div class="summary-row"><span class="summary-label">{{ \App\Support\PublicPageText::tr('Remaining after deposit') }}</span><span class="summary-amount">{{ $quote->currency }} {{ number_format(($quote->total_minor-$quote->deposit_minor)/100,2) }}</span></div>
         @endif
       </div>
       <div class="signature-fields" aria-label="Signature lines">
-        <div class="signature-field"><div class="signature-line"></div><div class="signature-caption">Customer Signature</div></div>
-        <div class="signature-field"><div class="signature-line"></div><div class="signature-caption">Date</div></div>
+        <div class="signature-field"><div class="signature-line"></div><div class="signature-caption">{{ \App\Support\PublicPageText::tr('Customer Signature') }}</div></div>
+        <div class="signature-field"><div class="signature-line"></div><div class="signature-caption">{{ \App\Support\PublicPageText::tr('Date') }}</div></div>
       </div>
     </section>
     <section class="payment-card" aria-label="Payment Details">
-      <h2 class="section-title">Payment Details</h2>
-      <p class="payment-status">Payment QR unavailable</p>
-      <p class="payment-hint">A valid Swiss payment account, payee address and payable amount are needed to display a payment QR.</p>
+      <h2 class="section-title">{{ \App\Support\PublicPageText::tr('Payment Details') }}</h2>
+      <p class="payment-status">{{ \App\Support\PublicPageText::tr('Payment QR unavailable') }}</p>
+      <p class="payment-hint">{{ \App\Support\PublicPageText::tr('A valid Swiss payment account, payee address and payable amount are needed to display a payment QR.') }}</p>
       @if(!empty($quote->payment_details))
       <div class="payment-fields">
         @if(!empty($quote->payment_details['iban']))
-        <div class="payment-field"><span>Account / payable to</span><span>{{ $quote->payment_details['iban'] }}</span></div>
+        <div class="payment-field"><span>{{ \App\Support\PublicPageText::tr('Account / payable to') }}</span><span>{{ $quote->payment_details['iban'] }}</span></div>
         @endif
         @if(!empty($quote->payment_details['accountHolder']))
-        <div class="payment-field"><span>Company Name</span><span>{{ $quote->payment_details['accountHolder'] }}</span></div>
+        <div class="payment-field"><span>{{ \App\Support\PublicPageText::tr('Company Name') }}</span><span>{{ $quote->payment_details['accountHolder'] }}</span></div>
         @endif
-        <div class="payment-field"><span>Payable amount</span><span>{{ $quote->currency }} {{ number_format($quote->total_minor/100,2) }}</span></div>
-        <div class="payment-field"><span>Currency</span><span>{{ $quote->currency }}</span></div>
+        <div class="payment-field"><span>{{ \App\Support\PublicPageText::tr('Payable amount') }}</span><span>{{ $quote->currency }} {{ number_format($quote->total_minor/100,2) }}</span></div>
+        <div class="payment-field"><span>{{ \App\Support\PublicPageText::tr('Currency') }}</span><span>{{ $quote->currency }}</span></div>
       </div>
       @endif
     </section>
@@ -210,7 +210,7 @@
     </section>
     @if(!empty($businessSignatureDataUrl))
       <section class="payment-card" aria-label="Business Signature" style="margin-top:20px;padding:20px">
-        <h2 class="section-title">Business Signature</h2>
+        <h2 class="section-title">{{ \App\Support\PublicPageText::tr('Business Signature') }}</h2>
         <p class="payment-hint">Signed by {{ $signing->business_signer_name }} on {{ $signing->business_signed_at?->format('j F Y, H:i') }}. Awaiting your signature.</p>
         <img src="{{ $businessSignatureDataUrl }}" alt="Verified business signature" style="display:block;max-width:260px;max-height:100px;object-fit:contain;margin-top:12px">
       </section>

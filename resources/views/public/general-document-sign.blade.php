@@ -2,7 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
-<title>Sign2Digital | Sign General Document</title>
+<title>{{ \App\Support\PublicPageText::tr('Sign2Digital | Sign General Document') }}</title>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:20px;background:#fff;color:#122536;font:14px Inter,system-ui,-apple-system,Arial,sans-serif}
 main{max-width:750px;margin:20px auto;padding:24px;border:1px solid #d9e2ea;border-radius:10px}
@@ -14,15 +14,15 @@ canvas{border:1px solid #d9e2ea;border-radius:10px;touch-action:none;width:100%;
 button.secondary{background:#e3ecf0;color:#122536}.consent{display:flex;gap:10px;align-items:start;font-weight:400}
 @media(max-width:550px){body{padding:8px}main{padding:16px}}
 </style></head><body><main>
-<h1>Review and Sign General Document</h1>
+<h1>{{ \App\Support\PublicPageText::tr('Review and Sign General Document') }}</h1>
 <p class="meta">{{ $signing['company_name'] }} · {{ $signing['number'] }}</p>
 <h2>{{ $signing['title'] }}</h2>
-<p>Invited signer: <strong>{{ $signing['signer_name'] }}</strong></p>
+<p>{{ \App\Support\PublicPageText::tr('Invited signer:') }} <strong>{{ $signing['signer_name'] }}</strong></p>
 <p class="meta">Please open the exact approved PDF before signing. This is an evidenced electronic signature, not a qualified cryptographic certificate. Some documents, including powers of attorney, may require additional formalities.</p>
-<a class="button" target="_blank" rel="noopener noreferrer" href="{{ route('general-document.sign.pdf',['token'=>$token]) }}">Review Official PDF</a>
+<a class="button" target="_blank" rel="noopener noreferrer" href="{{ route('general-document.sign.pdf',['token'=>$token]) }}">{{ \App\Support\PublicPageText::tr('Review Official PDF') }}</a>
 @if($signing['status']==='signed')
-<p>This document was signed already.</p>
-<a class="button" href="{{ route('general-document.sign.receipt',['token'=>$token]) }}">View Signing Receipt</a>
+<p>{{ \App\Support\PublicPageText::tr('This document was signed already.') }}</p>
+<a class="button" href="{{ route('general-document.sign.receipt',['token'=>$token]) }}">{{ \App\Support\PublicPageText::tr('View Signing Receipt') }}</a>
 @else
 <form id="general-sign" method="post" action="{{ route('general-document.sign.submit',['token'=>$token]) }}">
 @csrf
@@ -30,15 +30,15 @@ button.secondary{background:#e3ecf0;color:#122536}.consent{display:flex;gap:10px
 <input type="hidden" name="document_uuid" value="{{ $signing['document_uuid'] }}">
 <input type="hidden" name="consent_reference" value="{{ $signing['consent_reference'] }}">
 <input type="hidden" name="revision" value="{{ $signing['revision'] }}">
-<label for="name">Signer Name</label>
+<label for="name">{{ \App\Support\PublicPageText::tr('Signer Name') }}</label>
 <input id="name" type="text" name="signer_name" value="{{ $signing['signer_name'] }}" required readonly>
-<label>Draw Your Signature</label>
+<label>{{ \App\Support\PublicPageText::tr('Draw Your Signature') }}</label>
 <canvas id="ink" width="720" height="240" aria-label="Draw your electronic signature"></canvas>
-<button class="secondary" type="button" id="clear">Clear</button>
+<button class="secondary" type="button" id="clear">{{ \App\Support\PublicPageText::tr('Clear') }}</button>
 <input type="hidden" id="signature_png" name="signature_png" required>
 <label class="consent"><input type="checkbox" name="consent" value="1" required>
 <span>I have reviewed the exact approved document and voluntarily agree to sign it electronically. I understand the submitted signature and consent evidence will be recorded in the signed PDF.</span></label>
-<p><button id="submit" type="submit">Sign Document</button></p>
+<p><button id="submit" type="submit">{{ \App\Support\PublicPageText::tr('Sign Document') }}</button></p>
 </form>
 <script>
 (function(){
