@@ -277,9 +277,14 @@ final class InvoiceDocumentService
             }
             $pdf->SetXY($innerRight-74.0833,$y);
             $pdf->SetTextColor(...($isTotal?[255,255,255]:$grey));
-            $fontSize=$pdf->GetStringWidth($name)>43 ? 8 : 10;
-            $pdf->SetFont('Arial',$isTotal?'B':'',$isTotal?11:$fontSize);
             $displayName=str_starts_with($name,'VAT (') ? $t('VAT').substr($name,3) : $t($name);
+            // Fit translated labels within the existing row width.
+            $fontSize=$isTotal?11:10;
+            $pdf->SetFont('Arial',$isTotal?'B':'',$fontSize);
+            while($pdf->GetStringWidth($displayName)>43 && $fontSize>7){
+                --$fontSize;
+                $pdf->SetFont('Arial',$isTotal?'B':'',$fontSize);
+            }
             $pdf->Cell(43,9,$displayName,0,0,'R');
             $pdf->SetTextColor(...($isTotal?[255,255,255]:$ink));
             $pdf->SetFont('Arial',$isTotal?'B':'',$isTotal?11:10);
@@ -302,7 +307,7 @@ final class InvoiceDocumentService
         $pdf->SetX($cardInset);
         $pdf->MultiCell($cardWidth-14.1111,5,'IBAN: '.self::label((string)$s['iban']));
         $pdf->SetX($cardInset);
-        $pdf->MultiCell($cardWidth-14.1111,5,$t('Reference: ').self::label($s['number']));
+        $pdf->MultiCell($cardWidth-14.1111,5,$t('Reference:').' '.self::label($s['number']));
         $payBottom=$pdf->GetY()+5.29;
         $pdf->SetDrawColor(228,234,240);
         $pdf->quotationCard($pageInset,$startY-5.29,$cardWidth,

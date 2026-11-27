@@ -65,8 +65,14 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         }
         $pdf->SetXY(124, 20);
         $pdf->SetTextColor(18, 37, 54);
-        $pdf->SetFont('Arial', 'B', 15);
-        $pdf->Cell(66, 8, self::pdfString(\App\Support\AppLocale::text($documentName,$language)), 0, 2, 'R');
+        $title = self::pdfString(\App\Support\AppLocale::text($documentName,$language));
+        $fontSize = 15;
+        $pdf->SetFont('Arial', 'B', $fontSize);
+        while ($pdf->GetStringWidth($title) > 66 && $fontSize > 9) {
+            --$fontSize;
+            $pdf->SetFont('Arial','B',$fontSize);
+        }
+        $pdf->Cell(66, 8, $title, 0, 2, 'R');
         $pdf->SetTextColor(138, 154, 168);
         $pdf->SetFont('Arial', '', 10);
         $pdf->Cell(66, 6, self::pdfString($reference), 0, 2, 'R');
