@@ -158,7 +158,7 @@ final class M22AccountController extends Controller
         );
         // M22 is a global consent ceiling above M20 per-company opt-in.
         // Disabling push immediately cancels all registered device deliveries.
-        $locale = $data['language'] === 'French' ? 'fr' : 'en';
+        $locale = \App\Support\AppLocale::normalize($data['language']);
         DB::table('m20_notification_preferences')->where('user_id', $user->id)
             ->update(['locale' => $locale, 'timezone' => $data['timeZone'],
                 'updated_at' => now()]);

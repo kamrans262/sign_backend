@@ -2,7 +2,7 @@
 @section('title','Notification Templates')
 @section('breadcrumb','Notifications / Templates')
 @section('heading','Notification Templates')
-@section('description','Edit future in-app and push notification copy in English and French. Push delivery remains disabled until Firebase setup.')
+@section('description','Edit future in-app and push notification copy in English, French, German and Italian. Push delivery remains disabled until Firebase setup.')
 @section('header_actions')
 <a class="btn btn-outline" href="{{ route('admin.reminders.index') }}">Reminders Management</a>
 <a class="btn btn-outline" href="{{ route('admin.notifications.inbox') }}">In-app Audit</a>
@@ -16,7 +16,7 @@
 @foreach(['in_app'=>'In-app','push'=>'Push','email'=>'Email'] as $key=>$label)
 <option value="{{ $key }}" @selected(($filters['channel']??'')===$key)>{{ $label }}</option>
 @endforeach</select>
-<select class="input" name="locale"><option value="">All Languages</option><option value="en" @selected(($filters['locale']??'')==='en')>English</option><option value="fr" @selected(($filters['locale']??'')==='fr')>French</option></select>
+<select class="input" name="locale"><option value="">All Languages</option><option value="en" @selected(($filters['locale']??'')==='en')>English</option><option value="fr" @selected(($filters['locale']??'')==='fr')>French</option><option value="de" @selected(($filters['locale']??'')==='de')>German</option><option value="it" @selected(($filters['locale']??'')==='it')>Italian</option></select>
 <button class="btn btn-primary">Filter</button><a class="btn btn-outline" href="{{ route('admin.notifications.index') }}">Clear</a>
 </form></div>
 <div class="table-wrap"><table><thead><tr>

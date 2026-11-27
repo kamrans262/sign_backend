@@ -14,7 +14,7 @@ final class M20NotificationTemplateController extends Controller
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:90'],
             'channel' => ['nullable', 'in:in_app,push,email'],
-            'locale' => ['nullable', 'in:en,fr'],
+            'locale' => ['nullable', 'in:en,fr,de,it'],
         ]);
         $query = DB::table('m20_notification_templates');
         if (isset($filters['q'])) $query->where('template_key', 'like', '%'.$filters['q'].'%');

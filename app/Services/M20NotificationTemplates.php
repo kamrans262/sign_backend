@@ -27,7 +27,7 @@ final class M20NotificationTemplates
     {
         $template = DB::table('m20_notification_templates')
             ->where('template_key', $key)->where('channel', $channel)
-            ->where('locale', in_array($locale, ['fr', 'en'], true) ? $locale : 'en')
+            ->where('locale', in_array($locale, ['fr','de','it','en'], true) ? $locale : 'en')
             ->where('enabled', true)->first();
         if (!$template && $locale !== 'en') {
             $template = DB::table('m20_notification_templates')

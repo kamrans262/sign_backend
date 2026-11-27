@@ -45,7 +45,7 @@ final class M20NotificationPreferencesController extends Controller
     {
         $fields = $request->validate([
             'in_app_enabled' => ['required', 'boolean'],
-            'locale' => ['required', 'in:en,fr'],
+            'locale' => ['required', 'in:en,fr,de,it'],
             'timezone' => ['required', 'timezone'],
             'push_enabled' => ['sometimes', 'boolean'],
         ]);
