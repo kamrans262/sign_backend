@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureActiveUser;
+use App\Http\Middleware\ApplyRequestLocale;
 use App\Http\Middleware\EnsureCompanyAccess;
 use App\Http\Middleware\EnsureCompanyRole;
 use App\Http\Middleware\EnsureCompanyPermission;
@@ -18,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->appendToGroup('api', [ApplyRequestLocale::class]);
+        $middleware->appendToGroup('web', [ApplyRequestLocale::class]);
         $middleware->redirectGuestsTo(fn (Request $request) => route('admin.login'));
         $middleware->alias([
             'active.user' => EnsureActiveUser::class,
