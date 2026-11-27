@@ -151,6 +151,18 @@ final class SupportAssistantController extends Controller
             ? (self::AI_SAMPLES[$screen] ?? null) : null;
     }
 
+    /** Keep the verified existing-job quote route in the selected language. */
+    private function localizedJobWorkflow(string $message, string $answer): string
+    {
+        if (!$this->asksToCreateJobQuote($message)) return $answer;
+        return match (\App\Support\AppLocale::current()) {
+            'fr' => 'Ouvrez Interventions et sélectionnez votre intervention existante. Dans les détails, ouvrez Devis. Si des devis existent, choisissez Créer un nouveau devis ; sinon la création s’ouvre directement. Utilisez la voix IA, vérifiez le devis, puis approuvez et envoyez-le.',
+            'de' => 'Öffnen Sie Aufträge und wählen Sie den bestehenden Auftrag aus. Tippen Sie in den Auftragsdetails auf Angebote. Wenn Angebote vorhanden sind, wählen Sie Neues Angebot erstellen; andernfalls öffnet sich die Erstellung direkt. Nutzen Sie die KI-Spracheingabe, prüfen und genehmigen Sie das Angebot und senden Sie es.',
+            'it' => 'Apri Lavori e seleziona il lavoro esistente. Nei dettagli apri Preventivi. Se esistono già preventivi, scegli Crea nuovo preventivo; altrimenti si apre direttamente la creazione. Usa la voce IA, verifica il preventivo, approvalo e invialo.',
+            default => $answer,
+        };
+    }
+
     private function jobLinkedWorkflow(string $message, array $allowed): ?string
     {
         if (!in_array('jobs', $allowed, true) ||
@@ -383,7 +395,12 @@ GUIDE;
         // existing-job navigation path verified in Job Details.
         $jobFlow = $this->jobLinkedWorkflow($data['message'], $allowed);
         if ($jobFlow !== null) {
-            $answer = $jobFlow;
+            // The verified English workflow must not overwrite localized AI guidance.
+            if (\App\Support\AppLocale::current() === 'en') {
+                $answer = $jobFlow;
+            } else {
+                $answer = $this->localizedJobWorkflow($data['message'], $answer);
+            }
             $route = 'jobs';
         }
         $example = $this->aiSampleForQuestion(
