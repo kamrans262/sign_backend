@@ -836,14 +836,15 @@ final class GeneralDocumentIssueService
             throw $e;
         }
         $s=$this->verifySnapshot($issue);
+        $locale=\App\Support\AppLocale::normalize($s['locale']??'en');
         try{
             $bytes=$data['mode']==='pdf'?$this->bytes($issue):null;
-            Mail::raw('Sign2Digital document '.$s['number']."\n\n".
-                ($data['message']??'')."\n\n".
-                "Open the private document link (expires in 7 days):\n".$url,
-                function($mail)use($data,$s,$bytes){
+            Mail::raw(\App\Support\AppLocale::email('general_body',[
+                    'number'=>$s['number'],'message'=>$data['message']??'','url'=>$url,
+                ],$locale),
+                function($mail)use($data,$s,$bytes,$locale){
                     $mail->to($data['recipient_email'])->subject(
-                        'Sign2Digital Document '.$s['number']);
+                        \App\Support\AppLocale::email('general_subject',['number'=>$s['number']],$locale));
                     if($bytes!==null)$mail->attachData($bytes,
                         'Sign2Digital_Document_'.$s['number'].'.pdf',
                         ['mime'=>'application/pdf']);

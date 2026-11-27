@@ -60,6 +60,47 @@ final class AppLocale
         return "\nOutput language: {$target}. Write human-readable titles, explanations, summaries and document draft text in {$target}; preserve JSON field names, enum codes, dates, money, names, identifiers and factual source data. Do not translate untrusted quoted instructions or invent facts. If the user explicitly requests a different output language for a particular document, respect that request.";
     }
 
+    /** Only explicitly mapped delivery copy changes; recipient text is inserted unchanged. */
+    public static function email(string $key, array $values, ?string $locale = null): string
+    {
+        $code = self::normalize($locale ?? self::current());
+        $templates = [
+            'invoice_body' => [
+                'en' => "Invoice {number}\\n\\n{message}\\n\\nReview your issued invoice at this private link (expires in 7 days):\\n{url}",
+                'fr' => "Facture {number}\\n\\n{message}\\n\\nConsultez votre facture émise via ce lien privé (valable 7 jours) :\\n{url}",
+                'de' => "Rechnung {number}\\n\\n{message}\\n\\nIhre ausgestellte Rechnung finden Sie unter diesem privaten Link (7 Tage gültig):\\n{url}",
+                'it' => "Fattura {number}\\n\\n{message}\\n\\nConsulta la fattura emessa tramite questo link privato (valido 7 giorni):\\n{url}",
+            ],
+            'invoice_subject' => ['en'=>'Sign2Digital invoice {number}','fr'=>'Facture Sign2Digital {number}','de'=>'Sign2Digital Rechnung {number}','it'=>'Fattura Sign2Digital {number}'],
+            'general_body' => [
+                'en'=>"Sign2Digital document {number}\\n\\n{message}\\n\\nOpen the private document link (expires in 7 days):\\n{url}",
+                'fr'=>"Document Sign2Digital {number}\\n\\n{message}\\n\\nOuvrez le lien privé vers le document (valable 7 jours) :\\n{url}",
+                'de'=>"Sign2Digital-Dokument {number}\\n\\n{message}\\n\\nÖffnen Sie den privaten Dokumentenlink (7 Tage gültig):\\n{url}",
+                'it'=>"Documento Sign2Digital {number}\\n\\n{message}\\n\\nApri il link privato al documento (valido 7 giorni):\\n{url}",
+            ],
+            'general_subject' => ['en'=>'Sign2Digital Document {number}','fr'=>'Document Sign2Digital {number}','de'=>'Sign2Digital-Dokument {number}','it'=>'Documento Sign2Digital {number}'],
+            'acceptance_body' => [
+                'en'=>'Please review the completed work and sign only if you agree: {url}',
+                'fr'=>'Veuillez examiner les travaux terminés et signer uniquement si vous êtes d’accord : {url}',
+                'de'=>'Bitte prüfen Sie die abgeschlossenen Arbeiten und unterschreiben Sie nur, wenn Sie einverstanden sind: {url}',
+                'it'=>'Controlla i lavori completati e firma solo se sei d’accordo: {url}',
+            ],
+            'acceptance_subject' => ['en'=>'Sign2Digital Work Acceptance {number}','fr'=>'Réception des travaux Sign2Digital {number}','de'=>'Sign2Digital Bauabnahme {number}','it'=>'Accettazione lavori Sign2Digital {number}'],
+            'report_body' => [
+                'en'=>'Please find attached the approved {number} from Sign2Digital.',
+                'fr'=>'Veuillez trouver ci-joint le rapport approuvé {number} de Sign2Digital.',
+                'de'=>'Im Anhang finden Sie den freigegebenen Bericht {number} von Sign2Digital.',
+                'it'=>'In allegato trovi il rapporto approvato {number} di Sign2Digital.',
+            ],
+        ];
+        $pattern = $templates[$key][$code] ?? $templates[$key]['en'] ?? '';
+        $safe = [];
+        foreach ($values as $name => $value) {
+            $safe['{'.$name.'}'] = (string) $value;
+        }
+        return strtr($pattern, $safe);
+    }
+
     /** Static labels only; user-entered or API content must not be passed here. */
     private const LABELS = [
         'Invoice' => ['fr'=>'Facture','de'=>'Rechnung','it'=>'Fattura'],

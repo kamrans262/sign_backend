@@ -552,14 +552,16 @@ final class InvoiceDocumentService
         }
         $snapshot=$this->verifiedSnapshot($issue);
         $number=$snapshot['number'];
+        $locale=\App\Support\AppLocale::normalize($snapshot['locale']??'en');
         $filename='Sign2Digital_Invoice_'.preg_replace('/[^A-Za-z0-9_-]/','_',$number).'.pdf';
         try{
             $attachment=$data['mode']==='pdf'?$this->bytes($issue):null;
-            Mail::raw("Invoice ".$number."\n\n".($data['message']??'')."\n\n".
-                "Review your issued invoice at this private link (expires in 7 days):\n".
-                $link['link'],function($mail)use($data,$number,$attachment,$filename){
+            Mail::raw(\App\Support\AppLocale::email('invoice_body', [
+                    'number'=>$number,'message'=>$data['message']??'',
+                    'url'=>$link['link'],
+                ],$locale),function($mail)use($data,$number,$attachment,$filename,$locale){
                     $mail->to($data['recipient_email'])
-                        ->subject('Sign2Digital invoice '.$number);
+                        ->subject(\App\Support\AppLocale::email('invoice_subject',['number'=>$number],$locale));
                     if($attachment!==null)$mail->attachData($attachment,$filename,
                         ['mime'=>'application/pdf']);
                 });

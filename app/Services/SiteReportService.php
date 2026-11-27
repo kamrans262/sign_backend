@@ -506,7 +506,7 @@ final class SiteReportService
         abort_unless(filter_var($address,FILTER_VALIDATE_EMAIL),422,
             'Client needs a valid email address.');
         $bytes=$this->verifiedPdf($company->id,$id);
-        Mail::raw('Please find attached the approved '.$record->number.' from Sign2Digital.',
+        Mail::raw(\App\Support\AppLocale::email('report_body',['number'=>$record->number]),
             function ($message) use($address,$record,$bytes):void {
                 $message->to($address)->subject('Sign2Digital '.$record->number)
                     ->attachData($bytes,$record->number.'.pdf',['mime'=>'application/pdf']);

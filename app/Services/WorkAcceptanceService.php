@@ -404,9 +404,9 @@ final class WorkAcceptanceService
         });
         $url=route('acceptance.public.open',['token'=>$token]);
         try{
-            Mail::raw('Please review the completed work and sign only if you agree: '.$url,
+            Mail::raw(\App\Support\AppLocale::email('acceptance_body',['url'=>$url]),
                 function($message)use($email,$row){
-                    $message->to($email)->subject('Sign2Digital Work Acceptance '.$row->number);
+                    $message->to($email)->subject(\App\Support\AppLocale::email('acceptance_subject',['number'=>$row->number]));
                 });
         }catch(\Throwable $error){
             DB::table('work_acceptance_requests')->where('id',$signingId)
