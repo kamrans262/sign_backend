@@ -38,7 +38,7 @@ final class M21GlobalSearchTest extends TestCase
             'company_id' => $company->id, 'client_id' => $client->id,
             'reference_number' => $tag.'-J', 'title' => $tag.' Job',
             'description' => 'Construction', 'start_date' => '2026-11-01',
-            'due_date' => '2026-11-25', 'stage' => 'planning',
+            'due_date' => today()->addDays(14)->toDateString(), 'stage' => 'planning',
             'category' => 'active',
         ]);
         ServiceQuote::create([
