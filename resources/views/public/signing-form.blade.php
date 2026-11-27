@@ -1,4 +1,4 @@
-<section class="payment-card" aria-label="Customer Signature" style="margin-top:20px;padding:20px">
+<section class="payment-card" aria-label="{{ \App\Support\PublicPageText::tr('Customer Signature') }}" style="margin-top:20px;padding:20px">
   <h2 class="section-title" style="font-size:18px">{{ \App\Support\PublicPageText::tr('Customer Signature') }}</h2>
   <p class="payment-hint" style="margin-top:10px">Review the approved {{ isset($addendum) ? 'addendum' : 'quote' }} and its terms above. Sign as {{ $signing->signer_name }} using the same signature options as Sign2Digital.</p>
 
@@ -25,7 +25,7 @@
     </div>
     <div id="s2d-typed" hidden>
       <label for="s2d-name" class="s2d-label">{{ \App\Support\PublicPageText::tr('Type your full name') }}</label>
-      <input type="text" id="s2d-name" name="typedName" class="s2d-input" maxlength="255" placeholder="Full name">
+      <input type="text" id="s2d-name" name="typedName" class="s2d-input" maxlength="255" placeholder="{{ \App\Support\PublicPageText::tr('Full name') }}">
     </div>
     <div id="s2d-upload" hidden>
       <label for="s2d-upload-file" class="s2d-label">{{ \App\Support\PublicPageText::tr('Upload your signature (PNG)') }}</label>

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head>
+<html lang="{{ \App\Support\AppLocale::current() }}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
 <title>{{ \App\Support\PublicPageText::tr('Sign2Digital | Sign General Document') }}</title>

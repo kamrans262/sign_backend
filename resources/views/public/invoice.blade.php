@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ \App\Support\AppLocale::current() }}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>{{ \App\Support\PublicPageText::tr('Sign2Digital Invoice') }}</title>
 <style>body{font-family:Inter,-apple-system,BlinkMacSystemFont,Arial,sans-serif;color:#122536;background:#fff;margin:0}

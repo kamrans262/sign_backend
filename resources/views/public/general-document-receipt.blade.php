@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8">
+<!doctype html><html lang="{{ \App\Support\AppLocale::current() }}"><head><meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{ \App\Support\PublicPageText::tr('Sign2Digital | General Document Signature Receipt') }}</title>

@@ -44,9 +44,9 @@ button,.btn{display:inline-block;background:#166282;border:0;border-radius:10px;
 <label for="name">{{ \App\Support\PublicPageText::tr('Customer name') }}</label>
 <input id="name" type="text" name="customer_name" maxlength="255" required readonly value="{{ $signing->signer_name }}">
 <label for="reservation">{{ \App\Support\PublicPageText::tr('Reservations (when applicable)') }}</label>
-<textarea id="reservation" name="reservation" maxlength="12000" placeholder="Describe anything you accept with reservations"></textarea>
+<textarea id="reservation" name="reservation" maxlength="12000" placeholder="{{ \App\Support\PublicPageText::tr('Describe anything you accept with reservations') }}"></textarea>
 <label for="issues">{{ \App\Support\PublicPageText::tr('Additional outstanding issues') }}</label>
-<textarea id="issues" name="outstanding_issues" maxlength="12000" placeholder="Describe any remaining work or issues"></textarea>
+<textarea id="issues" name="outstanding_issues" maxlength="12000" placeholder="{{ \App\Support\PublicPageText::tr('Describe any remaining work or issues') }}"></textarea>
 <label for="photos">{{ \App\Support\PublicPageText::tr('Attach customer evidence photos (up to four, JPG/PNG, 3 MB each)') }}</label>
 <input id="photos" type="file" name="photos[]" accept="image/jpeg,image/png" multiple>
 <label for="rating">{{ \App\Support\PublicPageText::tr('Optional rating') }}</label>

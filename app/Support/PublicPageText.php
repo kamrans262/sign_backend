@@ -102,6 +102,9 @@ final class PublicPageText
         'Acceptance recorded' => ['fr'=>'Réception enregistrée','de'=>'Abnahme erfasst','it'=>'Accettazione registrata'],
         'Decision:' => ['fr'=>'Décision :','de'=>'Entscheidung:','it'=>'Decisione:'],
         'Your signed document includes your decision, signature and any submitted reservations, issues or photos.' => ['fr'=>'Votre document signé comprend votre décision, votre signature et les réserves, problèmes ou photos envoyés.','de'=>'Ihr signiertes Dokument enthält Ihre Entscheidung, Unterschrift sowie eingereichte Vorbehalte, Probleme oder Fotos.','it'=>'Il documento firmato include la decisione, la firma e le riserve, i problemi o le foto inviati.'],
+        'Full name' => ['fr'=>'Nom complet','de'=>'Vollständiger Name','it'=>'Nome completo'],
+        'Describe anything you accept with reservations' => ['fr'=>'Décrivez toute réserve lors de l’acceptation','de'=>'Beschreiben Sie etwaige Vorbehalte bei der Abnahme','it'=>'Descrivi eventuali riserve all’accettazione'],
+        'Describe any remaining work or issues' => ['fr'=>'Décrivez les travaux ou problèmes restants','de'=>'Beschreiben Sie offene Arbeiten oder Probleme','it'=>'Descrivi lavori o problemi rimanenti'],
     ];
 
     public static function tr(string $text): string
