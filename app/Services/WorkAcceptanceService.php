@@ -213,7 +213,7 @@ final class WorkAcceptanceService
         $companyName=(string)(DB::table('companies')
             ->where('id',$row->company_id)->value('name')??'');
         $pdf=new Sign2DigitalDocumentPdf('Work Acceptance',
-            (string)$row->number,$companyName);
+            (string)$row->number,$companyName,\App\Support\AppLocale::current());
         $pdf->AddPage();
         foreach([
             'Job'=>DB::table('service_jobs')
@@ -277,12 +277,11 @@ final class WorkAcceptanceService
         $pdf->SetTextColor(138, 154, 168);
         $pdf->SetFont('Arial', '', 10);
         $pdf->SetXY(20, $lineY + 3);
-        $pdf->Cell(60, 6, 'Customer Signature');
+        $pdf->Cell(60, 6, Sign2DigitalDocumentPdf::pdfString(\App\Support\AppLocale::text('Customer Signature')));
         $pdf->SetXY(112, $lineY + 3);
-        $pdf->Cell(60, 6, 'Date');
+        $pdf->Cell(60, 6, Sign2DigitalDocumentPdf::pdfString(\App\Support\AppLocale::text('Date')));
         $pdf->SetY($lineY + 13);
-        $pdf->footnote('For customer review. This document is not accepted '
-            .'or signed until verified customer confirmation.');
+        $pdf->footnote(\App\Support\AppLocale::text('For customer review. This document is not accepted or signed until verified customer confirmation.'));
         return $pdf->Output('S');
     }
 

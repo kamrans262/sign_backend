@@ -15,13 +15,15 @@ final class Sign2DigitalDocumentPdf extends \FPDF
     private string $documentName;
     private string $reference;
     private string $businessName;
+    private string $language;
 
-    public function __construct(string $documentName, string $reference, string $businessName = '')
+    public function __construct(string $documentName, string $reference, string $businessName = '', string $language = 'en')
     {
         parent::__construct('P', 'mm', 'A4');
         $this->documentName = $documentName;
         $this->reference = $reference;
         $this->businessName = $businessName;
+        $this->language = \App\Support\AppLocale::normalize($language);
         $this->SetMargins(20, 58, 20);
         $this->SetAutoPageBreak(true, 20);
         $this->AliasNbPages();
@@ -37,7 +39,7 @@ final class Sign2DigitalDocumentPdf extends \FPDF
     }
 
     public static function drawHeader(\FPDF $pdf,string $documentName,
-        string $reference,string $businessName=''): void
+        string $reference,string $businessName='',string $language='en'): void
     {
         $pdf->SetDrawColor(228, 234, 240);
         $pdf->SetLineWidth(.4);
@@ -64,14 +66,14 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         $pdf->SetXY(124, 20);
         $pdf->SetTextColor(18, 37, 54);
         $pdf->SetFont('Arial', 'B', 15);
-        $pdf->Cell(66, 8, self::pdfString($documentName), 0, 2, 'R');
+        $pdf->Cell(66, 8, self::pdfString(\App\Support\AppLocale::text($documentName,$language)), 0, 2, 'R');
         $pdf->SetTextColor(138, 154, 168);
         $pdf->SetFont('Arial', '', 10);
         $pdf->Cell(66, 6, self::pdfString($reference), 0, 2, 'R');
         $pdf->SetY(58);
     }
 
-    public static function drawFooter(\FPDF $pdf): void
+    public static function drawFooter(\FPDF $pdf,string $language='en'): void
     {
         $pdf->SetY(-16);
         $pdf->SetDrawColor(228, 234, 240);
@@ -80,18 +82,18 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         $pdf->SetTextColor(138, 154, 168);
         $pdf->SetFont('Arial', '', 8);
         $pdf->Cell(125, 6, 'Sign2Digital', 0, 0, 'L');
-        $pdf->Cell(45, 6, 'Page '.$pdf->PageNo().'/{nb}', 0, 0, 'R');
+        $pdf->Cell(45, 6, \App\Support\AppLocale::text('Page',$language).' '.$pdf->PageNo().'/{nb}', 0, 0, 'R');
     }
 
     public function Header(): void
     {
         self::drawHeader($this,$this->documentName,
-            $this->reference,$this->businessName);
+            $this->reference,$this->businessName,$this->language);
     }
 
     public function Footer(): void
     {
-        self::drawFooter($this);
+        self::drawFooter($this,$this->language);
     }
 
     public function metadata(string $label, string $value): void
@@ -99,7 +101,7 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         if ($value === '') return;
         $this->SetTextColor(138, 154, 168);
         $this->SetFont('Arial', 'B', 9);
-        $this->MultiCell(0, 5, self::pdfString($label));
+        $this->MultiCell(0, 5, self::pdfString(\App\Support\AppLocale::text($label,$this->language)));
         $this->SetTextColor(18, 37, 54);
         $this->SetFont('Arial', '', 10);
         $this->MultiCell(0, 6, self::pdfString($value));
@@ -114,7 +116,7 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         $this->SetFillColor(22, 98, 130);
         $this->SetTextColor(255, 255, 255);
         $this->SetFont('Arial', 'B', 10);
-        $this->Cell(0, 9, self::pdfString($heading), 0, 1, 'L', true);
+        $this->Cell(0, 9, self::pdfString(\App\Support\AppLocale::text($heading,$this->language)), 0, 1, 'L', true);
         $this->Ln(3);
         $this->SetTextColor(18, 37, 54);
         $this->SetFont('Arial', '', 10);
@@ -127,6 +129,6 @@ final class Sign2DigitalDocumentPdf extends \FPDF
         $this->Ln(6);
         $this->SetTextColor(138, 154, 168);
         $this->SetFont('Arial', 'I', 8);
-        $this->MultiCell(0, 5, self::pdfString($note));
+        $this->MultiCell(0, 5, self::pdfString(\App\Support\AppLocale::text($note,$this->language)));
     }
 }

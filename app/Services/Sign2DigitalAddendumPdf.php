@@ -22,7 +22,13 @@ final class Sign2DigitalAddendumPdf extends Fpdi
     private const RULE = [228, 234, 240];   // #E4EAF0
     private const LEFT = 13.4;              // 38 pt
     private const WIDTH = 183.2;
-    private const INNER = 20.5;             // 20 pt inside quotation card
+    private const INNER = 20.5;
+    private string $language = 'en';
+
+    private function t(string $source): string
+    {
+        return self::pdfText(\App\Support\AppLocale::text($source,$this->language));
+    }             // 20 pt inside quotation card
 
     private static function pdfText(string $value): string
     {
@@ -117,7 +123,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->ink();
         $this->SetFont('Helvetica', 'B', 18);
         $this->SetXY(128, 20.5);
-        $this->Cell(61.5, 8, 'Addendum', 0, 1, 'R');
+        $this->Cell(61.5, 8, $this->t('Addendum'), 0, 1, 'R');
         $this->grey();
         $this->SetFont('Helvetica', '', 12);
         $this->SetXY(124, 30);
@@ -126,7 +132,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->ink();
         $this->SetFont('Helvetica', 'B', 14);
         $this->SetXY(self::INNER, 41);
-        $this->Cell(90, 7, 'Bill To:');
+        $this->Cell(90, 7, $this->t('Bill To:'));
         $this->grey();
         $this->SetFont('Helvetica', '', 11);
         $y = 47;
@@ -137,9 +143,9 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         }
 
         $reference = (string) ($quote->custom_quote_number ?: $quote->reference_number);
-        $date = $item->effective_date?->format('d/m/Y') ?? 'Not specified';
-        $this->dateRow('Date:', $date, 43);
-        $this->dateRow('Original:', $reference, 52);
+        $date = $item->effective_date?->format('d/m/Y') ?? $this->t('Not specified');
+        $this->dateRow($this->t('Date:'), $date, 43);
+        $this->dateRow($this->t('Original:'), $reference, 52);
         $this->SetY($bottom + 7);
     }
 
@@ -184,7 +190,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->SetFont('Helvetica', 'B', 11);
         foreach (['Description', 'Qty', 'Unit Price', 'Total'] as $i => $label) {
             $this->SetXY($x + ($i === 0 ? 3 : 0), $y + 2);
-            $this->Cell($widths[$i] - ($i === 0 ? 3 : 0), 7, $label,
+            $this->Cell($widths[$i] - ($i === 0 ? 3 : 0), 7, $this->t($label),
                 0, 0, $i === 0 ? 'L' : ($i === 3 ? 'R' : 'C'));
             $x += $widths[$i];
         }
@@ -277,9 +283,9 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->grey();
         $this->SetFont('Helvetica', '', 10);
         $this->SetXY(self::INNER, $y + 3);
-        $this->Cell(60, 6, 'Customer Signature');
+        $this->Cell(60, 6, $this->t('Customer Signature'));
         $this->SetXY(112, $y + 3);
-        $this->Cell(60, 6, 'Date');
+        $this->Cell(60, 6, $this->t('Date'));
         $this->SetY($y + 13);
     }
 
@@ -292,7 +298,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->ink();
         $this->SetXY(self::INNER, $y + 4);
         $this->SetFont('Helvetica', 'B', 14);
-        $this->Cell(170, 7, 'Original Signed Document');
+        $this->Cell(170, 7, $this->t('Original Signed Document'));
         $entries = [
             'Original quote' => (string) ($quote->custom_quote_number ?: $quote->reference_number),
             'Signed document' => 'signed-'.$item->source_signed_artifact_id,
@@ -304,7 +310,7 @@ final class Sign2DigitalAddendumPdf extends Fpdi
             $this->ink();
             $this->SetFont('Helvetica', 'B', 9);
             $this->SetXY(self::INNER, $cursor);
-            $this->Cell(42, 6, $label);
+            $this->Cell(42, 6, $this->t($label));
             $this->grey();
             $this->SetFont('Helvetica', '', $label === 'Original SHA-256' ? 8 : 10);
             $this->SetXY(65, $cursor);
@@ -314,8 +320,9 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->SetY($y + 52);
     }
 
-    public function render(Addendum $item, ServiceQuote $quote): string
+    public function render(Addendum $item, ServiceQuote $quote,string $language='en'): string
     {
+        $this->language=\App\Support\AppLocale::normalize($language);
         $this->SetTitle(self::pdfText('Addendum '.$item->number));
         $this->SetAuthor('Sign2Digital');
         $this->SetMargins(self::LEFT, self::LEFT, self::LEFT);
@@ -326,17 +333,16 @@ final class Sign2DigitalAddendumPdf extends Fpdi
         $this->prose((string) $item->title, (string) $item->change_description);
         $this->itemTable($item);
         $currency = (string) $item->currency;
-        $this->totalRow('Subtotal', self::money((int) $item->subtotal_minor, $currency));
+        $this->totalRow($this->t('Subtotal'), self::money((int) $item->subtotal_minor, $currency));
         $this->totalRow(
-            'Tax ('.number_format($item->vat_basis_points / 100, 2). '%)',
+            $this->t('Tax').' ('.number_format($item->vat_basis_points / 100, 2). '%)',
             self::money((int) $item->vat_minor, $currency)
         );
-        $this->totalRow('Total', self::money((int) $item->total_minor, $currency), true);
+        $this->totalRow($this->t('Total'), self::money((int) $item->total_minor, $currency), true);
         $this->signatures();
         $this->sourceCard($item, $quote);
-        $this->prose('General Terms & Conditions',
-            'The original signed quote remains unchanged. This separate addendum '
-            .'is not accepted until signed by the customer.');
+        $this->prose($this->t('General Terms & Conditions'),
+            $this->t('The original signed quote remains unchanged. This separate addendum is not accepted until signed by the customer.'));
 
         return $this->Output('S');
     }

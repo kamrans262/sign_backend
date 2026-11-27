@@ -337,7 +337,7 @@ final class SiteReportService
             ->where('id',$record->company_id)->value('name')??'');
         $kind=$record->kind==='meeting_minutes'?'Meeting Minutes':'Site Report';
         $pdf=new Sign2DigitalDocumentPdf($kind,
-            (string)$record->number,$companyName);
+            (string)$record->number,$companyName,\App\Support\AppLocale::current());
         $pdf->AddPage();
         $pdf->metadata('Report Title',(string)$record->title);
         $pdf->metadata('Date',(string)$record->report_date);
@@ -374,7 +374,7 @@ final class SiteReportService
         $photos=json_decode((string)($record->photo_ids??'[]'),true)?:[];
         abort_if(count($photos)>8,422,'A report can include up to eight photos.');
         if ($photos) {
-            $pdf->section('Site Photos','Photo evidence verified for this report.');
+            $pdf->section('Site Photos',\App\Support\AppLocale::text('Photo evidence verified for this report.'));
             foreach ($photos as $index=>$photoId) {
                 $photo=DB::table('job_photos')->where('company_id',$record->company_id)
                     ->where('service_job_id',$record->service_job_id)
@@ -406,8 +406,7 @@ final class SiteReportService
                 $pdf->SetY($y+$height+5);
             }
         }
-        $pdf->footnote('Approved by an authorized Sign2Digital user. '
-            .'The original approved PDF is retained unchanged.');
+        $pdf->footnote(\App\Support\AppLocale::text('Approved by an authorized Sign2Digital user. The original approved PDF is retained unchanged.'));
         return $pdf->Output('S');
     }
 

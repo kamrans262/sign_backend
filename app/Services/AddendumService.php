@@ -131,7 +131,7 @@ final class AddendumService
 
         // Use the approved Quotation PDF presentation for NEW addenda only.
         // Existing approved/signed addenda remain byte-for-byte immutable.
-        $bytes = (new Sign2DigitalAddendumPdf())->render($item, $source->request->quote);
+        $bytes = (new Sign2DigitalAddendumPdf())->render($item, $source->request->quote,\App\Support\AppLocale::current());
         if (!is_string($bytes) || !str_starts_with($bytes, '%PDF-') ||
             !str_contains(substr($bytes, -4096), '%%EOF') ||
             strlen($bytes) > 5 * 1024 * 1024) {
