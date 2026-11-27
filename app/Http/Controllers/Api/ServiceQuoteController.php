@@ -400,7 +400,7 @@ class ServiceQuoteController extends Controller
             'Approve the quote before sharing it.');
         // Signed link expires after 7 days; no public raw ID enumeration.
         $link = URL::temporarySignedRoute('quotes.public',
-            now()->addDays(7), ['quote'=>$item->id,'v'=>$item->link_version]);
+            now()->addDays(7), ['quote'=>$item->id,'v'=>$item->link_version,'lang'=>\App\Support\AppLocale::current()]);
         if ($data['method'] === 'secure_link') {
             AuditLogger::record('mobile.quote.link_generated',$request->user(),$item,
                 $this->company($request),request:$request);
@@ -412,10 +412,12 @@ class ServiceQuoteController extends Controller
             return response()->json(['message'=>'Email delivery is not configured.'],503);
         }
         try {
-            Mail::raw("Quote ".($item->custom_quote_number ?: $item->reference_number)."\n\n".($data['message'] ?? '')."\n\n".
-                "Review your approved quote using this secure link (valid 7 days):\n".$link,
-                fn($mail)=>$mail->to($data['recipient_email'])->subject(
-                    'Sign2Digital quote '.($item->custom_quote_number ?: $item->reference_number)));
+            Mail::raw(\App\Support\AppLocale::email('quote_body',[
+                    'number'=>$item->custom_quote_number ?: $item->reference_number,
+                    'message'=>$data['message']??'','url'=>$link,
+                ]),fn($mail)=>$mail->to($data['recipient_email'])->subject(
+                    \App\Support\AppLocale::email('quote_subject',[
+                        'number'=>$item->custom_quote_number ?: $item->reference_number])));
         } catch (\Throwable $error) {
             report($error);
             return response()->json(['message'=>'Unable to send the quote email.'],502);
@@ -497,16 +499,15 @@ class ServiceQuoteController extends Controller
         }
 
         $link = URL::temporarySignedRoute('quotes.public',
-            now()->addDays(7), ['quote'=>$item->id,'v'=>$item->link_version]);
+            now()->addDays(7), ['quote'=>$item->id,'v'=>$item->link_version,'lang'=>\App\Support\AppLocale::current()]);
         $number = $item->custom_quote_number ?: $item->reference_number;
         $filename = 'Sign2Digital_Quote_'.preg_replace('/[^A-Za-z0-9_-]/','_', $number).'.pdf';
         try {
-            Mail::raw("Quote {$number}\n\n".($data['message']??'')."\n\n".
-                "The exact approved quote PDF is attached. Review the same approved ".
-                "quote using this secure seven-day link:\n".$link,
-                function ($mail) use ($data,$number,$bytes,$filename): void {
+            Mail::raw(\App\Support\AppLocale::email('quote_pdf_body',[
+                    'number'=>$number,'message'=>$data['message']??'','url'=>$link,
+                ]),function ($mail) use ($data,$number,$bytes,$filename): void {
                     $mail->to($data['recipient_email'])
-                        ->subject('Sign2Digital quote '.$number)
+                        ->subject(\App\Support\AppLocale::email('quote_subject',['number'=>$number]))
                         ->attachData($bytes,$filename,['mime'=>'application/pdf']);
                 });
         } catch (\Throwable $error) {

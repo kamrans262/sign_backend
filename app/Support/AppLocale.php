@@ -65,6 +65,55 @@ final class AppLocale
     {
         $code = self::normalize($locale ?? self::current());
         $templates = [
+            'quote_body' => [
+                'en'=>"Quote {number}\\n\\n{message}\\n\\nReview your approved quote using this secure link (valid 7 days):\\n{url}",
+                'fr'=>"Devis {number}\\n\\n{message}\\n\\nConsultez votre devis approuvé via ce lien sécurisé (valable 7 jours) :\\n{url}",
+                'de'=>"Angebot {number}\\n\\n{message}\\n\\nIhr genehmigtes Angebot finden Sie unter diesem sicheren Link (7 Tage gültig):\\n{url}",
+                'it'=>"Preventivo {number}\\n\\n{message}\\n\\nConsulta il preventivo approvato tramite questo link sicuro (valido 7 giorni):\\n{url}",
+            ],
+            'quote_pdf_body' => [
+                'en'=>"Quote {number}\\n\\n{message}\\n\\nThe exact approved quote PDF is attached. Review the same approved quote using this secure seven-day link:\\n{url}",
+                'fr'=>"Devis {number}\\n\\n{message}\\n\\nLe PDF approuvé exact est joint. Consultez le même devis par ce lien sécurisé valable sept jours :\\n{url}",
+                'de'=>"Angebot {number}\\n\\n{message}\\n\\nDas exakte genehmigte PDF ist beigefügt. Prüfen Sie das Angebot über diesen sieben Tage gültigen Link:\\n{url}",
+                'it'=>"Preventivo {number}\\n\\n{message}\\n\\nIl PDF approvato esatto è allegato. Esamina lo stesso preventivo tramite questo link sicuro valido sette giorni:\\n{url}",
+            ],
+            'quote_subject' => ['en'=>'Sign2Digital quote {number}','fr'=>'Devis Sign2Digital {number}','de'=>'Sign2Digital Angebot {number}','it'=>'Preventivo Sign2Digital {number}'],
+            'signing_request_body' => [
+                'en'=>"{message}\\n\\nSecure signing link (expires {expires}):\\n{url}",
+                'fr'=>"{message}\\n\\nLien sécurisé de signature (expire le {expires}) :\\n{url}",
+                'de'=>"{message}\\n\\nSicherer Signaturlink (läuft ab: {expires}):\\n{url}",
+                'it'=>"{message}\\n\\nLink sicuro per la firma (scade il {expires}):\\n{url}",
+            ],
+            'signing_request_default' => [
+                'en'=>'Please review and sign your approved Sign2Digital quote.',
+                'fr'=>'Veuillez examiner et signer votre devis Sign2Digital approuvé.',
+                'de'=>'Bitte prüfen und unterzeichnen Sie Ihr genehmigtes Sign2Digital-Angebot.',
+                'it'=>'Esamina e firma il tuo preventivo Sign2Digital approvato.',
+            ],
+            'signing_request_subject' => [
+                'en'=>'Sign2Digital — Signature requested','fr'=>'Sign2Digital — Signature demandée',
+                'de'=>'Sign2Digital — Unterschrift angefordert','it'=>'Sign2Digital — Firma richiesta',
+            ],
+            'signing_reminder_body' => [
+                'en'=>"Please review and sign your Sign2Digital quote.\\n\\nUpdated secure link (expires {expires}):\\n{url}",
+                'fr'=>"Veuillez examiner et signer votre devis Sign2Digital.\\n\\nNouveau lien sécurisé (expire le {expires}) :\\n{url}",
+                'de'=>"Bitte prüfen und unterschreiben Sie Ihr Sign2Digital-Angebot.\\n\\nAktualisierter sicherer Link (läuft ab: {expires}):\\n{url}",
+                'it'=>"Esamina e firma il tuo preventivo Sign2Digital.\\n\\nLink sicuro aggiornato (scade il {expires}):\\n{url}",
+            ],
+            'signing_reminder_subject' => [
+                'en'=>'Sign2Digital — Signature reminder','fr'=>'Sign2Digital — Rappel de signature',
+                'de'=>'Sign2Digital — Unterschriftserinnerung','it'=>'Sign2Digital — Promemoria firma',
+            ],
+            'signed_addendum_body' => [
+                'en'=>'Attached is your signed Sign2Digital addendum.',
+                'fr'=>'Veuillez trouver votre avenant Sign2Digital signé en pièce jointe.',
+                'de'=>'Ihr unterzeichneter Sign2Digital-Nachtrag ist beigefügt.',
+                'it'=>'In allegato trovi il tuo addendum Sign2Digital firmato.',
+            ],
+            'signed_addendum_subject' => [
+                'en'=>'Sign2Digital - Signed addendum {number}','fr'=>'Sign2Digital - Avenant signé {number}',
+                'de'=>'Sign2Digital - Unterzeichneter Nachtrag {number}','it'=>'Sign2Digital - Addendum firmato {number}',
+            ],
             'invoice_body' => [
                 'en' => "Invoice {number}\\n\\n{message}\\n\\nReview your issued invoice at this private link (expires in 7 days):\\n{url}",
                 'fr' => "Facture {number}\\n\\n{message}\\n\\nConsultez votre facture émise via ce lien privé (valable 7 jours) :\\n{url}",

@@ -205,9 +205,9 @@ final class PublicAddendumController extends Controller
         if (!in_array((string)config('mail.default'),['log','array','null'],true)) {
             try {
                 $bytes=$this->service->signedBytes($item);
-                Mail::raw('Attached is your signed Sign2Digital addendum.',
+                Mail::raw(\App\Support\AppLocale::email('signed_addendum_body',[]),
                     fn($mail)=>$mail->to($signing->signer_email)
-                        ->subject('Sign2Digital - Signed addendum '.$item->number)
+                        ->subject(\App\Support\AppLocale::email('signed_addendum_subject',['number'=>$item->number]))
                         ->attachData($bytes,'Signed_Addendum.pdf',
                             ['mime'=>'application/pdf']));
                 $delivered=true;

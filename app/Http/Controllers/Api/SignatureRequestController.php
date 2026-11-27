@@ -277,13 +277,15 @@ final class SignatureRequestController extends Controller
         if ($data['delivery'] === 'email') {
             try {
                 $message = trim((string) ($data['message'] ?? ''));
-                if ($message === '') $message = 'Please review and sign your approved Sign2Digital quote.';
+                if ($message === '') $message = \App\Support\AppLocale::email('signing_request_default',[]);
                 $attach = $data['attach_pdf'] ?? false;
                 $pdf = $attach ? $this->workflow->approvedBytes($item->quote) : null;
-                Mail::raw($message."\n\n".
-                    "Secure signing link (expires {$item->expires_at->toIso8601String()}):\n".$link,
-                    function ($mail) use ($item, $pdf): void {
-                        $mail->to($item->signer_email)->subject('Sign2Digital — Signature requested');
+                Mail::raw(\App\Support\AppLocale::email('signing_request_body',[
+                    'message'=>$message,'expires'=>$item->expires_at->toIso8601String(),
+                    'url'=>$link,
+                ]),function ($mail) use ($item, $pdf): void {
+                        $mail->to($item->signer_email)->subject(
+                            \App\Support\AppLocale::email('signing_request_subject',[]));
                         if ($pdf !== null) $mail->attachData($pdf, 'Sign2Digital_Approved_Quote.pdf',
                             ['mime'=>'application/pdf']);
                     });
@@ -363,10 +365,10 @@ final class SignatureRequestController extends Controller
         });
         try {
             $link = $this->workflow->publicUrl($token);
-            Mail::raw("Please review and sign your Sign2Digital quote.\n\n".
-                "Updated secure link (expires {$item->expires_at->toIso8601String()}):\n".$link,
-                fn ($mail) => $mail->to($item->signer_email)
-                    ->subject('Sign2Digital — Signature reminder'));
+            Mail::raw(\App\Support\AppLocale::email('signing_reminder_body',[
+                    'expires'=>$item->expires_at->toIso8601String(),'url'=>$link,
+                ]),fn ($mail) => $mail->to($item->signer_email)
+                    ->subject(\App\Support\AppLocale::email('signing_reminder_subject',[])));
         } catch (\Throwable $error) {
             report($error);
             return response()->json(['message'=>'The reminder could not be sent.'],502);
