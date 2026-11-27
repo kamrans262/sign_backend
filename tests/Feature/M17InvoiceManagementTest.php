@@ -129,6 +129,9 @@ final class M17InvoiceManagementTest extends TestCase
         $change=$this->fields($job,$key);
         $change['items'][0]['unit_price_minor']=11000;
         $this->postJson('/api/v1/invoices',$change)->assertStatus(409);
+        // CompanyDocumentNumberService allocates the canonical immutable number.
+        $change['invoice_number']=$this->getJson('/api/v1/invoices/'.$id)
+            ->assertOk()->json('data.invoice.number');
         $this->patchJson('/api/v1/invoices/'.$id,array_merge($change,[
             'request_key'=>null,'lock_version'=>1,
         ]))->assertOk()->assertJsonPath('data.invoice.total_minor',29187)
@@ -160,6 +163,8 @@ final class M17InvoiceManagementTest extends TestCase
             ->assertCreated()->assertJsonPath('data.invoice.deposit_paid_minor',0)
             ->json('data.invoice.id');
         $this->assertNotSame($id,$new);
+        $other['invoice_number']=$this->getJson('/api/v1/invoices/'.$new)
+            ->assertOk()->json('data.invoice.number');
         $this->assertDatabaseCount('service_invoice_deposit_allocations',1);
         $this->postJson('/api/v1/invoices/'.$id.'/void',[
             'confirm'=>true,'lock_version'=>1,
