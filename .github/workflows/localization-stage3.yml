@@ -1,0 +1,63 @@
+name: Sign2Digital four-language Stage 3 backend QA
+on:
+  push:
+    branches: [fix/m20-admin-ui-modal-filters-2026-11-06]
+    paths:
+      - 'app/Support/AppLocale.php'
+      - 'app/Support/MailText.php'
+      - 'app/Support/PublicPageText.php'
+      - 'app/Http/Middleware/ApplyRequestLocale.php'
+      - 'app/Http/Controllers/Api/**'
+      - 'app/Services/**'
+      - 'app/Mail/**'
+      - 'database/migrations/*de_it_notification_templates.php'
+      - 'resources/views/public/**'
+      - 'resources/views/mail/**'
+      - 'resources/views/admin/notifications/**'
+      - 'tests/Feature/Stage3*LocalizationTest.php'
+      - 'tests/Feature/Stage3LanguagePreferencesTest.php'
+      - 'bootstrap/app.php'
+      - '.github/workflows/localization-stage3.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  four-language-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      MAIL_MAILER: array
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, mbstring, gd, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Syntax and template smoke
+        run: |
+          php -l app/Support/AppLocale.php
+          php -l app/Support/PublicPageText.php
+          php -l app/Support/MailText.php
+          php -l app/Http/Middleware/ApplyRequestLocale.php
+          php -l app/Services/Sign2DigitalDocumentPdf.php
+          php -l app/Services/Sign2DigitalAddendumPdf.php
+          php -l app/Services/InvoiceDocumentService.php
+          php -l app/Services/GeneralDocumentIssueService.php
+          php -l app/Services/WorkAcceptanceService.php
+          php -l app/Services/SiteReportService.php
+          php -l database/migrations/2026_11_28_010000_add_de_it_notification_templates.php
+          php -l tests/Feature/Stage3LocalizationTest.php
+          php -l tests/Feature/Stage3LanguagePreferencesTest.php
+          php artisan view:cache
+      - name: Locales, published templates, signatures and email translations
+        run: |
+          php artisan test tests/Feature/Stage3LocalizationTest.php tests/Feature/Stage3LanguagePreferencesTest.php
